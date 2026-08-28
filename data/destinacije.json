@@ -1,0 +1,160 @@
+{
+  "izvor": "https://eurotravel.rs/destinacije",
+  "preuzeto": "2026-08-27",
+  "napomena_cene": "Cene su zabeležene sa sajta 27.08.2026. NISU u upotrebi u v1 — samo referenca. Ne prikazivati ih u aplikaciji dok se ne potvrdi da su tačne.",
+  "napomena_beograd": "Beograd nije naveden na sajtu jer je polazište, a ne destinacija. Dodat je ručno (izvor: 'rucno') jer je potreban kao odredište povratka.",
+  "drzave": [
+    {
+      "sifra": "srbija",
+      "naziv": "Srbija",
+      "aktivna": true,
+      "regije": [
+        {
+          "naziv": "Beograd",
+          "izvor": "rucno",
+          "gradovi": ["Beograd"]
+        },
+        {
+          "naziv": "Kopaonik",
+          "cena_jedan_smer": 30,
+          "cena_oba_smera": 50,
+          "gradovi": ["Kopaonik"]
+        }
+      ]
+    },
+    {
+      "sifra": "grcka",
+      "naziv": "Grčka",
+      "aktivna": true,
+      "regije": [
+        {
+          "naziv": "Solun i okolina",
+          "cena_jedan_smer": 75,
+          "cena_oba_smera": 140,
+          "gradovi": ["Solun", "Perea", "Nea Kalikratija", "Nea Mudanja"]
+        },
+        {
+          "naziv": "Sitonija",
+          "cena_jedan_smer": 80,
+          "cena_oba_smera": 150,
+          "gradovi": ["Sarti", "Neos Marmaras", "Nikiti", "Vurvuru", "Toroni", "Metamorfosis"]
+        },
+        {
+          "naziv": "Kasandra",
+          "cena_jedan_smer": 75,
+          "cena_oba_smera": 140,
+          "gradovi": ["Hanioti", "Pefkohori", "Polihrono", "Kalitea", "Afitos", "Siviri"]
+        },
+        {
+          "naziv": "Olimpijska regija",
+          "cena_jedan_smer": 80,
+          "cena_oba_smera": 150,
+          "gradovi": ["Paralija"]
+        }
+      ]
+    },
+    {
+      "sifra": "hrvatska",
+      "naziv": "Hrvatska",
+      "aktivna": true,
+      "regije": [
+        {
+          "naziv": "Zagreb",
+          "cena_jedan_smer": 60,
+          "cena_oba_smera": 110,
+          "gradovi": ["Zagreb"]
+        },
+        {
+          "naziv": "Karlovac",
+          "cena_jedan_smer": 70,
+          "cena_oba_smera": 130,
+          "gradovi": ["Karlovac"]
+        },
+        {
+          "naziv": "Rijeka i Opatija",
+          "cena_jedan_smer": 75,
+          "cena_oba_smera": 140,
+          "gradovi": ["Rijeka", "Opatija"]
+        },
+        {
+          "naziv": "Istra",
+          "cena_jedan_smer": 85,
+          "cena_oba_smera": 160,
+          "gradovi": ["Novigrad", "Umag", "Poreč", "Rovinj", "Vrsar", "Pula", "Medulin"]
+        },
+        {
+          "naziv": "Split i Zadar",
+          "cena_jedan_smer": 90,
+          "cena_oba_smera": 170,
+          "gradovi": ["Split", "Zadar"]
+        }
+      ]
+    },
+    {
+      "sifra": "makedonija",
+      "naziv": "Makedonija",
+      "aktivna": true,
+      "regije": [
+        {
+          "naziv": "Skoplje",
+          "cena_jedan_smer": 70,
+          "cena_oba_smera": 130,
+          "gradovi": ["Skoplje"]
+        },
+        {
+          "naziv": "Ohrid",
+          "cena_jedan_smer": 65,
+          "cena_oba_smera": 120,
+          "gradovi": ["Ohrid"]
+        }
+      ]
+    },
+    {
+      "sifra": "italija",
+      "naziv": "Italija",
+      "aktivna": true,
+      "regije": [
+        {
+          "naziv": "Trst",
+          "cena_jedan_smer": 85,
+          "cena_oba_smera": 160,
+          "gradovi": ["Trst"]
+        }
+      ]
+    },
+    {
+      "sifra": "slovenija",
+      "naziv": "Slovenija",
+      "aktivna": false,
+      "napomena": "Sajt navodi: 'Ova destinacija trenutno nije dostupna u našoj ponudi.'",
+      "regije": [
+        {
+          "naziv": "Slovenija",
+          "cena_jedan_smer": 70,
+          "cena_oba_smera": 130,
+          "gradovi": ["Ljubljana", "Maribor", "Celje", "Ptuj", "Novo Mesto", "Brežice", "Bled"]
+        }
+      ]
+    },
+    {
+      "sifra": "bih",
+      "naziv": "Bosna i Hercegovina",
+      "aktivna": false,
+      "napomena": "Sajt navodi: 'Ova destinacija trenutno nije dostupna u našoj ponudi.'",
+      "regije": [
+        {
+          "naziv": "Sarajevo",
+          "cena_jedan_smer": 35,
+          "cena_oba_smera": 65,
+          "gradovi": ["Sarajevo"]
+        },
+        {
+          "naziv": "Jahorina",
+          "cena_jedan_smer": 40,
+          "cena_oba_smera": 75,
+          "gradovi": ["Jahorina"]
+        }
+      ]
+    }
+  ]
+}

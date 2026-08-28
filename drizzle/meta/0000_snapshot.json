@@ -1,0 +1,356 @@
+{
+  "id": "66846e6a-1bb0-4372-a823-2ea66591ee0b",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.destinacije": {
+      "name": "destinacije",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "drzava": {
+          "name": "drzava",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "drzava_sifra": {
+          "name": "drzava_sifra",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "regija": {
+          "name": "regija",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grad": {
+          "name": "grad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aktivna": {
+          "name": "aktivna",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "redosled": {
+          "name": "redosled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "destinacije_drzava_sifra_idx": {
+          "name": "destinacije_drzava_sifra_idx",
+          "columns": [
+            {
+              "expression": "drzava_sifra",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "destinacije_aktivna_idx": {
+          "name": "destinacije_aktivna_idx",
+          "columns": [
+            {
+              "expression": "aktivna",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "destinacije_kljuc": {
+          "name": "destinacije_kljuc",
+          "nullsNotDistinct": false,
+          "columns": [
+            "drzava_sifra",
+            "regija",
+            "grad"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.profiles": {
+      "name": "profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ime": {
+          "name": "ime",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "boja": {
+          "name": "boja",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "profiles_email_unique": {
+          "name": "profiles_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reservations": {
+      "name": "reservations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "ime": {
+          "name": "ime",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefon": {
+          "name": "telefon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destinacija_id": {
+          "name": "destinacija_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datum_polaska": {
+          "name": "datum_polaska",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destinacija_povratka_id": {
+          "name": "destinacija_povratka_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datum_povratka": {
+          "name": "datum_povratka",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "broj_putnika": {
+          "name": "broj_putnika",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kreirao": {
+          "name": "kreirao",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reservations_datum_polaska_idx": {
+          "name": "reservations_datum_polaska_idx",
+          "columns": [
+            {
+              "expression": "datum_polaska",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "reservations_datum_povratka_idx": {
+          "name": "reservations_datum_povratka_idx",
+          "columns": [
+            {
+              "expression": "datum_povratka",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reservations_destinacija_id_destinacije_id_fk": {
+          "name": "reservations_destinacija_id_destinacije_id_fk",
+          "tableFrom": "reservations",
+          "tableTo": "destinacije",
+          "columnsFrom": [
+            "destinacija_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "reservations_destinacija_povratka_id_destinacije_id_fk": {
+          "name": "reservations_destinacija_povratka_id_destinacije_id_fk",
+          "tableFrom": "reservations",
+          "tableTo": "destinacije",
+          "columnsFrom": [
+            "destinacija_povratka_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "reservations_kreirao_profiles_id_fk": {
+          "name": "reservations_kreirao_profiles_id_fk",
+          "tableFrom": "reservations",
+          "tableTo": "profiles",
+          "columnsFrom": [
+            "kreirao"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reservations_broj_putnika_pozitivan": {
+          "name": "reservations_broj_putnika_pozitivan",
+          "value": "\"reservations\".\"broj_putnika\" > 0"
+        },
+        "reservations_povratak_posle_polaska": {
+          "name": "reservations_povratak_posle_polaska",
+          "value": "\"reservations\".\"datum_povratka\" is null or \"reservations\".\"datum_povratka\" >= \"reservations\".\"datum_polaska\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.settings": {
+      "name": "settings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "podrazumevana_destinacija_id": {
+          "name": "podrazumevana_destinacija_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "settings_podrazumevana_destinacija_id_destinacije_id_fk": {
+          "name": "settings_podrazumevana_destinacija_id_destinacije_id_fk",
+          "tableFrom": "settings",
+          "tableTo": "destinacije",
+          "columnsFrom": [
+            "podrazumevana_destinacija_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "settings_jedan_red": {
+          "name": "settings_jedan_red",
+          "value": "\"settings\".\"id\" = 1"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
