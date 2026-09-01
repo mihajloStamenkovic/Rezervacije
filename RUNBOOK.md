@@ -13,9 +13,12 @@ A GitHub Action, [`.github/workflows/rezerva.yml`](./.github/workflows/rezerva.y
 runs **every night at 01:30 UTC** — 02:30 in Belgrade in winter, 03:30 in
 summer. Each run does four things:
 
-1. **Installs `pg_dump` 17.** The Supabase server is Postgres 17.6 and
-   `pg_dump` refuses to dump from a server newer than itself. GitHub's runner
-   ships client 16, so the correct one is installed on every run.
+1. **Installs `pg_dump` 17 and calls it by absolute path.** The Supabase server
+   is Postgres 17.6 and `pg_dump` refuses to dump from a server newer than
+   itself. GitHub's runner ships client 16, so 17 is installed on every run —
+   and then invoked as `/usr/lib/postgresql/17/bin/pg_dump`, because plain
+   `pg_dump` is a wrapper that keeps resolving to the pre-installed 16. The
+   step asserts it really got 17 before any dump is attempted.
 2. **Dumps the `public` schema** over the session pooler (port 5432) — all
    four tables, their data, the RLS policies and the `je_clan()` function.
    The `auth` schema is **not** dumped: it is Supabase's own and holds
@@ -173,7 +176,17 @@ filter for as long as anything references it.
 1. **Is the Supabase project paused?** Dashboard will say so. Unpause it, then
    check why the nightly job stopped running — that is what should have
    prevented it.
-2. **Is the nightly backup red?** Actions tab. A red run for several days
-   usually means `DIRECT_URL` was rotated and the secret is stale.
+2. **Is the nightly backup red?** Actions tab. Open the failed step; it prints
+   `--- pg_dump ---`, `--- csv ---` and `--- provera ---` markers so the log
+   says which stage broke.
+   - `DIRECT_URL` rotated → the secret is stale. Update it in
+     **Settings → Secrets and variables → Actions**.
+   - `server version mismatch`, or `Ocekivan pg_dump 17, dobijen …` →
+     **Supabase upgraded Postgres.** Change `postgresql-client-17`, the
+     `PGBIN=/usr/lib/postgresql/17/bin` line and the `"17"` check in
+     `.github/workflows/rezerva.yml` to the new major version. Three numbers,
+     one file.
+   - `Rezerva izgleda prazna ili nepotpuna` → the dump came back short and was
+     deliberately **not** saved. The previous night's backup is still intact.
 3. **Login redirect loop?** Almost always a missing `profiles` row for an
    account that exists in `auth.users`. See §3.

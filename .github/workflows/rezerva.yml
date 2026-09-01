@@ -55,7 +55,30 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
-          echo "::notice::$(pg_dump --version)"
+
+          # Installing 17 is not enough. `/usr/bin/pg_dump` is
+          # postgresql-common's `pg_wrapper`, which picks a version of its own
+          # accord and on this runner kept choosing the pre-installed 16 — which
+          # then aborts with "server version mismatch" against a 17.6 server.
+          # Address the real binary instead of the wrapper, and hand its
+          # directory to the next step so nothing can pick up the wrong one.
+          PGBIN=/usr/lib/postgresql/17/bin
+          if [ ! -x "$PGBIN/pg_dump" ]; then
+            echo "::error::$PGBIN/pg_dump ne postoji — instalacija klijenta 17 nije uspela."
+            ls -la /usr/lib/postgresql/ || true
+            exit 1
+          fi
+          echo "PGBIN=$PGBIN" >> "$GITHUB_ENV"
+
+          # Refuse to continue on anything but 17, rather than discovering it
+          # halfway through a dump.
+          VERZIJA=$("$PGBIN/pg_dump" --version | grep -oE "[0-9]+" | head -1)
+          echo "wrapper: $(pg_dump --version)"
+          echo "stvarni: $("$PGBIN/pg_dump" --version)"
+          if [ "$VERZIJA" != "17" ]; then
+            echo "::error::Ocekivan pg_dump 17, dobijen $VERZIJA."
+            exit 1
+          fi
 
       - name: Napravi rezervu
         env:
@@ -85,7 +108,7 @@ jobs:
           # No --clean and no --if-exists: a dump that cannot DROP anything
           # cannot destroy a live database if it is ever run at the wrong one
           # by mistake. Restores go into an empty database (see RUNBOOK.md).
-          pg_dump "$DIRECT_URL" \
+          "$PGBIN/pg_dump" "$DIRECT_URL" \
             --schema=public \
             --no-owner --no-privileges \
             --quote-all-identifiers \
@@ -95,7 +118,7 @@ jobs:
           # A copy a human can read without any tooling. GitHub renders CSV as
           # a table in the browser, so the owner can open the booking book on
           # a phone even if everything else is on fire.
-          psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -q -c "\\copy ( \
+          "$PGBIN/psql" "$DIRECT_URL" -v ON_ERROR_STOP=1 -q -c "\\copy ( \
               SELECT r.ime, r.telefon, r.broj_putnika, \
                      r.datum_polaska, o.drzava AS odlaziste_drzava, o.grad AS odlaziste, \
                      r.datum_povratka, p.drzava AS povratiste_drzava, p.grad AS povratiste, \
