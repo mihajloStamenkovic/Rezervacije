@@ -18,7 +18,7 @@ operations.
 | 5 · Screens | done |
 | 6 · Installable and offline | **next** |
 | 7 · Verification gate | not started |
-| 8 · Deploy | backups + RUNBOOK done; Vercel, CI and Sentry remain |
+| 8 · Deploy | backups **green and restore-verified**; Vercel, CI and Sentry remain |
 | 9 · Handover | not started |
 
 **There is one database and it is the real one.** Development and production are
@@ -983,9 +983,50 @@ are applied and the data is seeded. What remains is everything around it.
 
 **Done when**
 - Production URL loads and login works
-- The nightly backup job has run at least once and produced a real dump
-- A restore has been performed into a scratch database and **verified** — not just
-  enabled
+- ~~The nightly backup job has run at least once and produced a real dump~~ ✅
+- ~~A restore has been performed into a scratch database and **verified** — not
+  just enabled~~ ✅
+
+### Backups ✅ — 01.09.2026
+
+`.github/workflows/rezerva.yml`, nightly at 01:30 UTC. First green run produced
+commit `2f03368` on the orphan branch `rezerve`:
+
+```
+     836 B  csv/2026-09-01-rezervacije.csv
+     836 B  csv/rezervacije-najnovije.csv
+    4937 B  dump/2026/2026-09-01.sql.gz
+```
+
+`git merge-base origin/main origin/rezerve` finds nothing — genuinely orphan,
+so a clone of the code never drags backups along.
+
+**The committed artifact was restored, not just the local one.** The `.sql.gz`
+was pulled back out of the branch, rewritten into a scratch schema and replayed
+inside a transaction that was rolled back:
+
+| | |
+|---|---|
+| destinacije | **67** |
+| profiles | **2** |
+| reservations | **8** |
+| settings | **1** |
+
+Sample rows came back readable (`Porodica Jovanović · 2026-08-23 · Siviri`).
+Afterwards: `reservations=8` unchanged and no scratch schema left behind. The
+67 confirms it is genuinely today's data, not a stale capture — it was 44
+before the Serbian pickup towns landed the same day.
+
+The dump carries 4 tables, 9 policies, 4 data blocks and **zero** rows from
+`auth`, so a backup cannot leak a password hash.
+
+Two bugs were fixed before it went green, both mine:
+1. The job began with `actions/checkout` on the `rezerve` branch — which does
+   not exist on a first run. Removed entirely; the job never needed the source.
+2. `postgresql-client-17` installed fine, but `/usr/bin/pg_dump` is
+   postgresql-common's wrapper and kept resolving to the runner's pre-installed
+   16, aborting on `server version mismatch` against a 17.6 server. Now called
+   by absolute path, with the major version asserted before any dump runs.
 
 > Backups are the only safety net in this app: deletion is permanent, there is no
 > status column and no undo, and dev and production are the same database. On
@@ -1046,10 +1087,10 @@ are applied and the data is seeded. What remains is everything around it.
 - [x] ~~Nightly backup~~ — `.github/workflows/rezerva.yml`, built 01.09.2026.
       Dumps `public` only (never `auth`), writes a readable CSV, commits to the
       orphan branch `rezerve`, refuses to save an empty dump, and doubles as
-      the keep-alive. Restore **verified** into a scratch schema in a
-      rolled-back transaction: 44 destinacije, 2 profila, 8 rezervacija,
-      1 settings. Procedure in `RUNBOOK.md`. **Needs the `DIRECT_URL` secret
-      set in GitHub before the first run.**
+      the keep-alive. **Green and proven in production 01.09.2026** — commit
+      `2f03368` on branch `rezerve`, and that committed dump was restored into
+      a scratch schema in a rolled-back transaction: 67 destinacije, 2 profila,
+      8 rezervacija, 1 settings. Procedure in `RUNBOOK.md`.
 - [x] ~~Serbian pickup towns~~ — the 23 largest added to
       `data/destinacije.json` on 01.09.2026, each its own single-city region,
       Beograd still first and still the default. 67 destinations total.
