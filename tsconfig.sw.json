@@ -1,0 +1,18 @@
+{
+  // The service worker is a different global environment: `self` is a
+  // ServiceWorkerGlobalScope, there is no `document` and no `window`. Its
+  // `lib` therefore cannot be the app's, because `webworker` and `dom`
+  // redeclare hundreds of the same names and TypeScript refuses to merge
+  // them. Hence a second project, typechecked alongside the first by
+  // `npm run typecheck`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext", "webworker"],
+    "types": [],
+    "incremental": false,
+    "plugins": []
+  },
+  "include": ["src/sw/**/*.ts"],
+  // The base config excludes `src/sw`; this project is the one that wants it.
+  "exclude": ["node_modules"]
+}

@@ -25,10 +25,16 @@ export const config = {
     /*
      * Run on every route except:
      * - _next/static, _next/image (Next's own build/image assets)
-     * - favicon.ico, manifest and icon files, and the service worker
-     *   (added in Phase 6 — excluded pre-emptively so it is never blocked
-     *   from installing on a logged-out visit to the bare domain)
+     * - favicon.ico, the manifest, the icons and the service worker, so a
+     *   browser deciding whether the app is installable is handed the files
+     *   rather than a 307 to /prijava on a logged-out visit to the bare
+     *   domain. Without this the install prompt never appears at all.
+     *
+     * The icons live under `/ikone/`, not `/icons/`. This list was written in
+     * Phase 4 against a guess at the directory name, and the guess was
+     * English; Phase 6 built the directory in Serbian like everything else,
+     * and the mismatch cost every icon a redirect until it was caught.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|icons/).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|ikone/).*)",
   ],
 };

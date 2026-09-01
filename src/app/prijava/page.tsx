@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { CiscenjeKesa } from "@/components/ciscenje-kesa";
 import { supabaseServer } from "@/lib/supabase/server";
 import { T } from "@/lib/tekst";
 import { PrijavaForma } from "./prijava-forma";
@@ -19,6 +20,9 @@ export default async function PrijavaPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
+      {/* Reaching this screen means signed out or not signed in yet — either
+          way, no cached booking should survive it. */}
+      <CiscenjeKesa />
       <div className="w-full max-w-sm">
         <h1 className="mb-6 text-center text-xl font-semibold">
           {T.prijava.naslov}

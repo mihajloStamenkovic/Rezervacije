@@ -9,6 +9,8 @@
 export const T = {
   app: {
     naziv: "Kombi Rezervacije",
+    /** What fits under a home screen icon. iOS truncates past ~12 characters. */
+    kratakNaziv: "Rezervacije",
     opis: "Zajednička knjiga rezervacija za kombi prevoz.",
   },
 
@@ -143,7 +145,25 @@ export const T = {
 
   mreza: {
     offline: "Nema veze sa internetom",
+    /** The bar says what is on screen, not only what is missing. */
+    offlineOpis: "Prikazani su poslednji poznati podaci.",
     offlineCuvanje: "Za čuvanje je potrebna internet veza.",
+    offlineBrisanje: "Za brisanje je potrebna internet veza.",
+  },
+
+  instalacija: {
+    naslov: "Dodaj na početni ekran",
+    opis: "Otvara se kao aplikacija, preko celog ekrana, bez adresne trake.",
+    dugme: "Dodaj",
+    /*
+     * iOS has no install prompt and no API to trigger one, so on iPhone the
+     * only thing that can be offered is the instruction. It names the icon by
+     * shape rather than by label, because Safari's own wording depends on the
+     * phone's language and this phone may well be in English.
+     */
+    uputstvoIos:
+      "U Safariju dodirni dugme za deljenje (kvadrat sa strelicom naviše), pa „Add to Home Screen“.",
+    odbaci: "Ne sada",
   },
 
   greske: {

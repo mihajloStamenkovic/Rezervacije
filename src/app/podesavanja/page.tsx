@@ -10,6 +10,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { odjaviSe } from "@/app/actions/nalog";
 import { FormaPodesavanja } from "@/components/forma-podesavanja";
+import { PozivInstalacije } from "@/components/poziv-instalacije";
 import { Button } from "@/components/ui/button";
 import { podesavanja, sveDestinacije } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
@@ -39,6 +40,9 @@ export default async function Podesavanja() {
           katalog={katalogZaFormu(sve)}
           pocetna={postavke?.podrazumevanaDestinacijaId ?? null}
         />
+
+        {/* Renders nothing once the app is installed, or once dismissed. */}
+        <PozivInstalacije />
 
         <form action={odjaviSe} className="mt-auto">
           <Button

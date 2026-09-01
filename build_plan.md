@@ -16,8 +16,8 @@ operations.
 | 3 · Domain core | done |
 | 4 · Auth and RLS | done |
 | 5 · Screens | done |
-| 6 · Installable and offline | **next** |
-| 7 · Verification gate | not started |
+| 6 · Installable and offline | done — one gate deferred to Phase 9 |
+| 7 · Verification gate | **next** |
 | 8 · Deploy | backups **green and restore-verified**; Vercel, CI and Sentry remain |
 | 9 · Handover | not started |
 
@@ -44,6 +44,17 @@ the publishable key with no session returns `[]` from all four tables.
 any route, no touch target under 44px, no input under 16px, and the cascade,
 the ⇅ swap, the filter rollup, Dan mode and the delete guard all driven
 individually. Nothing was written — counts before and after were identical.
+
+**Phase 6 is done.** The service worker is built as its own esbuild step
+(`npm run build:sw`) because `@serwist/next`'s plugin is webpack-only and this
+project builds with Turbopack. The list was watched rendering with the server
+process killed, and a `POST` against a dead origin was watched failing instead of
+queueing. Chrome fired `beforeinstallprompt`, which is Chrome vouching for the
+manifest and icons. Two Phase 5 defects surfaced on the way and were fixed:
+`--font-sans` in `globals.css` referred to itself, so the whole app had been
+rendering in Times New Roman, and the `dark` variant was keyed to a class
+nothing ever set, so dark mode was unreachable code. Both are written up at the
+end of Phase 6.
 
 **`profiles` is the access list — 01.09.2026.** Signups were switched off in the
 dashboard, and migration `0003` made membership the rule in the database rather
@@ -924,22 +935,205 @@ multi-day gap. Both are Phase 9, on the owner's phone.
 
 ---
 
-## Phase 6 — Installable and offline
+## Phase 6 — Installable and offline ✅
 
-**Agent:** `ui`
+**Agent:** none — built in the main session. **Completed 01.09.2026.**
 
 **Deliverables**
-- Serwist service worker with per-route caching strategy, wired into
-  `next.config.ts` — there is currently no Serwist configuration at all
-- Manifest, icons (192, 512, **512 maskable**), `apple-touch-icon` 180. `public/`
-  is empty; all of it needs creating
+- Serwist service worker with per-route caching strategy
+- Manifest, icons (192, 512, **512 maskable**), `apple-touch-icon` 180
 - Offline indicator bar; save disabled with a clear reason when offline
 - iOS Add-to-Home-Screen hint; Android `beforeinstallprompt` button
 
 **Done when**
-- App shell and list render with the network disabled
-- **Mutations are never cached or queued** — they fail loudly
-- Session survives the transition into iOS standalone mode (verified, not assumed)
+- ~~App shell and list render with the network disabled~~ ✅
+- ~~**Mutations are never cached or queued** — they fail loudly~~ ✅
+- Session survives the transition into iOS standalone mode — **still open**, see
+  below. It cannot be closed from a desktop browser and moves to Phase 9.
+
+### The one decision that shaped this phase
+
+**`@serwist/next`'s default export is a webpack plugin, and this project builds
+with Turbopack.** Under Turbopack it prints a warning and silently emits no
+service worker at all — which is the worst possible failure, because everything
+else looks like it worked. Serwist's supported answer is *configurator mode*:
+
+| File | What it is |
+|---|---|
+| `src/sw/sw.ts` | the worker's source — routes, strategies, the policy |
+| `serwist.config.mjs` | build options, via `serwist.withNextConfig` |
+| `tsconfig.sw.json` | a second TS project, because `webworker` and `dom` cannot share a `lib` |
+| `npm run build:sw` | `serwist build`, an esbuild step chained after `next build` |
+
+That needed one new devDependency, **`@serwist/cli`** — already a declared peer
+of `@serwist/next`. `public/sw.js` is generated output: git-ignored,
+eslint-ignored, and never edited by hand.
+
+The alternative was `next build --webpack`, which keeps the dependency list
+shorter and gives up Turbopack on every build. Not worth it.
+
+### The caching policy, and why it is shaped this way
+
+**Reads may fall back to the last known copy. Writes never do.**
+
+Serwist keys its route table by HTTP method, and every rule in `sw.ts` defaults
+to `GET`. A `POST` therefore matches nothing, the worker calls neither a handler
+nor `respondWith`, and the request goes to the network as though no service
+worker existed. Offline it fails immediately and visibly. **There is no
+background sync and there must not be one** — a booking that replays two hours
+later is a duplicate the owner never learns about.
+
+Rules in order, first match wins:
+
+| Match | Strategy | Why |
+|---|---|---|
+| cross-origin (only Supabase) | `NetworkOnly` | a cached auth response is a stale session, or somebody else's |
+| `/prijava` | `NetworkOnly` | a login form served from disk cannot be trusted to be the current one |
+| `/_next/static/*` | `CacheFirst` | content-hashed, so a hit can never be stale |
+| `/ikone/*`, manifest, favicon | `StaleWhileRevalidate` | change roughly never |
+| RSC prefetch | `NetworkFirst` 3s → `rsc-najava` | a prefetch is a partial tree; it must never answer a real navigation |
+| RSC | `NetworkFirst` 3s → `rsc` | |
+| `mode === "navigate"` | `NetworkFirst` 3s → `stranice` | **the rule that makes an offline reload show the schedule** |
+| anything else same-origin | `NetworkOnly` | an honest failure beats a guess |
+
+Three seconds, because the failure mode in a parked van on foreign roaming is
+not "no signal" but "a signal that takes twenty seconds to admit it is not
+working". Yesterday's list answers most questions.
+
+### Two things added beyond the plan, and the reasons
+
+**1. `src/components/ciscenje-kesa.tsx` — the login screen empties the caches.**
+
+Without it, signing out leaves the previous session's pages in Cache Storage,
+and the next person to open the app on that phone with no signal is handed the
+last schedule by the worker before the redirect to `/prijava` ever reaches the
+network. The cookie is gone and RLS is untouched, but the names and phone
+numbers are still on the device, which is the part that matters. It hangs off
+the *screen* rather than the logout button, so a session that expires on its own
+clears just as thoroughly as one ended on purpose. `gradnja` and `sredstva`
+survive — content-hashed JS and icons, nothing personal in either, and
+re-downloading them over a connection that has just proven unreliable would be a
+second punishment.
+
+**2. `reloadOnOnline` is off.** `SerwistProvider` defaults it to `true`, meaning
+`location.reload()` the moment the signal returns. For a man half way through
+typing a booking he has just been given over the phone, that throws the form
+away at the worst possible moment.
+
+### Next 16 ships `experimental.useOffline`. It is deliberately not enabled.
+
+It would give a better connectivity signal than `navigator.onLine` — it watches
+real request failures rather than only the network interface, so it is right
+about a hotel WiFi with no upstream. It also makes Next **queue failed Server
+Actions and silently retry them when the connection returns**, which is exactly
+the behaviour SPEC forbids and the whole reason the worker refuses to touch
+`POST`. A weaker signal with honest failures is the right side of that trade.
+The reasoning is recorded in `src/lib/mreza.ts` so nobody turns it on by
+accident.
+
+### One real bug this phase caught
+
+**`src/proxy.ts` excluded `icons/`; the directory is `ikone/`.** The exclusion
+list was written pre-emptively in Phase 4 against a guess at the directory name,
+and the guess was English while Phase 6 built the directory in Serbian like
+everything else. Every icon returned **307 → `/prijava`**, so a browser deciding
+whether the app was installable was handed a redirect instead of a PNG and the
+install prompt would never have appeared. Fixed and verified: all four icons now
+return `200 image/png` on a logged-out request.
+
+### Evidence
+
+Run against a real `next start`, in Chrome, signed in, against the real database.
+
+- `npm run typecheck` exit 0 (both TS projects) · `npm run lint` exit 0 ·
+  `npm run test` **234 passed, 14 files** · `npm run test:tz` **234 tests
+  identical across all five timezones**.
+- `npm run build` succeeds; `build:sw` reports **37 URLs precached, 1.03 MB**.
+- **Logged out, on the bare domain:** `/sw.js`, `/manifest.webmanifest` and all
+  four icons return `200`; `/`, `/nova` and `/podesavanja` still `307 → /prijava`.
+  `sw.js` carries `Cache-Control: no-cache, no-store, must-revalidate`.
+- **The worker installs and activates**, scope `/`, 37 precache entries. After
+  one visit the caches hold `stranice: /`, `sredstva: /manifest.webmanifest` and
+  11 RSC prefetches.
+- **The list renders with the server process killed.** Not DevTools throttling —
+  `next start` was stopped and the port confirmed free, then a full reload:
+  heading *Raspored*, 5 cards, day headings *petak, 04.09.* … *nedelja, 13.09.*,
+  direction chips and creator badges all present, served by
+  `navigator.serviceWorker.controller`.
+- **Mutations fail loudly.** With the origin dead,
+  `fetch('/nova', {method:'POST'})` rejected with `TypeError: Failed to fetch`,
+  and `registration.sync.getTags()` returned `[]`. (`BackgroundSyncQueue` *code*
+  survives esbuild's tree-shaking into the bundle. It is never constructed, and
+  those two runtime checks are what prove it.)
+- **The offline bar** renders above the sticky header and pushes it down 36px
+  rather than covering it: *"Nema veze sa internetom — Prikazani su poslednji
+  poznati podaci."*
+- **Save disabled offline.** On `/nova`, *Sačuvaj* goes from enabled to disabled
+  the moment the connection drops, with *"Za čuvanje je potrebna internet veza."*
+  beneath it. *Odustani* stays live.
+- **Delete disabled offline**, and the confirm dialog swaps its own text while
+  open: *"Brisanje je trajno…"* → *"Za brisanje je potrebna internet veza."*
+- **Chrome fired `beforeinstallprompt`** — Chrome certifying the manifest, the
+  icons and the worker as installable. The card appeared on Podešavanja with
+  *Ne sada* / *Dodaj*; *Ne sada* hides it and the choice persists. **The install
+  itself was not clicked** — that installs the app on the machine and is the
+  owner's call.
+- **The purge works**: running what `CiscenjeKesa` runs removed 4 pages and 15
+  RSC entries and left the 37-entry precache and the icon cache untouched.
+  `CiscenjeKesa` is present in the logged-out `/prijava` payload.
+- **375px:** with the document flow constrained to 375, no horizontal overflow
+  anywhere; the bar wraps to 56px, the install card fits at 341px and both of its
+  buttons are 44px tall.
+
+### Three things that are NOT verified, and cannot be from here
+
+1. **The 375px gate was measured, not viewed.** The Chrome window was maximized
+   and refused programmatic resize, so the numbers above come from constraining
+   the document width. Fixed-position elements are viewport-relative and were
+   therefore *not* re-tested at 375 — they are unchanged from Phase 5, which did
+   close that gate by hand.
+2. **A cold login through the service worker.** The test browser already held a
+   session. `/prijava` is `NetworkOnly` and the login POST is never intercepted,
+   so there is no mechanism for the worker to break it — but it has not been
+   watched happening.
+3. **Session survival into iOS standalone mode.** A different storage context and
+   the classic PWA auth bug. It needs the owner's iPhone, alongside the `tel:`
+   check already waiting there. **Phase 9.**
+
+### Two Phase 5 defects found while testing, and fixed
+
+Neither was caused by this phase. Both were found because Phase 6 put the app on
+a screen in a state Phase 5 never looked at, and both are in `globals.css`.
+
+**1. The app had been rendering in Times New Roman.** The theme mapped
+`--font-sans: var(--font-sans)` — a self-reference, so it resolved to nothing
+and `html { @apply font-sans }` fell through to the browser default. The layout
+defines `--font-geist-sans` correctly and it was simply never read; Geist was
+downloaded on every page load and thrown away. Now
+`--font-sans: var(--font-geist-sans)`, and `getComputedStyle` reports
+`Geist, "Geist Fallback"`.
+
+**2. Dark mode was unreachable code.** `@custom-variant dark (&:is(.dark *))`
+made every `dark:` utility depend on a `dark` class, and nothing in the app has
+ever set one — no toggle, no script, no server-rendered attribute. So the whole
+`.dark` palette and the `dark:` variants on the direction chips were dead. The
+variant is now `@media (prefers-color-scheme: dark)`, which is what the `ui`
+brief asked for, and the palette moved from `.dark { … }` to
+`@media (prefers-color-scheme: dark) { :root { … } }`.
+
+Two consequences worth recording:
+
+- **`color-scheme: light dark` was added to `:root`.** Without it the native
+  `<select>` and `<input type="date">` on Nova stay white — the browser paints
+  those itself and ignores our tokens. They are now dark, verified on screen.
+- **`themeColor` in `layout.tsx` is a light/dark pair** (`#ffffff` / `#242424`),
+  matched to the two `:root` palettes, so the status bar above an installed app
+  matches the header under it. The manifest's `theme_color` stays a single light
+  value because the manifest format has no media queries.
+
+The light palette is unchanged and still unconditional: a light phone gets
+exactly what it got before. Verified through the CSSOM — `--background` is `#fff`
+on a bare `:root` and `#0a0a0a` only inside the one dark media rule.
 
 ---
 
@@ -1043,8 +1237,14 @@ Two bugs were fixed before it went green, both mine:
 
 - Create the two real accounts in the Supabase dashboard and wire their profiles
 - Install to the owner's phone: iPhone is Share → *Add to Home Screen* (no
-  install prompt exists on iOS — walk him through it once); Android Chrome offers
-  a real install button
+  install prompt exists on iOS — Podešavanja shows the instruction); Android
+  Chrome offers a real install button on the same screen
+- **Then sign in again inside the installed app.** Standalone mode is a separate
+  storage context and this is the classic PWA auth bug — Phase 6 could not close
+  this gate from a desktop browser. Confirm the session survives, then close the
+  app, wait a day, and confirm it is still signed in
+- With the app installed and the phone in airplane mode, confirm the schedule
+  still opens and that *Sačuvaj* is greyed out with a reason rather than spinning
 - Enter one real reservation together and confirm both accounts see it
 - Confirm *Pozovi* dials correctly **from a foreign network** if possible
 - Set the default home town in Podešavanja

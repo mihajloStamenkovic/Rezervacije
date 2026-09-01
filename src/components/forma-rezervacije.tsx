@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { sacuvajRezervaciju } from "@/app/actions/rezervacije";
 import type { Destinacija } from "@/domen/tipovi";
+import { useNaMrezi } from "@/lib/mreza";
 import { T } from "@/lib/tekst";
 import type { GreskePolja, StanjeForme } from "@/lib/validacija";
 
@@ -71,6 +72,16 @@ export function FormaRezervacije({
     sacuvajRezervaciju.bind(null, id),
     undefined,
   );
+
+  /*
+   * Saving needs the network and there is no queue behind it — deliberately,
+   * SPEC and the service worker both: a booking that replays hours later is a
+   * duplicate the owner never finds out about. So the button says so *before*
+   * the tap rather than failing after it. This is the explanation, not the
+   * guard; the guard is the Server Action, which simply cannot reach the
+   * server and fails.
+   */
+  const naMrezi = useNaMrezi();
 
   const [ime, postaviIme] = useState(pocetna.ime);
   const [telefon, postaviTelefon] = useState(pocetna.telefon);
@@ -292,12 +303,22 @@ export function FormaRezervacije({
         </p>
       ) : null}
 
+      {naMrezi ? null : (
+        <p role="status" className="text-sm text-muted-foreground">
+          {T.mreza.offlineCuvanje}
+        </p>
+      )}
+
       {/* Primary action in the bottom third, clear of the home indicator. */}
       <div className="sticky bottom-0 -mx-4 flex gap-3 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
         <Button asChild variant="outline" className="h-12 flex-1 text-base">
           <Link href={nazad}>{T.forma.odustani}</Link>
         </Button>
-        <Button type="submit" disabled={uToku} className="h-12 flex-1 text-base">
+        <Button
+          type="submit"
+          disabled={uToku || !naMrezi}
+          className="h-12 flex-1 text-base"
+        >
           {uToku ? T.forma.cuvanje : T.forma.sacuvaj}
         </Button>
       </div>

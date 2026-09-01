@@ -27,6 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useNaMrezi } from "@/lib/mreza";
 import { T } from "@/lib/tekst";
 
 export function DugmeBrisanja({
@@ -37,6 +38,14 @@ export function DugmeBrisanja({
   nazad: string;
 }) {
   const [otvoren, postaviOtvoren] = useState(false);
+
+  /*
+   * Same rule as the save button, and it matters more here. Deletion is
+   * permanent and there is no undo; an offline tap that looks like it worked
+   * and did not is the one outcome worse than an obvious failure, because the
+   * owner walks away believing the booking is gone.
+   */
+  const naMrezi = useNaMrezi();
 
   return (
     <Dialog open={otvoren} onOpenChange={postaviOtvoren}>
@@ -50,7 +59,9 @@ export function DugmeBrisanja({
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{T.brisanje.naslov}</DialogTitle>
-          <DialogDescription>{T.brisanje.poruka}</DialogDescription>
+          <DialogDescription>
+            {naMrezi ? T.brisanje.poruka : T.mreza.offlineBrisanje}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-row gap-3">
           <DialogClose asChild>
@@ -63,6 +74,7 @@ export function DugmeBrisanja({
             <Button
               type="submit"
               variant="destructive"
+              disabled={!naMrezi}
               className="h-12 w-full text-base"
             >
               {T.brisanje.potvrdi}

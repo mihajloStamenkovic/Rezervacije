@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npm run build:sw",
+    "build:sw": "serwist build serwist.config.mjs",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit && tsc --noEmit -p tsconfig.sw.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
@@ -17,7 +18,8 @@
     "db:seed:destinacije": "tsx src/db/seed-destinacije.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "tsx src/db/reset.ts && npm run db:migrate && npm run db:seed:destinacije && npm run db:seed",
-    "test:tz": "node scripts/test-tz.mjs"
+    "test:tz": "node scripts/test-tz.mjs",
+    "ikone": "node scripts/napravi-ikone.mjs"
   },
   "dependencies": {
     "@serwist/next": "9.5.12",
@@ -41,6 +43,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@serwist/cli": "^9.5.12",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
