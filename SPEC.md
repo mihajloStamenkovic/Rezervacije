@@ -163,9 +163,8 @@ Source: `https://eurotravel.rs/destinacije`, captured 27.08.2026 into
 | Regija | Kasandra |
 | Grad | Hanioti |
 
-**7 countries · 40 regions · 67 cities.** 44 captured from the client's site,
-plus Beograd, plus the 23 largest Serbian towns added by hand on 01.09.2026 as
-pickup points (see below).
+**7 countries · 18 regions · 45 cities.** 44 captured from the client's site
+(Beograd among them, added by hand), plus Niš.
 
 The third level matters for dispatch. "Kasandra" is a peninsula with six towns —
 dropping a family at Hanioti versus Siviri is a forty-minute difference. The
@@ -210,13 +209,16 @@ app needs it as the default **return** destination, and for one-way rides home.
 It is added manually to the seed data, marked `"izvor": "rucno"`, and it is the
 **default return destination** — around 99% of rides start and end there.
 
-The same way, on 01.09.2026, the 23 largest Serbian towns were added as pickup
-points: Novi Sad, Niš, Kragujevac, Subotica, Čačak, Kraljevo, Kruševac, Užice,
-Valjevo, Šabac, Loznica, Pančevo, Zrenjanin, Sombor, Sremska Mitrovica,
-Smederevo, Požarevac, Jagodina, Leskovac, Vranje, Novi Pazar, Pirot, Zaječar.
-Each is its own single-city region, so it is two taps to pick. They are ordered
-after the client's own destinations, with **Beograd first**, because
-`redosled` is what the dropdown sorts by.
+**Niš** is added the same way, as the one other pickup point. Serbia therefore
+offers exactly three places: `Beograd`, `Kopaonik` (the client's own ski
+destination, from their site) and `Niš` — in that order, because `redosled` is
+what the dropdown sorts by and Beograd must be first.
+
+> The 23 largest Serbian towns were added on 01.09.2026 and withdrawn the same
+> day at the owner's request: two pickup points is what the business actually
+> has, and a dropdown of 25 towns costs a scan on every booking to serve a case
+> that does not arise. Adding more later is one edit to
+> `data/destinacije.json` plus `npm run db:seed:destinacije`.
 
 ### A destination is a destination, whichever column it sits in
 
@@ -337,7 +339,7 @@ Adding and editing need a connection.
 | Destinations | **Reference data** from eurotravel.rs, three cascading dropdowns | Cannot book a destination the client does not serve without re-seeding. |
 | Destination filter | **One canonical list**, grouped by country only | — |
 | Accounts | Created in the Supabase dashboard; `profiles` is the access list (§9) | Adding a person is two steps, and skipping the second locks them out rather than letting them in |
-| Pickup towns | Beograd default, plus the 23 largest Serbian towns (§5) | Not from the client's site; maintained by hand in `data/destinacije.json` |
+| Pickup towns | **Beograd** (default) and **Niš** only (§5) | Not from the client's site; maintained by hand in `data/destinacije.json`. More are one edit plus a re-seed away |
 
 ---
 
@@ -463,7 +465,7 @@ All of it drops onto this schema later without a rewrite.
 - [x] ~~Backups~~ — nightly `pg_dump` built and a restore verified (§9).
 - [ ] Re-check `data/destinacije.json` against the live site before launch — the
       Greek, Croatian and other entries were captured 27.08.2026 and the client
-      edits their own site. The Serbian pickup towns are ours and need no check.
+      edits their own site. Beograd and Niš are ours and need no check.
 - [ ] **A trip with three distinct places** — pick up in Niš, drive to Grčka,
       return to Beograd — cannot be expressed (§4). Needs a tenth column. Not
       in v1; revisit if the owner starts running pickups he does not return to.
@@ -475,9 +477,10 @@ All of it drops onto this schema later without a rewrite.
 **01.09.2026** — this document was brought back in line with the code after
 Phases 3–5. It had drifted in six places, and one of them was a security
 property (§9) asserted as fact that was not true. Changes: three list modes
-(§2), no `password_hash` and no origin column (§4), 67 destinations including
-Serbian pickup towns (§5), the *Jednosmerna vožnja* option (§5), route on the
-cards (§6), `profiles` as the access list and backups built (§9).
+(§2), no `password_hash` and no origin column (§4), 45 destinations with Beograd
+and Niš as the two Serbian pickup points (§5), the *Jednosmerna vožnja* option
+(§5), route on the cards (§6), `profiles` as the access list and backups built
+and restore-verified (§9).
 
 **Standing rule:** if the code and this file disagree, that is a bug in one of
 them — report it rather than quietly following whichever is nearer.

@@ -2,7 +2,7 @@
   "izvor": "https://eurotravel.rs/destinacije",
   "preuzeto": "2026-08-27",
   "napomena_cene": "Cene su zabeležene sa sajta 27.08.2026. NISU u upotrebi u v1 — samo referenca. Ne prikazivati ih u aplikaciji dok se ne potvrdi da su tačne.",
-  "napomena_beograd": "Beograd nije naveden na sajtu jer je polazište, a ne destinacija. Dodat je ručno (izvor: 'rucno') jer je potreban kao odredište povratka. Uz Beograd su rucno dodati i najveci gradovi u Srbiji, kao mesta preuzimanja putnika. Nisu sa sajta klijenta — oznaceni su sa \"izvor\": \"rucno\".",
+  "napomena_beograd": "Beograd nije na sajtu klijenta jer je poletiste, a ne destinacija. Dodat je rucno i podrazumevano je mesto povratka — oko 99% voznji krece odatle. Nis je dodat na isti nacin, kao drugo mesto preuzimanja. Oba nose \"izvor\": \"rucno\".",
   "drzave": [
     {
       "sifra": "srbija",
@@ -25,164 +25,10 @@
           ]
         },
         {
-          "naziv": "Novi Sad",
-          "izvor": "rucno",
-          "gradovi": [
-            "Novi Sad"
-          ]
-        },
-        {
           "naziv": "Niš",
           "izvor": "rucno",
           "gradovi": [
             "Niš"
-          ]
-        },
-        {
-          "naziv": "Kragujevac",
-          "izvor": "rucno",
-          "gradovi": [
-            "Kragujevac"
-          ]
-        },
-        {
-          "naziv": "Subotica",
-          "izvor": "rucno",
-          "gradovi": [
-            "Subotica"
-          ]
-        },
-        {
-          "naziv": "Čačak",
-          "izvor": "rucno",
-          "gradovi": [
-            "Čačak"
-          ]
-        },
-        {
-          "naziv": "Kraljevo",
-          "izvor": "rucno",
-          "gradovi": [
-            "Kraljevo"
-          ]
-        },
-        {
-          "naziv": "Kruševac",
-          "izvor": "rucno",
-          "gradovi": [
-            "Kruševac"
-          ]
-        },
-        {
-          "naziv": "Užice",
-          "izvor": "rucno",
-          "gradovi": [
-            "Užice"
-          ]
-        },
-        {
-          "naziv": "Valjevo",
-          "izvor": "rucno",
-          "gradovi": [
-            "Valjevo"
-          ]
-        },
-        {
-          "naziv": "Šabac",
-          "izvor": "rucno",
-          "gradovi": [
-            "Šabac"
-          ]
-        },
-        {
-          "naziv": "Loznica",
-          "izvor": "rucno",
-          "gradovi": [
-            "Loznica"
-          ]
-        },
-        {
-          "naziv": "Pančevo",
-          "izvor": "rucno",
-          "gradovi": [
-            "Pančevo"
-          ]
-        },
-        {
-          "naziv": "Zrenjanin",
-          "izvor": "rucno",
-          "gradovi": [
-            "Zrenjanin"
-          ]
-        },
-        {
-          "naziv": "Sombor",
-          "izvor": "rucno",
-          "gradovi": [
-            "Sombor"
-          ]
-        },
-        {
-          "naziv": "Sremska Mitrovica",
-          "izvor": "rucno",
-          "gradovi": [
-            "Sremska Mitrovica"
-          ]
-        },
-        {
-          "naziv": "Smederevo",
-          "izvor": "rucno",
-          "gradovi": [
-            "Smederevo"
-          ]
-        },
-        {
-          "naziv": "Požarevac",
-          "izvor": "rucno",
-          "gradovi": [
-            "Požarevac"
-          ]
-        },
-        {
-          "naziv": "Jagodina",
-          "izvor": "rucno",
-          "gradovi": [
-            "Jagodina"
-          ]
-        },
-        {
-          "naziv": "Leskovac",
-          "izvor": "rucno",
-          "gradovi": [
-            "Leskovac"
-          ]
-        },
-        {
-          "naziv": "Vranje",
-          "izvor": "rucno",
-          "gradovi": [
-            "Vranje"
-          ]
-        },
-        {
-          "naziv": "Novi Pazar",
-          "izvor": "rucno",
-          "gradovi": [
-            "Novi Pazar"
-          ]
-        },
-        {
-          "naziv": "Pirot",
-          "izvor": "rucno",
-          "gradovi": [
-            "Pirot"
-          ]
-        },
-        {
-          "naziv": "Zaječar",
-          "izvor": "rucno",
-          "gradovi": [
-            "Zaječar"
           ]
         }
       ]

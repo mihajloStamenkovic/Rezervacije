@@ -4,24 +4,23 @@ import { ucitajDestinacije } from "./destinacije-json";
 const redovi = ucitajDestinacije();
 
 describe("data/destinacije.json", () => {
-  it("is 67 cities across 40 regions in 7 countries", () => {
-    // 44 captured from eurotravel.rs on 27.08.2026, plus Beograd, plus the 23
-    // largest Serbian towns added by hand on 01.09.2026 as pickup points.
-    // These numbers are a drift alarm: if the client edits their site and the
-    // file is re-captured, this test should fail and be updated deliberately.
-    expect(redovi).toHaveLength(67);
-    expect(new Set(redovi.map((r) => `${r.drzavaSifra}|${r.regija}`)).size).toBe(40);
+  it("is 45 cities across 18 regions in 7 countries", () => {
+    // 44 captured from eurotravel.rs on 27.08.2026 (Beograd among them, added
+    // by hand), plus Niš. These numbers are a drift alarm: if the client edits
+    // their site and the file is re-captured, this test should fail and be
+    // updated deliberately rather than quietly.
+    expect(redovi).toHaveLength(45);
+    expect(new Set(redovi.map((r) => `${r.drzavaSifra}|${r.regija}`)).size).toBe(18);
     expect(new Set(redovi.map((r) => r.drzavaSifra)).size).toBe(7);
   });
 
-  it("has 25 Serbian pickup points, with Beograd first in the dropdown", () => {
+  it("offers exactly Beograd, Kopaonik and Niš in Serbia, Beograd first", () => {
+    // Trimmed to these on 01.09.2026 at the owner's request: Beograd and Niš
+    // are the pickup points, Kopaonik is the client's own ski destination.
     const srbija = redovi.filter((r) => r.drzavaSifra === "srbija");
-    expect(srbija).toHaveLength(25);
-    // 99% of rides start in Belgrade, so redosled 0 is not decoration.
+    expect(srbija.map((r) => r.grad)).toEqual(["Beograd", "Kopaonik", "Niš"]);
+    // ~99% of rides start in Belgrade, so redosled 0 is not decoration.
     expect(srbija.find((r) => r.redosled === 0)?.grad).toBe("Beograd");
-    for (const grad of ["Novi Sad", "Niš", "Kragujevac", "Subotica", "Vranje"]) {
-      expect(srbija.map((r) => r.grad)).toContain(grad);
-    }
   });
 
   it("marks Slovenija and Bosna i Hercegovina inactive, everything else active", () => {
@@ -65,7 +64,8 @@ describe("data/destinacije.json", () => {
     // The form auto-selects and hides the third dropdown for these. SPEC §5
     // names nine and says to implement the rule rather than the list, which
     // is why this asserts they are all still single-city instead of pinning
-    // the set — the set grew to 33 the day the Serbian pickup towns landed.
+    // the set — it moved twice in one day as Serbian towns were added and
+    // then trimmed back.
     const brojGradova = new Map<string, number>();
     for (const r of redovi) {
       const kljuc = `${r.drzavaSifra}|${r.regija}`;
@@ -83,8 +83,7 @@ describe("data/destinacije.json", () => {
     ]) {
       expect(jednogradne.has(grad), grad).toBe(true);
     }
-    // Every hand-added Serbian pickup town is its own one-city region too.
-    expect(jednogradne.has("Novi Sad")).toBe(true);
+    // Niš was added by hand and is its own one-city region too.
     expect(jednogradne.has("Niš")).toBe(true);
 
     // And a multi-city region must never be mistaken for one.

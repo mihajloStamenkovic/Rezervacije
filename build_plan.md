@@ -1007,7 +1007,7 @@ inside a transaction that was rolled back:
 
 | | |
 |---|---|
-| destinacije | **67** |
+| destinacije | **67** (45 after the same-day trim, below) |
 | profiles | **2** |
 | reservations | **8** |
 | settings | **1** |
@@ -1091,9 +1091,15 @@ Two bugs were fixed before it went green, both mine:
       `2f03368` on branch `rezerve`, and that committed dump was restored into
       a scratch schema in a rolled-back transaction: 67 destinacije, 2 profila,
       8 rezervacija, 1 settings. Procedure in `RUNBOOK.md`.
-- [x] ~~Serbian pickup towns~~ — the 23 largest added to
-      `data/destinacije.json` on 01.09.2026, each its own single-city region,
-      Beograd still first and still the default. 67 destinations total.
+- [x] ~~Serbian pickup towns~~ — settled 01.09.2026 as **Beograd and Niš only**.
+      The 23 largest were added and withdrawn the same day at the owner's
+      request: the business has two pickup points, and a 25-entry dropdown
+      costs a scan on every booking to serve a case that does not arise. The 22
+      withdrawn rows were deleted from the database only after proving nothing
+      referenced them — 0 in `reservations` (either column), 0 in `settings`.
+      45 destinations total; Serbia is `Beograd · Kopaonik · Niš`, Beograd
+      first. `Kopaonik` stays: it is the client's own ski destination from
+      their site, not a pickup town.
 - [x] ~~SPEC drift~~ — `SPEC.md` brought back in line with the code on
       01.09.2026 and given a changelog. All six disagreements closed.
 - [ ] Re-check the non-Serbian half of `data/destinacije.json` against the live
