@@ -15,7 +15,7 @@ operations.
 | 2 · Locale primitives | done |
 | 3 · Domain core | done |
 | 4 · Auth and RLS | done |
-| 5 · Screens | code complete — **device gates outstanding** |
+| 5 · Screens | done |
 | 6 · Installable and offline | **next** |
 | 7–9 | not started |
 
@@ -37,9 +37,11 @@ clean · `npm run test` 222/222 · `npm run build` succeeds (7 routes + Proxy) �
 screens redirect to `/prijava` when logged out. RLS verified by curl in Phase 4:
 the publishable key with no session returns `[]` from all four tables.
 
-**Phase 5 is not signed off.** The mobile gates — 375px, 44px touch targets, and
-driving the cascade, the swap and delete by hand — need a phone-shaped viewport
-and a logged-in session, and neither has happened. See the end of Phase 5.
+**Phase 5 is signed off.** The mobile gates were closed by hand in Chrome at a
+375px viewport, signed in, against the real database: no horizontal scroll on
+any route, no touch target under 44px, no input under 16px, and the cascade,
+the ⇅ swap, the filter rollup, Dan mode and the delete guard all driven
+individually. Nothing was written — counts before and after were identical.
 
 **`profiles` is the access list — 01.09.2026.** Signups were switched off in the
 dashboard, and migration `0003` made membership the rule in the database rather
@@ -630,9 +632,9 @@ password was involved at any point — the test sessions were minted via
 
 ---
 
-## Phase 5 — Screens ⏳ code complete, device gates outstanding
+## Phase 5 — Screens ✅
 
-**Agent:** none — built in the main session. **01.09.2026.**
+**Agent:** none — built in the main session. **Completed 01.09.2026.**
 
 **Deliverables**
 - **Lista** — sticky header, date-grouped cards, direction chips, creator badges
@@ -754,23 +756,81 @@ Two smaller calls, both documented in the code: the ⇅ swap exchanges the two
 whichever way the van is pointing), and the filter sheet also hosts the sort
 controls rather than opening a second sheet for two toggles.
 
-### What is NOT verified yet
+### Device gates — closed 01.09.2026
 
-Everything above was run. These gates were not, and they are the ones that need
-a phone-shaped viewport and a logged-in session:
+Driven by hand in Chrome at a phone viewport, signed in as Mihajlo, against the
+real hosted database. Clicks went through the DOM rather than screen
+coordinates, because the captured frame was scaled and coordinate clicks landed
+in the wrong place.
 
-- **No horizontal scroll at 375px.** Chrome refused to resize a maximised
-  window, so the layout has only been seen at 1920.
-- **Touch targets ≥ 44px, inputs ≥ 16px** — written to the rule throughout
-  (`h-11`/`h-12`, `text-base md:text-base`), but measured nowhere.
-- **The cascade, the ⇅ swap, the filter sheet and delete have not been driven by
-  hand.** Their logic is under test; their wiring is not.
-- **An inactive destination rendering on an existing booking** is proven at the
-  domain level (`katalogZaFormu`), not on the Ljubljana row in the real database.
+**Nothing was written.** No booking was created, edited or deleted; the delete
+dialog was opened and cancelled. Counts before and after the whole pass:
+`reservations=8 profiles=2 destinacije=44 settings=1`.
 
-No login was performed to close these: authenticating is the owner's to do, and
-Phase 4 already had one incident of a session JWT reaching a transcript. Left
-for a short pass in the browser once someone is signed in, or for Phase 7.
+- **No horizontal scroll at 375px.** Chrome on Windows will not size a window
+  below ~393px, so each route was measured inside a same-origin iframe pinned
+  to exactly 375px. `scrollWidth - clientWidth = 0` on `/`, `/?od=…` (Dan),
+  `/?q=…` (Pretraga), `/?sort=destinacija`, `/nova` and `/podesavanja`.
+- **Touch targets and font size.** Every visible `button`, `a`, `input`,
+  `select` and checkbox row on `/`, `/nova` and `/podesavanja` measured at
+  375px: **zero** under 44×44, **zero** inputs under 16px. The Filter trigger
+  measures 85×44 exactly.
+- **The main leg rule, on real rows.** Today 01.09.2026, Raspored shows
+  **5 rezervacija** — and the three absent ones are absent for three different
+  correct reasons: Stefan Nikolić and Ana Marković departed with no return date
+  (no main leg at all), Dragan Đorđević's return was 30.08 (main date in the
+  past, outside the horizon). Jelena Ilić and Porodica Jovanović render as
+  ↓ Povratak → Beograd; Marko Petrović, who has not left, is still
+  ↑ Odlazak → Hanioti — the SPEC §1 worked example, live.
+- **Destination rollup.** `?d=drzava:grcka` → **1 rezervacija**, Marko
+  Petrović / Hanioti. Country → city rollup works, and the three departed Greek
+  trips correctly leave the Grčka filter because their leg is now home.
+- **The filter writes one key, not seventeen.** Ticking Grčka produced
+  `?d=drzava%3Agrcka`. `sazmiIzbor` is doing its job where it is visible — in
+  the URL and in the badge count.
+- **Dan mode and the same-day round trip.** `?od=2026-08-30` renders
+  **POLASCI** then **POVRATCI**, and Dragan Đorđević appears in *both* — one
+  row per leg from one booking, which is what `kljuc = <id>#<smer>` exists for.
+  Within Polasci, Hanioti before Kopaonik (destination A–Z).
+- **Both routes to a booking with no main date.** `?od=2026-08-31` reaches Ana
+  Marković under the heading **juče** (SPEC §1: "by filtering its past
+  departure date"); `?q=nikoli` reaches Stefan Nikolić (SPEC §3: search).
+  Search also folds diacritics — `nikoli` matched `Nikolić`.
+- **Pluralisation in the wild.** `1 rezervacija` · `3 rezervacije` ·
+  `5 rezervacija`, and `1 putnik` · `2 putnika` · **`21 putnik`** on Dragan
+  Đorđević's minibus.
+- **The cascade, all 14 regions.** Walked every country and region on `/nova`.
+  Every region holding exactly one city auto-selects it and hides the third
+  dropdown; every region with more than one shows it and selects nothing.
+  That is 8 single-city regions — SPEC's list of ten minus Sarajevo and
+  Jahorina, which are in BiH and correctly not offered. The rule is
+  implemented, not the list. Changing country clears region and city.
+- **The two destination lists really are different.** `/nova` offers Grčka,
+  Hrvatska, Italija, Makedonija, Srbija — no Slovenija, no BiH. The **filter**
+  offers Slovenija (the Ljubljana booking references it) but not BiH (nothing
+  does). Opening **Šaban Šaulić** for editing offers Slovenija *and* pre-fills
+  Slovenija › Slovenija with the third dropdown hidden. Both halves of SPEC §5
+  proven on the same data.
+- **The ⇅ swap.** With Grčka › Kasandra › Hanioti outbound and the pre-filled
+  Beograd return, one tap exchanged both ids *and* both cascades re-derived
+  their country and region from the new values — Grčka/Kasandra moved to the
+  return leg, Srbija/Beograd to the outbound. One tap for a homecoming-first
+  booking, as SPEC §5 asks.
+- **Podešavanja pre-fills the return leg.** A fresh `/nova` opens with the
+  return already set to `Srbija › Beograd › Beograd` from the settings row,
+  third dropdown hidden.
+- **Detalji.** `tel:+381667778899` and `https://wa.me/381667778899` — E.164 for
+  the dialler, digits-only for WhatsApp, both dialable from a foreign network.
+  Long dates render as `7. septembar 2026.` and the full path as
+  `Slovenija › Slovenija › Ljubljana`.
+- **Delete is guarded.** The button opens a dialog reading *"Obrisati
+  rezervaciju?" / "Brisanje je trajno. Rezervacija se ne može vratiti."* with
+  Odustani and Obriši. Only the confirm button sits inside the form that posts
+  to the Server Action. Cancelled; the booking is still there.
+
+One thing that is still **not** verified, and cannot be from a desktop browser:
+`tel:` actually dialling from a foreign network, and the session surviving a
+multi-day gap. Both are Phase 9, on the owner's phone.
 
 ---
 
