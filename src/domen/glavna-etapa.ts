@@ -132,3 +132,25 @@ export function rutaEtape(red: RezervacijaRed, smer: Smer): Ruta {
 export function jeIstaTacka(ruta: Ruta): boolean {
   return ruta.od.id === ruta.do.id;
 }
+
+/**
+ * A one-way booking: out, and not scheduled back.
+ *
+ * There is no `jednosmerno` column and there is not going to be one — the nine
+ * columns are fixed (standing rule 2). A missing `datum_povratka` *is* the
+ * one-way flag, which is the same absence SPEC §8 already relies on for
+ * "return leg optional".
+ *
+ * The cost of storing it as an absence rather than a flag is that the data
+ * cannot distinguish "this trip is one-way" from "the return is not confirmed
+ * yet". Nothing in the app behaves differently between those two, so nothing
+ * is lost today; it is worth knowing before anyone tries to report on it.
+ *
+ * On a one-way, `destinacijaPovratka` is read as *where they set out from*
+ * rather than where they come back to. For a round trip those are the same
+ * place — home — so this is a reading of the column, not a change to it, and
+ * it is the same reading `rutaEtape` already applies to the outbound leg.
+ */
+export function jeJednosmerna(red: RezervacijaRed): boolean {
+  return red.rezervacija.datumPovratka === null;
+}

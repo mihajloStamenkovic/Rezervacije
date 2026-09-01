@@ -6,7 +6,7 @@
  * from the same two columns and nothing else.
  */
 import { describe, expect, it } from "vitest";
-import { jeIstaTacka, rutaEtape } from "./glavna-etapa";
+import { jeIstaTacka, jeJednosmerna, rutaEtape } from "./glavna-etapa";
 import {
   BEOGRAD,
   HANIOTI,
@@ -86,5 +86,33 @@ describe("jeIstaTacka", () => {
 
   it("compares identity, not display name", () => {
     expect(jeIstaTacka(rutaEtape(R7, "odlazak"))).toBe(false);
+  });
+});
+
+describe("jeJednosmerna", () => {
+  it("is true when no return date was ever filled in", () => {
+    // R5 — the one-way ride home.
+    expect(jeJednosmerna(R5)).toBe(true);
+  });
+
+  it("is false for a booking with a return date, past or future", () => {
+    expect(jeJednosmerna(R1)).toBe(false);
+    expect(jeJednosmerna(R7)).toBe(false);
+  });
+
+  it("is about the date, not the two destinations", () => {
+    // Same place at both ends, but a return date — a there-and-back on the
+    // same route is not a one-way.
+    const tamoNazad = red({
+      n: 32,
+      ime: "Test",
+      telefon: "+381641112233",
+      destinacija: HANIOTI,
+      datumPolaska: dan(1),
+      destinacijaPovratka: HANIOTI,
+      datumPovratka: dan(2),
+      brojPutnika: 1,
+    });
+    expect(jeJednosmerna(tamoNazad)).toBe(false);
   });
 });

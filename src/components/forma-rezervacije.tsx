@@ -12,12 +12,21 @@
  * The two destination ids live here rather than inside the cascades because
  * the ⇅ swap has to move both at once, and because they are what the form
  * actually submits — the country and region selects are only the path to them.
+ *
+ * **Jednosmerno** is a view over the same two columns, not a tenth one. A
+ * booking with no return date is already a one-way (SPEC §8, "return leg
+ * optional"); the checkbox makes that sayable out loud instead of leaving the
+ * owner to infer it from an empty field, and it relabels the second leg from
+ * *Povratak* to *Odakle* — because on a one-way that column is where they set
+ * out from, which is the same thing it means on a round trip, where home is
+ * both.
  */
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { ArrowUpDownIcon } from "lucide-react";
 import { KaskadaDestinacija } from "@/components/kaskada-destinacija";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { sacuvajRezervaciju } from "@/app/actions/rezervacije";
 import type { Destinacija } from "@/domen/tipovi";
@@ -39,12 +48,24 @@ export function FormaRezervacije({
   katalog,
   pocetna,
   nazad,
+  jednosmernoPocetno = false,
 }: {
   /** `null` for a new booking, the reservation id when editing. */
   id: string | null;
   katalog: Destinacija[];
   pocetna: PocetnaRezervacija;
   nazad: string;
+  /**
+   * Passed in rather than inferred from an empty return date, because the
+   * same empty field means two different things depending on the screen.
+   *
+   * On **Nova** it is always empty and means nothing yet — SPEC §4 has the
+   * return date "filled in later when confirmed", so a new booking must not
+   * open as a one-way. On **Izmeni** an absent return date is the only record
+   * of one there is, so the box opens ticked; unticking it brings the date
+   * field back in one tap.
+   */
+  jednosmernoPocetno?: boolean;
 }) {
   const [stanje, action, uToku] = useActionState<StanjeForme, FormData>(
     sacuvajRezervaciju.bind(null, id),
@@ -58,6 +79,7 @@ export function FormaRezervacije({
   const [datumPovratka, postaviDatumPovratka] = useState(pocetna.datumPovratka);
   const [odrediste, postaviOdrediste] = useState(pocetna.destinacijaId);
   const [povratak, postaviPovratak] = useState(pocetna.destinacijaPovratkaId);
+  const [jednosmerno, postaviJednosmerno] = useState(jednosmernoPocetno);
 
   const greske: GreskePolja =
     stanje && !stanje.ok ? stanje.greske : {};
@@ -72,6 +94,95 @@ export function FormaRezervacije({
     postaviOdrediste(povratak);
     postaviPovratak(odrediste);
   }
+
+  /** Ticking it clears the return date — an empty field is what it means. */
+  function prebaciJednosmerno(uklj: boolean) {
+    postaviJednosmerno(uklj);
+    if (uklj) postaviDatumPovratka("");
+  }
+
+  const odredisteBlok = (
+    <Odeljak
+      key="odrediste"
+      naslov={jednosmerno ? T.forma.kuda : T.forma.odlazak}
+    >
+      <KaskadaDestinacija
+        idPolja="odlazak"
+        naziv="destinacijaId"
+        katalog={katalog}
+        vrednost={odrediste}
+        onChange={postaviOdrediste}
+        greska={greske.destinacijaId}
+      />
+      <Polje
+        id="datumPolaska"
+        oznaka={T.forma.datumPolaska}
+        greska={greske.datumPolaska}
+      >
+        <Input
+          id="datumPolaska"
+          name="datumPolaska"
+          type="date"
+          value={datumPolaska}
+          onChange={(e) => postaviDatumPolaska(e.target.value)}
+          disabled={uToku}
+          aria-invalid={greske.datumPolaska ? true : undefined}
+          className="h-11 text-base md:text-base"
+        />
+      </Polje>
+    </Odeljak>
+  );
+
+  const poreklo = (
+    <Odeljak key="poreklo" naslov={jednosmerno ? T.forma.odakle : T.forma.povratak}>
+      <KaskadaDestinacija
+        idPolja="povratak"
+        naziv="destinacijaPovratkaId"
+        katalog={katalog}
+        vrednost={povratak}
+        onChange={postaviPovratak}
+        greska={greske.destinacijaPovratkaId}
+      />
+      {/* No return date on a one-way — that absence is what makes it one. */}
+      {jednosmerno ? null : (
+        <Polje
+          id="datumPovratka"
+          oznaka={T.forma.datumPovratka}
+          pomoc={T.forma.datumPovratkaPomoc}
+          greska={greske.datumPovratka}
+        >
+          <Input
+            id="datumPovratka"
+            name="datumPovratka"
+            type="date"
+            value={datumPovratka}
+            // A departure is the earliest a return can be; the same rule is
+            // enforced again in the schema and by a check constraint.
+            min={datumPolaska || undefined}
+            onChange={(e) => postaviDatumPovratka(e.target.value)}
+            disabled={uToku}
+            aria-invalid={greske.datumPovratka ? true : undefined}
+            className="h-11 text-base md:text-base"
+          />
+        </Polje>
+      )}
+    </Odeljak>
+  );
+
+  const zamenaDugme = (
+    <div key="zamena" className="flex justify-center">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={zameni}
+        disabled={uToku}
+        aria-label={T.forma.zameni}
+        className="size-11 rounded-full p-0"
+      >
+        <ArrowUpDownIcon className="size-5" />
+      </Button>
+    </div>
+  );
 
   return (
     <form action={action} className="flex flex-col gap-5" noValidate>
@@ -133,76 +244,47 @@ export function FormaRezervacije({
         />
       </Polje>
 
-      <Odeljak naslov={T.forma.odlazak}>
-        <KaskadaDestinacija
-          idPolja="odlazak"
-          naziv="destinacijaId"
-          katalog={katalog}
-          vrednost={odrediste}
-          onChange={postaviOdrediste}
-          greska={greske.destinacijaId}
-        />
-        <Polje
-          id="datumPolaska"
-          oznaka={T.forma.datumPolaska}
-          greska={greske.datumPolaska}
-        >
-          <Input
-            id="datumPolaska"
-            name="datumPolaska"
-            type="date"
-            value={datumPolaska}
-            onChange={(e) => postaviDatumPolaska(e.target.value)}
-            disabled={uToku}
-            aria-invalid={greske.datumPolaska ? true : undefined}
-            className="h-11 text-base md:text-base"
-          />
-        </Polje>
-      </Odeljak>
-
-      <div className="flex justify-center">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={zameni}
+      {/* One-way is a reading of the two columns, not a tenth one. */}
+      <div className="flex items-start gap-3 rounded-xl border border-border p-4">
+        <Checkbox
+          id="jednosmerno"
+          checked={jednosmerno}
+          onCheckedChange={(v) => prebaciJednosmerno(v === true)}
           disabled={uToku}
-          aria-label={T.forma.zameni}
-          className="size-11 rounded-full p-0"
+          className="mt-1 size-5"
+        />
+        <label
+          htmlFor="jednosmerno"
+          className="flex min-h-11 flex-col justify-center"
         >
-          <ArrowUpDownIcon className="size-5" />
-        </Button>
+          <span className="text-base font-medium">{T.forma.jednosmerno}</span>
+          <span className="text-sm text-muted-foreground">
+            {T.forma.jednosmernoPomoc}
+          </span>
+        </label>
       </div>
 
-      <Odeljak naslov={T.forma.povratak}>
-        <KaskadaDestinacija
-          idPolja="povratak"
-          naziv="destinacijaPovratkaId"
-          katalog={katalog}
-          vrednost={povratak}
-          onChange={postaviPovratak}
-          greska={greske.destinacijaPovratkaId}
-        />
-        <Polje
-          id="datumPovratka"
-          oznaka={T.forma.datumPovratka}
-          pomoc={T.forma.datumPovratkaPomoc}
-          greska={greske.datumPovratka}
-        >
-          <Input
-            id="datumPovratka"
-            name="datumPovratka"
-            type="date"
-            value={datumPovratka}
-            // A departure is the earliest a return can be; the same rule is
-            // enforced again in the schema and by a check constraint.
-            min={datumPolaska || undefined}
-            onChange={(e) => postaviDatumPovratka(e.target.value)}
-            disabled={uToku}
-            aria-invalid={greske.datumPovratka ? true : undefined}
-            className="h-11 text-base md:text-base"
-          />
-        </Polje>
-      </Odeljak>
+      {/*
+        On a round trip the legs read outbound-then-return, which is the order
+        they happen in. On a one-way there is no return, so the same two
+        cascades read origin-then-destination — and origin comes first, because
+        that is the order someone says it out loud: "from Solun to Beograd".
+        Keys, so React moves these rather than re-labelling them in place.
+      */}
+      {jednosmerno ? (
+        <>
+          {poreklo}
+          {zamenaDugme}
+          {odredisteBlok}
+        </>
+      ) : (
+        <>
+          {odredisteBlok}
+          {zamenaDugme}
+          {poreklo}
+        </>
+      )}
+
 
       {stanje && !stanje.ok && stanje.opsta ? (
         <p role="alert" className="text-sm text-destructive">

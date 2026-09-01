@@ -24,7 +24,7 @@ import { DugmeBrisanja } from "@/components/dugme-brisanja";
 import { Button } from "@/components/ui/button";
 import { rezervacijaPoId } from "@/db/queries";
 import { punoImeDestinacije } from "@/domen/destinacije";
-import { resolveMainLeg } from "@/domen/glavna-etapa";
+import { jeJednosmerna, resolveMainLeg } from "@/domen/glavna-etapa";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { danasBeograd, formatDug } from "@/lib/datum";
 import { putanjaNazad } from "@/lib/navigacija";
@@ -45,6 +45,7 @@ export default async function Detalji({
 
   const danas = danasBeograd();
   const glavna = resolveMainLeg(red, danas);
+  const jednosmerna = jeJednosmerna(red);
   const { rezervacija, autor } = red;
 
   return (
@@ -108,29 +109,54 @@ export default async function Detalji({
             </a>
           </Red>
 
-          <Red oznaka={T.detalji.polazak}>
-            <span className="block">{formatDug(rezervacija.datumPolaska)}</span>
-            <span className="block text-sm text-muted-foreground">
-              {punoImeDestinacije(red.destinacija)}
-            </span>
-          </Red>
-
-          <Red oznaka={T.detalji.povratak}>
-            {rezervacija.datumPovratka ? (
-              <>
+          {/*
+            A one-way is shown as origin → destination, because on a booking
+            with no return date the second column is where they set out from
+            and there is nothing else on this screen that would say so. Left
+            as Polazak/Povratak it read "Povratak nije dogovoren" and never
+            rendered that place at all — the origin was simply invisible.
+          */}
+          {jednosmerna ? (
+            <>
+              <Red oznaka={T.detalji.odakle}>
+                <span className="block text-sm text-muted-foreground">
+                  {punoImeDestinacije(red.destinacijaPovratka)}
+                </span>
+              </Red>
+              <Red oznaka={T.detalji.kuda}>
                 <span className="block">
-                  {formatDug(rezervacija.datumPovratka)}
+                  {formatDug(rezervacija.datumPolaska)}
+                </span>
+                <span className="block text-sm text-muted-foreground">
+                  {punoImeDestinacije(red.destinacija)}
+                </span>
+              </Red>
+              <Red oznaka={T.detalji.povratak}>
+                <span className="text-muted-foreground">
+                  {T.detalji.bezPovratka}
+                </span>
+              </Red>
+            </>
+          ) : (
+            <>
+              <Red oznaka={T.detalji.polazak}>
+                <span className="block">
+                  {formatDug(rezervacija.datumPolaska)}
+                </span>
+                <span className="block text-sm text-muted-foreground">
+                  {punoImeDestinacije(red.destinacija)}
+                </span>
+              </Red>
+              <Red oznaka={T.detalji.povratak}>
+                <span className="block">
+                  {formatDug(rezervacija.datumPovratka!)}
                 </span>
                 <span className="block text-sm text-muted-foreground">
                   {punoImeDestinacije(red.destinacijaPovratka)}
                 </span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">
-                {T.detalji.bezPovratka}
-              </span>
-            )}
-          </Red>
+              </Red>
+            </>
+          )}
 
           <Red oznaka={T.detalji.uneo}>
             <BedzAutora autor={autor} saImenom />

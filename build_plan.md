@@ -758,8 +758,8 @@ controls rather than opening a second sheet for two toggles.
 
 ### Device gates — closed 01.09.2026
 
-Driven by hand in Chrome at a phone viewport, signed in as Mihajlo, against the
-real hosted database. Clicks went through the DOM rather than screen
+Driven by hand in Chrome at a phone viewport, signed in, against the real
+hosted database. Clicks went through the DOM rather than screen
 coordinates, because the captured frame was scaled and coordinate clicks landed
 in the wrong place.
 
@@ -858,6 +858,63 @@ destination never shrinks, so the place the van is going is always fully
 visible — stress-tested with names far longer than any real destination
 (`Bosanski Petrovac na Uni → Sveti Stefan Crnogorski`): still zero overflow,
 origin truncated, destination intact.
+
+### Added after sign-off — jednosmerna vožnja
+
+01.09.2026, on the owner's request, and it closes the limit flagged in the
+section above: a one-way ride home could not record where it started.
+
+**No tenth column.** A booking with no `datum_povratka` is already a one-way —
+SPEC §8 has the return leg optional — so the checkbox does not store a new
+fact, it makes an existing absence sayable out loud. Ticking it clears the
+return date, relabels the second leg from *Povratak* to **Odakle**, and puts
+it first, because "from Solun to Beograd" is the order someone says it in.
+`jeJednosmerna` in `src/domen/glavna-etapa.ts`, with tests.
+
+**The second column is read as the origin.** On a round trip
+`destinacija_povratka_id` is home, which is also where they set out from, so
+this is a reading of the column rather than a change to it — the same reading
+`rutaEtape` already applies to every outbound leg. Ana Marković no longer has
+to collapse to a bare `Beograd`: the same trip entered as a one-way now records
+Solun and renders `Solun → Beograd`.
+
+**One thing the data still cannot say.** "This trip is one-way" and "the return
+is not confirmed yet" are both an absent `datum_povratka`, and nothing
+distinguishes them. Nothing in the app behaves differently between the two, so
+nothing is lost today — but it is why the initial state of the checkbox is
+passed in per screen rather than inferred: **Nova** opens as a round trip
+(SPEC §4 has the return date filled in later), **Izmeni** opens ticked when the
+stored booking has no return date. Inferring it uniformly made every new
+booking default to one-way, which was caught in the browser and fixed.
+
+**The detail screen had a real hole.** It only ever rendered
+`destinacijaPovratka` when a return date existed, so on a one-way the origin
+was invisible — it showed only "Povratak nije dogovoren". A one-way now renders
+**ODAKLE / KUDA / POVRATAK**.
+
+### Evidence
+
+End to end against the live database, which meant writing for the first time:
+one booking created through the form and deleted through the UI afterwards.
+
+- Ticking the box: legends go `Odlazak · Povratak` → `Odakle · Kuda`, the
+  return-date field disappears, and the pre-filled origin id survives the
+  reorder. Unticking restores all three.
+- **A one-way saved and rendered.** `Odakle Grčka › Solun i okolina › Solun`,
+  `Kuda Srbija › Beograd`, 20.09.2026, no return. The list card read
+  **`↑ Odlazak Solun → Beograd · 2 putnika`** — the exact shape that was
+  impossible before. The phone normalised from `0641234567` to
+  `+381 64 1234567` on save.
+- Detail rendered `ODAKLE Grčka › Solun i okolina › Solun` / `KUDA
+  20. septembar 2026.` / `POVRATAK Povratak nije dogovoren`.
+- **Create and delete both exercised for the first time.** The test row was
+  removed through the confirm dialog; `reservations` is back to **8** with
+  zero `TEST%` rows left behind.
+- 375px re-checked in both form states: **zero horizontal overflow**. The
+  one-way checkbox's own box is 20×20, but the tap target is its label at
+  262×64 and clicking the label toggles it — the same pattern the filter sheet
+  already uses.
+- 233 tests, identical across five timezones; typecheck, lint and build clean.
 
 One thing that is still **not** verified, and cannot be from a desktop browser:
 `tel:` actually dialling from a foreign network, and the session surviving a

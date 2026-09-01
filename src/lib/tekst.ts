@@ -100,6 +100,10 @@ export const T = {
     datumPolaska: "Datum polaska",
     datumPovratka: "Datum povratka",
     datumPovratkaPomoc: "Ostavi prazno ako povratak još nije dogovoren.",
+    jednosmerno: "Jednosmerna vožnja",
+    jednosmernoPomoc: "Bez povratka — samo jedan put i jedan datum.",
+    odakle: "Odakle",
+    kuda: "Kuda",
     zameni: "Zameni polazak i povratak",
     sacuvaj: "Sačuvaj",
     cuvanje: "Čuvanje…",
@@ -116,6 +120,9 @@ export const T = {
     polazak: "Polazak",
     povratak: "Povratak",
     bezPovratka: "Povratak nije dogovoren",
+    odakle: "Odakle",
+    kuda: "Kuda",
+    jednosmerno: "Jednosmerna vožnja",
   },
 
   brisanje: {

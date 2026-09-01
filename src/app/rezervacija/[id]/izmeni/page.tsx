@@ -59,6 +59,7 @@ export default async function Izmeni({
             rezervacija.destinacijaPovratkaId,
           ])}
           nazad={`/rezervacija/${id}?nazad=${encodeURIComponent(nazad)}`}
+          jednosmernoPocetno={rezervacija.datumPovratka === null}
           pocetna={{
             ime: rezervacija.ime,
             telefon: rezervacija.telefon,
