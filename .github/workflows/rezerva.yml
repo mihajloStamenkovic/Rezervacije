@@ -12,9 +12,15 @@ name: Nocna rezerva
 #      until somebody noticed and unpaused it. A daily query counts as
 #      activity, so the backup pays for itself twice.
 #
-# Backups are committed to the orphan branch `rezerve`, which shares no history
-# with `main`. Cloning the code therefore never drags the backups along, and
-# the backups never expire the way build artifacts do.
+# Backups live on the orphan branch `rezerve`, which shares no history with
+# `main`. Cloning the code therefore never drags the backups along, and they
+# never expire the way build artifacts do.
+#
+# Note there is no `actions/checkout`: this job does not need the source code,
+# only `pg_dump` and somewhere to push. The backup branch is assembled in its
+# own throwaway repository under $RUNNER_TEMP, which is also what makes the
+# very first run — when `rezerve` does not exist yet — an ordinary case rather
+# than a failure to recover from.
 
 on:
   schedule:
@@ -25,7 +31,6 @@ on:
   # So a backup can be taken by hand before anything risky.
   workflow_dispatch:
 
-# Never let two runs commit to `rezerve` at once.
 concurrency:
   group: rezerva
   cancel-in-progress: false
@@ -37,30 +42,12 @@ jobs:
       contents: write
 
     steps:
-      - name: Preuzmi granu rezerve
-        uses: actions/checkout@v4
-        with:
-          ref: rezerve
-          # If the branch does not exist yet, the step below creates it.
-          fetch-depth: 1
-        continue-on-error: true
-
-      - name: Napravi granu rezerve ako ne postoji
-        run: |
-          if [ ! -d .git ]; then
-            git init -q .
-            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-          fi
-          if ! git rev-parse --verify rezerve >/dev/null 2>&1; then
-            git checkout -q --orphan rezerve
-            git rm -rqf . 2>/dev/null || true
-          fi
-
       - name: Instaliraj pg_dump 17
         # The runner ships client 16; the Supabase server is 17.6, and pg_dump
         # refuses to dump from a server newer than itself. Pin the major
         # version to the server's, not to whatever the image happens to have.
         run: |
+          set -euo pipefail
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
             https://www.postgresql.org/media/keys/ACCC4CF8.asc
@@ -68,7 +55,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
-          pg_dump --version
+          echo "::notice::$(pg_dump --version)"
 
       - name: Napravi rezervu
         env:
@@ -78,14 +65,19 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${DIRECT_URL:-}" ]; then
-            echo "::error::Tajna DIRECT_URL nije podesena u Settings > Secrets > Actions."
+            echo "::error::Tajna DIRECT_URL nije podesena (Settings > Secrets and variables > Actions)."
             exit 1
           fi
 
           DAN=$(date -u +%Y-%m-%d)
           GODINA=$(date -u +%Y)
-          mkdir -p "dump/$GODINA" csv
+          IZLAZ="$RUNNER_TEMP/izlaz"
+          mkdir -p "$IZLAZ/dump/$GODINA" "$IZLAZ/csv"
+          echo "DAN=$DAN" >> "$GITHUB_ENV"
+          echo "GODINA=$GODINA" >> "$GITHUB_ENV"
+          echo "IZLAZ=$IZLAZ" >> "$GITHUB_ENV"
 
+          echo "--- pg_dump ---"
           # Only the `public` schema: that is the whole app. `auth` is
           # Supabase's own and holds password hashes — it is deliberately NOT
           # dumped, so this backup can never leak credentials.
@@ -97,8 +89,9 @@ jobs:
             --schema=public \
             --no-owner --no-privileges \
             --quote-all-identifiers \
-            -f "dump/$DAN.sql"
+            -f "$IZLAZ/$DAN.sql"
 
+          echo "--- csv ---"
           # A copy a human can read without any tooling. GitHub renders CSV as
           # a table in the browser, so the owner can open the booking book on
           # a phone even if everything else is on fire.
@@ -112,35 +105,54 @@ jobs:
               JOIN destinacije p ON p.id = r.destinacija_povratka_id \
               JOIN profiles pr ON pr.id = r.kreirao \
               ORDER BY r.datum_polaska \
-            ) TO 'csv/rezervacije-najnovije.csv' WITH CSV HEADER"
+            ) TO '$IZLAZ/csv/rezervacije-najnovije.csv' WITH CSV HEADER"
+          cp "$IZLAZ/csv/rezervacije-najnovije.csv" "$IZLAZ/csv/$DAN-rezervacije.csv"
 
-          cp "csv/rezervacije-najnovije.csv" "csv/$DAN-rezervacije.csv"
-
+          echo "--- provera ---"
           # A backup that silently contains nothing is worse than no backup,
           # because it looks like success. Refuse to commit one.
-          TABELA=$(grep -c '^CREATE TABLE' "dump/$DAN.sql" || true)
-          DEST=$(grep -c '^COPY "public"."destinacije"' "dump/$DAN.sql" || true)
-          VELICINA=$(wc -c < "dump/$DAN.sql")
-          echo "tabela=$TABELA destinacije_blok=$DEST velicina=${VELICINA}B"
+          TABELA=$(grep -c '^CREATE TABLE' "$IZLAZ/$DAN.sql" || true)
+          DEST=$(grep -c '^COPY "public"."destinacije"' "$IZLAZ/$DAN.sql" || true)
+          VELICINA=$(wc -c < "$IZLAZ/$DAN.sql")
+          REZ=$(($(wc -l < "$IZLAZ/csv/rezervacije-najnovije.csv") - 1))
+          echo "tabela=$TABELA destinacije_blok=$DEST velicina=${VELICINA}B rezervacija=$REZ"
           if [ "$TABELA" -lt 4 ] || [ "$DEST" -lt 1 ] || [ "$VELICINA" -lt 2000 ]; then
             echo "::error::Rezerva izgleda prazna ili nepotpuna — nije sacuvana."
             exit 1
           fi
 
-          gzip -9 "dump/$DAN.sql"
-          mv "dump/$DAN.sql.gz" "dump/$GODINA/$DAN.sql.gz"
-          ls -la "dump/$GODINA/$DAN.sql.gz"
+          gzip -9 "$IZLAZ/$DAN.sql"
+          mv "$IZLAZ/$DAN.sql.gz" "$IZLAZ/dump/$GODINA/$DAN.sql.gz"
+          echo "::notice::Rezerva $DAN — $REZ rezervacija, $(wc -c < "$IZLAZ/dump/$GODINA/$DAN.sql.gz")B stisnuto."
 
-      - name: Sacuvaj u granu rezerve
+      - name: Sacuvaj na granu rezerve
         run: |
           set -euo pipefail
+          RADNI="$RUNNER_TEMP/rezerve"
+          rm -rf "$RADNI"
+          # `-b rezerve` names the unborn branch up front, so the first ever
+          # run needs no orphan gymnastics.
+          git init -q -b rezerve "$RADNI"
+          cd "$RADNI"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dump csv
+          git remote add origin \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+
+          if git ls-remote --exit-code --heads origin rezerve >/dev/null 2>&1; then
+            echo "Grana rezerve postoji — dopisujem."
+            git fetch -q --depth=1 origin rezerve
+            git reset -q --hard FETCH_HEAD
+          else
+            echo "Grana rezerve ne postoji — pravim je prvi put."
+          fi
+
+          cp -r "$IZLAZ/dump" "$IZLAZ/csv" .
+          git add -A
           if git diff --cached --quiet; then
-            echo "Nema promena — baza je identicna juceranjoj."
+            echo "::notice::Nema promena — baza je identicna prethodnoj rezervi."
             exit 0
           fi
-          git commit -q -m "Rezerva $(date -u +%Y-%m-%d)"
-          git push -q origin HEAD:rezerve
-          echo "Rezerva sacuvana na granu rezerve."
+          git commit -q -m "Rezerva $DAN"
+          git push -q origin rezerve
+          echo "::notice::Rezerva $DAN sacuvana na granu rezerve."
