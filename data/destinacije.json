@@ -2,7 +2,7 @@
   "izvor": "https://eurotravel.rs/destinacije",
   "preuzeto": "2026-08-27",
   "napomena_cene": "Cene su zabeležene sa sajta 27.08.2026. NISU u upotrebi u v1 — samo referenca. Ne prikazivati ih u aplikaciji dok se ne potvrdi da su tačne.",
-  "napomena_beograd": "Beograd nije naveden na sajtu jer je polazište, a ne destinacija. Dodat je ručno (izvor: 'rucno') jer je potreban kao odredište povratka.",
+  "napomena_beograd": "Beograd nije naveden na sajtu jer je polazište, a ne destinacija. Dodat je ručno (izvor: 'rucno') jer je potreban kao odredište povratka. Uz Beograd su rucno dodati i najveci gradovi u Srbiji, kao mesta preuzimanja putnika. Nisu sa sajta klijenta — oznaceni su sa \"izvor\": \"rucno\".",
   "drzave": [
     {
       "sifra": "srbija",
@@ -12,13 +12,178 @@
         {
           "naziv": "Beograd",
           "izvor": "rucno",
-          "gradovi": ["Beograd"]
+          "gradovi": [
+            "Beograd"
+          ]
         },
         {
           "naziv": "Kopaonik",
           "cena_jedan_smer": 30,
           "cena_oba_smera": 50,
-          "gradovi": ["Kopaonik"]
+          "gradovi": [
+            "Kopaonik"
+          ]
+        },
+        {
+          "naziv": "Novi Sad",
+          "izvor": "rucno",
+          "gradovi": [
+            "Novi Sad"
+          ]
+        },
+        {
+          "naziv": "Niš",
+          "izvor": "rucno",
+          "gradovi": [
+            "Niš"
+          ]
+        },
+        {
+          "naziv": "Kragujevac",
+          "izvor": "rucno",
+          "gradovi": [
+            "Kragujevac"
+          ]
+        },
+        {
+          "naziv": "Subotica",
+          "izvor": "rucno",
+          "gradovi": [
+            "Subotica"
+          ]
+        },
+        {
+          "naziv": "Čačak",
+          "izvor": "rucno",
+          "gradovi": [
+            "Čačak"
+          ]
+        },
+        {
+          "naziv": "Kraljevo",
+          "izvor": "rucno",
+          "gradovi": [
+            "Kraljevo"
+          ]
+        },
+        {
+          "naziv": "Kruševac",
+          "izvor": "rucno",
+          "gradovi": [
+            "Kruševac"
+          ]
+        },
+        {
+          "naziv": "Užice",
+          "izvor": "rucno",
+          "gradovi": [
+            "Užice"
+          ]
+        },
+        {
+          "naziv": "Valjevo",
+          "izvor": "rucno",
+          "gradovi": [
+            "Valjevo"
+          ]
+        },
+        {
+          "naziv": "Šabac",
+          "izvor": "rucno",
+          "gradovi": [
+            "Šabac"
+          ]
+        },
+        {
+          "naziv": "Loznica",
+          "izvor": "rucno",
+          "gradovi": [
+            "Loznica"
+          ]
+        },
+        {
+          "naziv": "Pančevo",
+          "izvor": "rucno",
+          "gradovi": [
+            "Pančevo"
+          ]
+        },
+        {
+          "naziv": "Zrenjanin",
+          "izvor": "rucno",
+          "gradovi": [
+            "Zrenjanin"
+          ]
+        },
+        {
+          "naziv": "Sombor",
+          "izvor": "rucno",
+          "gradovi": [
+            "Sombor"
+          ]
+        },
+        {
+          "naziv": "Sremska Mitrovica",
+          "izvor": "rucno",
+          "gradovi": [
+            "Sremska Mitrovica"
+          ]
+        },
+        {
+          "naziv": "Smederevo",
+          "izvor": "rucno",
+          "gradovi": [
+            "Smederevo"
+          ]
+        },
+        {
+          "naziv": "Požarevac",
+          "izvor": "rucno",
+          "gradovi": [
+            "Požarevac"
+          ]
+        },
+        {
+          "naziv": "Jagodina",
+          "izvor": "rucno",
+          "gradovi": [
+            "Jagodina"
+          ]
+        },
+        {
+          "naziv": "Leskovac",
+          "izvor": "rucno",
+          "gradovi": [
+            "Leskovac"
+          ]
+        },
+        {
+          "naziv": "Vranje",
+          "izvor": "rucno",
+          "gradovi": [
+            "Vranje"
+          ]
+        },
+        {
+          "naziv": "Novi Pazar",
+          "izvor": "rucno",
+          "gradovi": [
+            "Novi Pazar"
+          ]
+        },
+        {
+          "naziv": "Pirot",
+          "izvor": "rucno",
+          "gradovi": [
+            "Pirot"
+          ]
+        },
+        {
+          "naziv": "Zaječar",
+          "izvor": "rucno",
+          "gradovi": [
+            "Zaječar"
+          ]
         }
       ]
     },
@@ -31,25 +196,46 @@
           "naziv": "Solun i okolina",
           "cena_jedan_smer": 75,
           "cena_oba_smera": 140,
-          "gradovi": ["Solun", "Perea", "Nea Kalikratija", "Nea Mudanja"]
+          "gradovi": [
+            "Solun",
+            "Perea",
+            "Nea Kalikratija",
+            "Nea Mudanja"
+          ]
         },
         {
           "naziv": "Sitonija",
           "cena_jedan_smer": 80,
           "cena_oba_smera": 150,
-          "gradovi": ["Sarti", "Neos Marmaras", "Nikiti", "Vurvuru", "Toroni", "Metamorfosis"]
+          "gradovi": [
+            "Sarti",
+            "Neos Marmaras",
+            "Nikiti",
+            "Vurvuru",
+            "Toroni",
+            "Metamorfosis"
+          ]
         },
         {
           "naziv": "Kasandra",
           "cena_jedan_smer": 75,
           "cena_oba_smera": 140,
-          "gradovi": ["Hanioti", "Pefkohori", "Polihrono", "Kalitea", "Afitos", "Siviri"]
+          "gradovi": [
+            "Hanioti",
+            "Pefkohori",
+            "Polihrono",
+            "Kalitea",
+            "Afitos",
+            "Siviri"
+          ]
         },
         {
           "naziv": "Olimpijska regija",
           "cena_jedan_smer": 80,
           "cena_oba_smera": 150,
-          "gradovi": ["Paralija"]
+          "gradovi": [
+            "Paralija"
+          ]
         }
       ]
     },
@@ -62,31 +248,49 @@
           "naziv": "Zagreb",
           "cena_jedan_smer": 60,
           "cena_oba_smera": 110,
-          "gradovi": ["Zagreb"]
+          "gradovi": [
+            "Zagreb"
+          ]
         },
         {
           "naziv": "Karlovac",
           "cena_jedan_smer": 70,
           "cena_oba_smera": 130,
-          "gradovi": ["Karlovac"]
+          "gradovi": [
+            "Karlovac"
+          ]
         },
         {
           "naziv": "Rijeka i Opatija",
           "cena_jedan_smer": 75,
           "cena_oba_smera": 140,
-          "gradovi": ["Rijeka", "Opatija"]
+          "gradovi": [
+            "Rijeka",
+            "Opatija"
+          ]
         },
         {
           "naziv": "Istra",
           "cena_jedan_smer": 85,
           "cena_oba_smera": 160,
-          "gradovi": ["Novigrad", "Umag", "Poreč", "Rovinj", "Vrsar", "Pula", "Medulin"]
+          "gradovi": [
+            "Novigrad",
+            "Umag",
+            "Poreč",
+            "Rovinj",
+            "Vrsar",
+            "Pula",
+            "Medulin"
+          ]
         },
         {
           "naziv": "Split i Zadar",
           "cena_jedan_smer": 90,
           "cena_oba_smera": 170,
-          "gradovi": ["Split", "Zadar"]
+          "gradovi": [
+            "Split",
+            "Zadar"
+          ]
         }
       ]
     },
@@ -99,13 +303,17 @@
           "naziv": "Skoplje",
           "cena_jedan_smer": 70,
           "cena_oba_smera": 130,
-          "gradovi": ["Skoplje"]
+          "gradovi": [
+            "Skoplje"
+          ]
         },
         {
           "naziv": "Ohrid",
           "cena_jedan_smer": 65,
           "cena_oba_smera": 120,
-          "gradovi": ["Ohrid"]
+          "gradovi": [
+            "Ohrid"
+          ]
         }
       ]
     },
@@ -118,7 +326,9 @@
           "naziv": "Trst",
           "cena_jedan_smer": 85,
           "cena_oba_smera": 160,
-          "gradovi": ["Trst"]
+          "gradovi": [
+            "Trst"
+          ]
         }
       ]
     },
@@ -132,7 +342,15 @@
           "naziv": "Slovenija",
           "cena_jedan_smer": 70,
           "cena_oba_smera": 130,
-          "gradovi": ["Ljubljana", "Maribor", "Celje", "Ptuj", "Novo Mesto", "Brežice", "Bled"]
+          "gradovi": [
+            "Ljubljana",
+            "Maribor",
+            "Celje",
+            "Ptuj",
+            "Novo Mesto",
+            "Brežice",
+            "Bled"
+          ]
         }
       ]
     },
@@ -146,13 +364,17 @@
           "naziv": "Sarajevo",
           "cena_jedan_smer": 35,
           "cena_oba_smera": 65,
-          "gradovi": ["Sarajevo"]
+          "gradovi": [
+            "Sarajevo"
+          ]
         },
         {
           "naziv": "Jahorina",
           "cena_jedan_smer": 40,
           "cena_oba_smera": 75,
-          "gradovi": ["Jahorina"]
+          "gradovi": [
+            "Jahorina"
+          ]
         }
       ]
     }

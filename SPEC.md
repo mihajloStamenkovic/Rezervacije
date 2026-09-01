@@ -43,13 +43,13 @@ Same row in the database. Only today's date changed.
 
 | Case | Behaviour |
 |---|---|
-| Departure passed, **no return date** | No main date → **drops off the list entirely**. Reachable only by search on the name, or by filtering its past departure date. Accepted trade. |
-| Departure and return on the same day | Appears in both the departures group and the returns group of that day's view. |
-| One-way ride *home* (e.g. Greece → Belgrade) | Entered as `destinacija = Beograd`, no return date. Works unchanged — see §5. |
+| Departure passed, **no return date** | No main date → **drops off the list entirely**. Reachable two ways: by search on the name, or by filtering its past departure date. Accepted trade — reaffirmed 01.09.2026, see §8. |
+| Departure and return on the same day | Appears in both the departures group and the returns group of that day's view — two rows for one booking. |
+| One-way ride *home* (e.g. Greece → Belgrade) | Entered with the **Jednosmerna vožnja** option: *Odakle* = Solun, *Kuda* = Beograd, no return date. See §5. |
 
 ---
 
-## 2. Two ways of looking at the list
+## 2. Three ways of looking at the list
 
 A date filter is a question about a **day**, not about a booking. So the list
 behaves differently depending on whether a date filter is on.
@@ -60,7 +60,16 @@ date ascending. Answers *"what is coming up."*
 
 **Dan** *(date filter active)*
 Every leg falling inside the chosen date or range — **departures first, then
-returns**. Answers *"what happens on 01.01.2026."*
+returns**. Answers *"what happens on 01.01.2026."* Neither the main leg rule
+nor the "from today forward" horizon applies here, which is what makes a past
+departure date reach a booking that has no main date (§1).
+
+**Pretraga** *(search active, no date filter)*
+One row per matching reservation, with no date horizon. Needed because §3 makes
+search the only way to reach a booking with no main date, and such a booking
+has no main leg for either mode above to render — it shows its departure leg
+instead. Added 28.08.2026 during implementation; this paragraph is the spec
+catching up with it.
 
 ### Sorting inside a day
 
@@ -70,8 +79,13 @@ between renders. Order is:
 1. Departures before returns
 2. Destination A–Z
 3. Name A–Z
+4. Reservation id, so the order never depends on what order Postgres returned
 
 Stable on every render.
+
+Day headings follow the **date** sort. Sorted by destination the dates are
+scattered, so the list goes flat and each card carries its own date instead —
+grouping by day there would produce a column of one-row groups.
 
 ---
 
@@ -84,7 +98,8 @@ Stable on every render.
 - Multiple destinations **OR** together; date and destination **AND** together.
   Both can be active at once.
 - Filters live in a bottom sheet with a badge showing how many are active, plus *Obriši sve*.
-- **Sort** — by date or destination, ascending or descending.
+- **Sort** — by date or destination, ascending or descending. Lives in the same
+  bottom sheet as the filters; two toggles do not deserve a second sheet.
 - **Pretraga** over name, phone and destination. Often faster than filtering, and it
   is the only way to reach a booking that has no main date.
 
@@ -106,11 +121,29 @@ Nine columns. No status, no notes, no timestamps.
 | `broj_putnika` | int | Displays as *"4 putnika"* |
 | `kreirao` | → profiles | Which of the two accounts entered it |
 
-Plus a `profiles` table: `id`, `ime`, `email`, `password_hash`, `boja` (badge colour),
-and a `destinacije` reference table — see §5.
+Plus a `profiles` table: `id`, `ime`, `email`, `boja` (badge colour), and a
+`destinacije` reference table — see §5.
+
+**There is no `password_hash`, deliberately.** Supabase Auth (§9) owns
+credentials in `auth.users`, where they are hashed, salted and rate-limited. A
+second copy in `public` would be a source of truth that can disagree with the
+first, in a schema reachable over PostgREST. `profiles` is the **access list**,
+not a credential store — see §9.
+
+### There is no origin column, and that is a real limit
+
+A booking stores where they are **going** and where they come **back to**. It
+does not store where they set out **from**. The app infers it: the far end of a
+leg is the *other* destination column, chosen by direction. That is exact while
+origin and return-destination are the same place, which is true for a
+Belgrade-based van and for the *Jednosmerna vožnja* option in §5.
+
+It cannot express a trip with **three** distinct places — pick up in Niš, drive
+to Grčka, return them to Beograd. That needs a tenth column and is not in v1.
 
 Dates are stored as plain calendar dates, **no time component**.
-**Deleting is permanent** — a confirm dialog is the only guard.
+**Deleting is permanent** — a confirm dialog is the only guard, and the nightly
+backup (§9) is the only net.
 
 ---
 
@@ -130,7 +163,9 @@ Source: `https://eurotravel.rs/destinacije`, captured 27.08.2026 into
 | Regija | Kasandra |
 | Grad | Hanioti |
 
-**7 countries · 17 regions · 44 cities.**
+**7 countries · 40 regions · 67 cities.** 44 captured from the client's site,
+plus Beograd, plus the 23 largest Serbian towns added by hand on 01.09.2026 as
+pickup points (see below).
 
 The third level matters for dispatch. "Kasandra" is a peninsula with six towns —
 dropping a family at Hanioti versus Siviri is a forty-minute difference. The
@@ -138,9 +173,9 @@ region alone does not tell the driver where to go.
 
 So the form has **three cascading dropdowns**: Država → Regija → Grad. Where a
 region contains **exactly one city**, the third dropdown auto-selects and is
-hidden — currently Zagreb, Trst, Kopaonik, Skoplje, Ohrid, Sarajevo, Jahorina,
-Paralija, Karlovac and Beograd. Implement the rule, not that list: the client
-edits their own site, so the set changes when the data is re-seeded.
+hidden. That set was ten regions when this was written and is 33 now that the
+Serbian pickup towns are in — which is exactly why the instruction is
+**implement the rule, not the list**. Changing country clears region and city.
 
 ### The `destinacije` table
 
@@ -172,8 +207,16 @@ pointing at it must keep rendering.
 Belgrade is the company's *origin*, so it is not listed as a destination. But the
 app needs it as the default **return** destination, and for one-way rides home.
 
-It is added manually to the seed data, marked `"izvor": "rucno"`. Any other
-Serbian pickup town the owner needs gets added the same way.
+It is added manually to the seed data, marked `"izvor": "rucno"`, and it is the
+**default return destination** — around 99% of rides start and end there.
+
+The same way, on 01.09.2026, the 23 largest Serbian towns were added as pickup
+points: Novi Sad, Niš, Kragujevac, Subotica, Čačak, Kraljevo, Kruševac, Užice,
+Valjevo, Šabac, Loznica, Pančevo, Zrenjanin, Sombor, Sremska Mitrovica,
+Smederevo, Požarevac, Jagodina, Leskovac, Vranje, Novi Pazar, Pirot, Zaječar.
+Each is its own single-city region, so it is two taps to pick. They are ordered
+after the client's own destinations, with **Beograd first**, because
+`redosled` is what the dropdown sorts by.
 
 ### A destination is a destination, whichever column it sits in
 
@@ -205,7 +248,30 @@ in `RUNBOOK.md`. There is no admin UI in v1.
 
 The form keeps a **⇅ swap** button between the two destination selections, so
 entering a homecoming-first booking is one tap rather than re-navigating both
-sets of dropdowns.
+sets of dropdowns. It exchanges the two *destinations* and leaves the dates
+alone — a departure date is a departure date whichever way the van points.
+
+### Jednosmerna vožnja (one-way)
+
+A checkbox on the form. It is **not a tenth column**: a booking with no
+`datum_povratka` is already a one-way (§8, "return leg optional"), so the box
+makes that absence sayable instead of leaving the owner to infer it from an
+empty field.
+
+Ticking it clears and hides the return date, and relabels the second leg from
+*Povratak* to **Odakle**, showing it first — "from Solun to Beograd" is the
+order it is said out loud. On a one-way that column holds where they set out
+from, which on a round trip is home, so this is a reading of the column rather
+than a change to it.
+
+Its initial state is set per screen, never inferred from the empty field:
+**Nova** opens as a round trip (§4 has the return date filled in later), and
+**Izmeni** opens ticked when the stored booking has no return date.
+
+**What the data cannot say:** "this trip is one-way" and "the return is not
+confirmed yet" are both an absent `datum_povratka`. Nothing in the app behaves
+differently between them, so nothing is lost — but no report can tell them
+apart.
 
 ---
 
@@ -213,14 +279,21 @@ sets of dropdowns.
 
 1. **Lista** — sticky header with search, filter and sort. Cards grouped under date
    headings (*danas · sutra · subota, 12.09.*), each carrying a direction chip,
-   destination, passenger count and the badge of whoever booked it.
+   the **route**, passenger count and the badge of whoever booked it.
+   The route is both ends of that leg — `Solun → Beograd` on a return,
+   `Beograd → Hanioti` on a departure — because "↓ Povratak · Beograd" says
+   they are arriving but not where from, which is half the dispatch question.
+   Where both ends are the same place it collapses to one name.
 2. **Filter** — bottom sheet, date chips and the destination checkbox list grouped
    by country (collapsible), *Primeni* / *Obriši sve*.
 3. **Nova / Izmeni rezervaciju** — one column, big touch targets, native date
    pickers, three cascading destination dropdowns (Država → Regija → Grad) for
-   each leg. ⇅ swap button between the two legs.
+   each leg. ⇅ swap button between the two legs, and the *Jednosmerna vožnja*
+   checkbox (§5).
 4. **Detalji** — full booking with *Pozovi* and *WhatsApp* straight off the phone
-   number, plus edit and delete.
+   number, plus edit and delete. A round trip reads *Polazak / Povratak*; a
+   one-way reads **Odakle / Kuda / Povratak nije dogovoren**, so the origin is
+   never invisible.
 
 Plus **Podešavanja** — one field: the default home town.
 
@@ -255,15 +328,16 @@ Adding and editing need a connection.
 
 | Decision | Choice | Trade accepted |
 |---|---|---|
-| Trip shape | Return leg **optional** | — |
+| Trip shape | Return leg **optional**, with an explicit *Jednosmerna vožnja* option (§5) | One-way and "return not agreed yet" look identical in the data |
 | Time of day | Dates only, **no times** | Departure times live in his head. Column drops in later without touching anything else. |
 | Home destination | Default town in settings, pre-fills, editable | — |
-| Departed, no return date | **Drops off the list**, findable by search | Possible to forget someone who is abroad. |
+| Departed, no return date | **Drops off the list**; findable by search **or** by filtering its past departure date | Possible to forget someone who is abroad. **Reaffirmed 01.09.2026** after seeing it on real data: the owner searches the name and edits, or enters a new booking. Not changing it. |
 | Language | Serbian, **Latin script** | — |
-| Delete | **Permanent**, confirm dialog only | No undo, no recycle bin. Backups are the only net. |
+| Delete | **Permanent**, confirm dialog only | No undo, no recycle bin. The nightly backup (§9) is the only net — it is not optional, and it now exists. |
 | Destinations | **Reference data** from eurotravel.rs, three cascading dropdowns | Cannot book a destination the client does not serve without re-seeding. |
 | Destination filter | **One canonical list**, grouped by country only | — |
-| Accounts | Created by the developer, not self-registration | — |
+| Accounts | Created in the Supabase dashboard; `profiles` is the access list (§9) | Adding a person is two steps, and skipping the second locks them out rather than letting them in |
+| Pickup towns | Beograd default, plus the 23 largest Serbian towns (§5) | Not from the client's site; maintained by hand in `data/destinacije.json` |
 
 ---
 
@@ -275,7 +349,7 @@ Adding and editing need a connection.
 | Database | **Supabase** Postgres, EU (Frankfurt) |
 | ORM / migrations | Drizzle + drizzle-kit — owns the schema |
 | Auth | **Supabase Auth**, email/password, cookie sessions via `@supabase/ssr` |
-| Access control | **RLS policies**, written in migrations — the real security boundary |
+| Access control | **RLS policies**, written in migrations — the real security boundary. Every policy tests `je_clan()`: a row in `profiles` |
 | Styling | Tailwind v4 |
 | Components | shadcn/ui — Sheet, Dialog, Input, Button, Checkbox only |
 | Validation | Zod, shared client + Server Action |
@@ -299,6 +373,35 @@ Adding and editing need a connection.
 No email service (no signups, no password reset — reset in the Supabase dashboard).
 No analytics (two users).
 
+### Who may enter — `profiles` is the access list
+
+Corrected 01.09.2026. This section previously asserted "no signups" as a fact.
+It was not one: signups were **enabled** on the live project, and a stranger who
+confirmed an email could have signed in and read — or deleted — every booking,
+because the policies then read `USING (true)` for any authenticated user.
+
+Both halves are now closed:
+
+1. **Signups disabled** in the Supabase dashboard.
+2. **Membership is the rule in the database.** Migration `0003` adds
+   `public.je_clan()` — `SECURITY DEFINER`, so the policy on `profiles` can
+   consult `profiles` without infinite recursion — and every policy on all four
+   tables tests it. An `auth.users` row with no `profiles` row reads nothing and
+   writes nothing.
+
+The app repeats the check where the data is: `prijaviSe` revokes the session it
+just minted if the account has no profile, and `src/proxy.ts` counts "logged in"
+as *session **and** profile*, so a stray account is turned away rather than
+bounced between `/` and `/prijava` forever.
+
+Adding a person is two steps — create the account in the dashboard, then insert
+their `profiles` row. Removing one is a single row delete. See `RUNBOOK.md`.
+
+> **Why the app checks at all, when RLS is the boundary:** the screens read
+> through Drizzle, which connects as the table owner and *bypasses RLS*. For a
+> REST call with the publishable key RLS holds; for a server render it is not in
+> the path at all. So the check is repeated in `zahtevajKorisnika()`.
+
 ### Two free-tier caveats that matter here
 
 **Projects pause after 7 days of inactivity.** For a seasonal transport business a
@@ -309,7 +412,20 @@ permanent.
 
 Both are solved by one nightly GitHub Action that runs `pg_dump` against the
 direct connection: it produces a real backup **and** the daily query counts as
-activity, so the project never pauses. This is a Phase 8 deliverable, not optional.
+activity, so the project never pauses.
+
+**Built 01.09.2026** — `.github/workflows/rezerva.yml`, nightly at 01:30 UTC.
+It installs `pg_dump` 17 (the server is 17.6 and the runner ships 16, which
+refuses), dumps the `public` schema only — never `auth`, so a backup can never
+leak password hashes — writes a human-readable CSV of every booking, and commits
+both to the orphan branch `rezerve`, where nothing expires. It refuses to commit
+a dump that is missing tables or suspiciously small, because a backup that
+silently contains nothing is worse than none.
+
+A restore was **performed and verified**, not merely enabled: the dump was
+replayed into a scratch schema inside a transaction and rolled back, returning
+44 destinacije, 2 profila, 8 rezervacija and 1 settings row. Procedure in
+`RUNBOOK.md`.
 
 If the owner later wants managed backups and no pause risk, that is Supabase Pro
 at $25/month. Not needed to launch.
@@ -334,12 +450,34 @@ All of it drops onto this schema later without a rewrite.
 
 ## 11. Open items
 
-- [x] ~~Account credentials~~ — accounts are created by the developer via the seed
-      script. No self-registration.
+- [x] ~~Account credentials~~ — created in the Supabase dashboard; `profiles` is
+      the access list (§9). No self-registration, and signups are disabled.
 - [x] ~~Number of dropdown levels~~ — **confirmed three**: Država → Regija → Grad,
       with the third auto-selected and hidden for single-city regions.
 - [x] ~~Default home destination for Podešavanja~~ — confirmed `Srbija › Beograd › Beograd`
-- [ ] Should inactive countries (Slovenija, BiH) be bookable anyway? Spec says no —
-      hidden from new bookings, still resolvable for old ones.
-- [ ] Re-check `data/destinacije.json` against the live site before launch — captured
-      27.08.2026, and the client edits their own site.
+- [x] ~~Should inactive countries (Slovenija, BiH) be bookable anyway?~~ — **no.**
+      Hidden from the new-booking dropdowns, still fully resolvable on existing
+      bookings, and still in the filter for as long as a booking references one.
+- [x] ~~`password_hash` on `profiles`~~ — **dropped.** Supabase Auth owns
+      credentials; see §4 and §9.
+- [x] ~~Backups~~ — nightly `pg_dump` built and a restore verified (§9).
+- [ ] Re-check `data/destinacije.json` against the live site before launch — the
+      Greek, Croatian and other entries were captured 27.08.2026 and the client
+      edits their own site. The Serbian pickup towns are ours and need no check.
+- [ ] **A trip with three distinct places** — pick up in Niš, drive to Grčka,
+      return to Beograd — cannot be expressed (§4). Needs a tenth column. Not
+      in v1; revisit if the owner starts running pickups he does not return to.
+
+---
+
+## 12. Changelog
+
+**01.09.2026** — this document was brought back in line with the code after
+Phases 3–5. It had drifted in six places, and one of them was a security
+property (§9) asserted as fact that was not true. Changes: three list modes
+(§2), no `password_hash` and no origin column (§4), 67 destinations including
+Serbian pickup towns (§5), the *Jednosmerna vožnja* option (§5), route on the
+cards (§6), `profiles` as the access list and backups built (§9).
+
+**Standing rule:** if the code and this file disagree, that is a bug in one of
+them — report it rather than quietly following whichever is nearer.

@@ -1,0 +1,146 @@
+name: Nocna rezerva
+
+# Nightly backup of the reservation book, and the thing that keeps the
+# Supabase project awake.
+#
+# Two jobs in one, both load-bearing:
+#
+#   1. **Backup.** Deleting a reservation is permanent — no status column, no
+#      undo, no recycle bin (SPEC §8). This dump is the only way back.
+#   2. **Keep-alive.** Supabase pauses a free project after 7 days with no
+#      activity. A quiet week in winter would otherwise take the app offline
+#      until somebody noticed and unpaused it. A daily query counts as
+#      activity, so the backup pays for itself twice.
+#
+# Backups are committed to the orphan branch `rezerve`, which shares no history
+# with `main`. Cloning the code therefore never drags the backups along, and
+# the backups never expire the way build artifacts do.
+
+on:
+  schedule:
+    # 01:30 UTC — 02:30 in Belgrade in winter, 03:30 in summer. Deliberately
+    # in the small hours: nobody is booking a van then, so the dump is taken
+    # against a quiet database.
+    - cron: "30 1 * * *"
+  # So a backup can be taken by hand before anything risky.
+  workflow_dispatch:
+
+# Never let two runs commit to `rezerve` at once.
+concurrency:
+  group: rezerva
+  cancel-in-progress: false
+
+jobs:
+  rezerva:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Preuzmi granu rezerve
+        uses: actions/checkout@v4
+        with:
+          ref: rezerve
+          # If the branch does not exist yet, the step below creates it.
+          fetch-depth: 1
+        continue-on-error: true
+
+      - name: Napravi granu rezerve ako ne postoji
+        run: |
+          if [ ! -d .git ]; then
+            git init -q .
+            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          fi
+          if ! git rev-parse --verify rezerve >/dev/null 2>&1; then
+            git checkout -q --orphan rezerve
+            git rm -rqf . 2>/dev/null || true
+          fi
+
+      - name: Instaliraj pg_dump 17
+        # The runner ships client 16; the Supabase server is 17.6, and pg_dump
+        # refuses to dump from a server newer than itself. Pin the major
+        # version to the server's, not to whatever the image happens to have.
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          pg_dump --version
+
+      - name: Napravi rezervu
+        env:
+          # Session pooler, port 5432. The transaction pooler on 6543 cannot
+          # hold the session state pg_dump needs.
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DIRECT_URL:-}" ]; then
+            echo "::error::Tajna DIRECT_URL nije podesena u Settings > Secrets > Actions."
+            exit 1
+          fi
+
+          DAN=$(date -u +%Y-%m-%d)
+          GODINA=$(date -u +%Y)
+          mkdir -p "dump/$GODINA" csv
+
+          # Only the `public` schema: that is the whole app. `auth` is
+          # Supabase's own and holds password hashes — it is deliberately NOT
+          # dumped, so this backup can never leak credentials.
+          #
+          # No --clean and no --if-exists: a dump that cannot DROP anything
+          # cannot destroy a live database if it is ever run at the wrong one
+          # by mistake. Restores go into an empty database (see RUNBOOK.md).
+          pg_dump "$DIRECT_URL" \
+            --schema=public \
+            --no-owner --no-privileges \
+            --quote-all-identifiers \
+            -f "dump/$DAN.sql"
+
+          # A copy a human can read without any tooling. GitHub renders CSV as
+          # a table in the browser, so the owner can open the booking book on
+          # a phone even if everything else is on fire.
+          psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -q -c "\\copy ( \
+              SELECT r.ime, r.telefon, r.broj_putnika, \
+                     r.datum_polaska, o.drzava AS odlaziste_drzava, o.grad AS odlaziste, \
+                     r.datum_povratka, p.drzava AS povratiste_drzava, p.grad AS povratiste, \
+                     pr.ime AS uneo \
+              FROM reservations r \
+              JOIN destinacije o ON o.id = r.destinacija_id \
+              JOIN destinacije p ON p.id = r.destinacija_povratka_id \
+              JOIN profiles pr ON pr.id = r.kreirao \
+              ORDER BY r.datum_polaska \
+            ) TO 'csv/rezervacije-najnovije.csv' WITH CSV HEADER"
+
+          cp "csv/rezervacije-najnovije.csv" "csv/$DAN-rezervacije.csv"
+
+          # A backup that silently contains nothing is worse than no backup,
+          # because it looks like success. Refuse to commit one.
+          TABELA=$(grep -c '^CREATE TABLE' "dump/$DAN.sql" || true)
+          DEST=$(grep -c '^COPY "public"."destinacije"' "dump/$DAN.sql" || true)
+          VELICINA=$(wc -c < "dump/$DAN.sql")
+          echo "tabela=$TABELA destinacije_blok=$DEST velicina=${VELICINA}B"
+          if [ "$TABELA" -lt 4 ] || [ "$DEST" -lt 1 ] || [ "$VELICINA" -lt 2000 ]; then
+            echo "::error::Rezerva izgleda prazna ili nepotpuna — nije sacuvana."
+            exit 1
+          fi
+
+          gzip -9 "dump/$DAN.sql"
+          mv "dump/$DAN.sql.gz" "dump/$GODINA/$DAN.sql.gz"
+          ls -la "dump/$GODINA/$DAN.sql.gz"
+
+      - name: Sacuvaj u granu rezerve
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dump csv
+          if git diff --cached --quiet; then
+            echo "Nema promena — baza je identicna juceranjoj."
+            exit 0
+          fi
+          git commit -q -m "Rezerva $(date -u +%Y-%m-%d)"
+          git push -q origin HEAD:rezerve
+          echo "Rezerva sacuvana na granu rezerve."

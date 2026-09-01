@@ -17,7 +17,9 @@ operations.
 | 4 · Auth and RLS | done |
 | 5 · Screens | done |
 | 6 · Installable and offline | **next** |
-| 7–9 | not started |
+| 7 · Verification gate | not started |
+| 8 · Deploy | backups + RUNBOOK done; Vercel, CI and Sentry remain |
+| 9 · Handover | not started |
 
 **There is one database and it is the real one.** Development and production are
 the same hosted Supabase project, `biqiztxeiqmrgmngemhf`, in the EU
@@ -1041,8 +1043,21 @@ are applied and the data is seeded. What remains is everything around it.
       auto-selected and hidden where a region contains exactly one city
 - [x] ~~Default home destination~~ — **confirmed `Srbija › Beograd › Beograd`**
       (28.08.2026). The seed writes it into the `settings` row.
-- [ ] Re-check `data/destinacije.json` against the live site before launch; it was
-      captured 27.08.2026 and the client edits their own site
+- [x] ~~Nightly backup~~ — `.github/workflows/rezerva.yml`, built 01.09.2026.
+      Dumps `public` only (never `auth`), writes a readable CSV, commits to the
+      orphan branch `rezerve`, refuses to save an empty dump, and doubles as
+      the keep-alive. Restore **verified** into a scratch schema in a
+      rolled-back transaction: 44 destinacije, 2 profila, 8 rezervacija,
+      1 settings. Procedure in `RUNBOOK.md`. **Needs the `DIRECT_URL` secret
+      set in GitHub before the first run.**
+- [x] ~~Serbian pickup towns~~ — the 23 largest added to
+      `data/destinacije.json` on 01.09.2026, each its own single-city region,
+      Beograd still first and still the default. 67 destinations total.
+- [x] ~~SPEC drift~~ — `SPEC.md` brought back in line with the code on
+      01.09.2026 and given a changelog. All six disagreements closed.
+- [ ] Re-check the non-Serbian half of `data/destinacije.json` against the live
+      site before launch; it was captured 27.08.2026 and the client edits their
+      own site
 - [x] ~~`profiles` has no `password_hash`~~ — settled 01.09.2026 and still no
       password column. Supabase Auth owns credentials in `auth.users`, which
       hashes, salts and rate-limits them; a second copy in `public` would be a
@@ -1061,10 +1076,8 @@ are applied and the data is seeded. What remains is everything around it.
       deprecated file.
 - [x] ~~The repo has zero commits~~ — Phases 3–5 committed and pushed to
       `origin/main` on 01.09.2026 (`b1aad88`), followed by the access-list work.
-- [ ] **SPEC §2 names two list modes; the implementation has three.**
-      `pretragaView` was added because SPEC §3 requires search to reach a booking
-      with no main date, and neither named mode can render one. Fold it into
-      SPEC §2 or reject it — see Phase 3.
+- [x] ~~SPEC §2 names two list modes; the implementation has three~~ —
+      `pretragaView` is now written into SPEC §2.
 - [ ] **SPEC §1 and the `domain-logic` agent brief disagree** about whether a
       departed booking with no return date is reachable in Dan mode. SPEC §1 says
       yes, by filtering its past departure date; the brief said no. SPEC was
