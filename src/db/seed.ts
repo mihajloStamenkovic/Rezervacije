@@ -16,16 +16,16 @@ import postgres from "postgres";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { directUrl } from "../env";
 import { danasBeograd, pomeriDane } from "../lib/datum";
-import { destinacije, profiles, reservations, settings } from "./schema";
+import { destinacije, reservations, settings } from "./schema";
 
 /**
- * Fixed ids so re-running replaces rather than duplicates.
- *
- * The profile ids are placeholders. Phase 4 ties `profiles.id` to
- * `auth.users.id`; until then these are just two rows to hang `kreirao` on.
+ * The two real Supabase Auth accounts (`auth.users.id`), fixed since the
+ * accounts are created once in the dashboard, never by this script.
+ * `profiles.id` is a real foreign key to `auth.users.id` as of migration
+ * `0002`, so these must be real auth ids, not placeholders.
  */
-const PROFIL_A = "00000000-0000-4000-8000-000000000001";
-const PROFIL_B = "00000000-0000-4000-8000-000000000002";
+const PROFIL_MIHAJLO = "56231ad7-e99a-4425-ae45-f87a82b2c07d";
+const PROFIL_PETAR = "22ecbb36-23fd-4d78-905d-fb8f0d2c89ca";
 
 const REZ = (n: number) =>
   `00000000-0000-4000-8000-1000000000${String(n).padStart(2, "0")}`;
@@ -49,26 +49,44 @@ async function destinacijaId(db: Db, drzavaSifra: string, grad: string) {
   return red.id;
 }
 
+/**
+ * Upserts a `profiles` row, reading `email` from `auth.users` rather than
+ * accepting it as a parameter — `profiles.id` is a real foreign key to
+ * `auth.users.id` (migration `0002`), so the row must not exist otherwise,
+ * and the email must never be a literal in this file (see module comment).
+ */
+async function upisiProfil(db: Db, id: string, ime: string, boja: string) {
+  const [red] = await db.execute(sql`
+    insert into profiles (id, ime, email, boja)
+    select id, ${ime}, email, ${boja}
+    from auth.users
+    where id = ${id}
+    on conflict (id) do update set
+      ime = excluded.ime,
+      email = excluded.email,
+      boja = excluded.boja
+    returning id
+  `);
+  if (!red) {
+    throw new Error(
+      `Nalog ${ime} (${id}) ne postoji u auth.users. ` +
+        `Nalog se pravi u Supabase dashboard-u, ne ovim skriptom.`,
+    );
+  }
+}
+
 async function main() {
   const client = postgres(directUrl(), { max: 1 });
   const db = drizzle(client);
   const danas = danasBeograd();
 
   try {
-    await db
-      .insert(profiles)
-      .values([
-        { id: PROFIL_A, ime: "Nikola", email: "nikola@example.test", boja: "#2563eb" },
-        { id: PROFIL_B, ime: "Marija", email: "marija@example.test", boja: "#d97706" },
-      ])
-      .onConflictDoUpdate({
-        target: profiles.id,
-        set: {
-          ime: sql`excluded.ime`,
-          email: sql`excluded.email`,
-          boja: sql`excluded.boja`,
-        },
-      });
+    // Email is copied from auth.users with `insert ... select`, never
+    // written as a literal — this file is committed to a public repo and
+    // both addresses are the account holders' own personal addresses
+    // (see migration 0002, which does the same thing for the same reason).
+    await upisiProfil(db, PROFIL_MIHAJLO, "Mihajlo", "#2563eb");
+    await upisiProfil(db, PROFIL_PETAR, "Petar", "#d97706");
 
     const beograd = await destinacijaId(db, "srbija", "Beograd");
     const hanioti = await destinacijaId(db, "grcka", "Hanioti");
@@ -98,7 +116,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: pomeriDane(danas, 28),
         brojPutnika: 4,
-        kreirao: PROFIL_A,
+        kreirao: PROFIL_MIHAJLO,
       },
       {
         // Departing TODAY — proves the `>=` boundary resolves to ↑ Odlazak.
@@ -110,7 +128,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: pomeriDane(danas, 7),
         brojPutnika: 2,
-        kreirao: PROFIL_B,
+        kreirao: PROFIL_PETAR,
       },
       {
         // Departed, return still ahead — must show as ↓ Povratak to Beograd,
@@ -123,7 +141,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: pomeriDane(danas, 9),
         brojPutnika: 5,
-        kreirao: PROFIL_A,
+        kreirao: PROFIL_MIHAJLO,
       },
       {
         // Departed, NO return date — has no main date, so it drops off the
@@ -136,7 +154,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: null,
         brojPutnika: 1,
-        kreirao: PROFIL_B,
+        kreirao: PROFIL_PETAR,
       },
       {
         // One-way ride HOME: Greece → Belgrade, Beograd in the OUTBOUND column.
@@ -149,7 +167,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: null,
         brojPutnika: 3,
-        kreirao: PROFIL_A,
+        kreirao: PROFIL_MIHAJLO,
       },
       {
         // Same-day round trip — appears in BOTH groups of that day's view.
@@ -161,7 +179,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: pomeriDane(danas, 2),
         brojPutnika: 21,
-        kreirao: PROFIL_B,
+        kreirao: PROFIL_PETAR,
       },
       {
         // Points at an INACTIVE destination (Slovenija). Must still render.
@@ -173,7 +191,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: pomeriDane(danas, 12),
         brojPutnika: 2,
-        kreirao: PROFIL_A,
+        kreirao: PROFIL_MIHAJLO,
       },
       {
         // Same main date as #6, different destination — exercises the
@@ -186,7 +204,7 @@ async function main() {
         destinacijaPovratkaId: beograd,
         datumPovratka: pomeriDane(danas, 16),
         brojPutnika: 6,
-        kreirao: PROFIL_B,
+        kreirao: PROFIL_PETAR,
       },
     ];
 

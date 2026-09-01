@@ -15,6 +15,13 @@
       "when": 1787921181322,
       "tag": "0001_ukljuci_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787924581575,
+      "tag": "0002_profili_i_rls_politike",
+      "breakpoints": true
     }
   ]
 }

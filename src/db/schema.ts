@@ -22,6 +22,7 @@ import {
   date,
   index,
   integer,
+  pgSchema,
   pgTable,
   text,
   unique,
@@ -30,12 +31,26 @@ import {
 import { sql } from "drizzle-orm";
 
 /**
- * The two accounts. `id` mirrors `auth.users.id` — Supabase Auth owns the
- * credentials, so there is no password column here (SPEC §4 predates the
- * Supabase decision in §9; see the build report).
+ * A read-only handle onto Supabase Auth's own `auth.users` table, just
+ * enough of it (the primary key) to hang a foreign key off. This schema and
+ * table are owned and managed by Supabase, not by drizzle-kit — migrations
+ * never create, alter or drop it, only reference its `id` column.
+ */
+const authSchema = pgSchema("auth");
+export const authUsers = authSchema.table("users", {
+  id: uuid("id").primaryKey(),
+});
+
+/**
+ * The two accounts. `id` mirrors, and since migration `0002` is a real
+ * foreign key to, `auth.users.id` — Supabase Auth owns the credentials, so
+ * there is no password column here (SPEC §4 predates the Supabase decision
+ * in §9; see the build report).
  */
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey(),
+  id: uuid("id")
+    .primaryKey()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
   ime: text("ime").notNull(),
   email: text("email").notNull().unique(),
   /** Badge colour, stored as a hex string like `#2563eb`. */

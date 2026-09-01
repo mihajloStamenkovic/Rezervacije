@@ -24,12 +24,23 @@ export const T = {
 
   lista: {
     naslov: "Raspored",
+    /** Headings for the other two list shapes — SPEC §2 and the Phase 3 note. */
+    naslovDan: "Dan",
+    naslovPretraga: "Pretraga",
     prazno: "Nema nadolazećih rezervacija.",
     prazoUzFilter: "Nijedna rezervacija ne odgovara filteru.",
+    praznoPretraga: "Nema rezultata za ovu pretragu.",
     novaRezervacija: "Nova rezervacija",
     pretraga: "Pretraži ime, telefon ili destinaciju",
     obrisiPretragu: "Obriši pretragu",
     ucitavanje: "Učitavanje…",
+    /** Screen-reader label on the card link; the card itself shows the name. */
+    otvori: "Otvori rezervaciju",
+  },
+
+  nav: {
+    nazad: "Nazad",
+    podesavanja: "Podešavanja",
   },
 
   smer: {

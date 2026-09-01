@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { T } from "@/lib/tekst";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kombi Rezervacije",
-  description: "Zajednička knjiga rezervacija za kombi prevoz.",
+  title: T.app.naziv,
+  description: T.app.opis,
 };
 
 export const viewport: Viewport = {

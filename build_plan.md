@@ -6,15 +6,18 @@ agents in `.claude/agents/`.
 Read `SPEC.md` first. It is the source of truth; this file is only the order of
 operations.
 
-## Status — 28.08.2026
+## Status — 01.09.2026
 
 | Phase | State |
 |---|---|
 | 0 · Scaffold | done |
 | 1 · Data layer | done |
 | 2 · Locale primitives | done |
-| 3 · Domain core | **next** |
-| 4–9 | not started |
+| 3 · Domain core | done |
+| 4 · Auth and RLS | done |
+| 5 · Screens | code complete — **device gates outstanding** |
+| 6 · Installable and offline | **next** |
+| 7–9 | not started |
 
 **There is one database and it is the real one.** Development and production are
 the same hosted Supabase project, `biqiztxeiqmrgmngemhf`, in the EU
@@ -28,9 +31,15 @@ only Vercel, CI, monitoring and backups.
 It also means every command runs against live data. `npm run db:reset` is gated
 behind `POTVRDA="OBRISI SVE"` and nothing else drops anything.
 
-**Verified at the end of Phases 0–2:** `npm run typecheck` clean · `npm run lint`
-clean · `npm run build` succeeds · `npm run test:tz` — 85 tests across 5
-timezones, all identical.
+**Verified at the end of Phase 5:** `npm run typecheck` clean · `npm run lint`
+clean · `npm run test` 222/222 · `npm run build` succeeds (7 routes + Proxy) ·
+`npm run test:tz` — **222 tests across 5 timezones, all identical**. All five
+screens redirect to `/prijava` when logged out. RLS verified by curl in Phase 4:
+the publishable key with no session returns `[]` from all four tables.
+
+**Phase 5 is not signed off.** The mobile gates — 375px, 44px touch targets, and
+driving the cascade, the swap and delete by hand — need a phone-shaped viewport
+and a logged-in session, and neither has happened. See the end of Phase 5.
 
 **Verified on the hosted project:** migrations `0000` and `0001` applied · 44
 destinacije, 2 profila, 8 rezervacija, 1 settings row · RLS enabled on all four
@@ -340,15 +349,9 @@ Left as the library has it rather than hand-rolling a different one.
 
 ---
 
-## Phase 3 — Domain core ← NEXT
+## Phase 3 — Domain core ✅
 
-**Agent:** `domain-logic` · **The hardest phase. Do not rush it.**
-
-**Ready to start.** Everything it needs exists: the schema and raw-row query
-layer from Phase 1, `danasBeograd()` and `uporediTekst` from Phase 2, and eight
-seed reservations already shaped around the awkward cases. Put the domain core
-in `src/domen/` and keep it free of any database import, so it stays testable at
-a fixed `danas`.
+**Agent:** `domain-logic` · **Completed 28.08.2026.**
 
 Prompt it with: *"Read SPEC.md §1, §2, §3, §5. Implement and test the main leg
 rule and both list modes."*
@@ -374,11 +377,119 @@ rule and both list modes."*
 > This is where the app is most likely to be subtly wrong. Read the test output
 > yourself — do not accept "tests pass" as a summary.
 
+### What was built
+
+`src/domen/` — nine modules, five test files, 2232 lines. Nothing outside the
+directory changed.
+
+| File | Purpose |
+|---|---|
+| `tipovi.ts` | `RezervacijaRed`, `Etapa`, `StavkaListe`, `StanjeListe`, sort and mode types |
+| `glavna-etapa.ts` | `resolveMainLeg`, `sveEtape`, `proveriDanas` |
+| `destinacije.ts` | the rollup, filter keys, the one canonical list, the checkbox tree |
+| `filteri.ts` | date chips, range normalisation, badge count, mode selection |
+| `pretraga.ts` | diacritic-folding search over name, phone and destination |
+| `sortiranje.ts` | primary sort plus the same-day tiebreak |
+| `liste.ts` | `rasporedView`, `danView`, `pretragaView`, `prikaziListu`, grouping |
+| `index.ts` | the single import surface for the UI phase |
+| `fiksture.ts` | test-only; mirrors the eight seed rows at a fixed `DANAS = "2026-01-15"` |
+
+### Evidence
+
+Re-run and read in the main session, not taken from the agent's summary.
+
+- **178 tests pass**, 93 of them new (`npx vitest run src/domen` → 6 files, 93
+  tests). `npm run test:tz` → identical under UTC · Europe/Belgrade ·
+  Europe/Athens · Pacific/Auckland · America/Los_Angeles, closing with
+  *"Svih 5 vremenskih zona daje isti rezultat."*
+- `npm run typecheck` exit 0 · `npm run lint` exit 0.
+- **No database import.** The only `@/db` reference in the whole directory is a
+  type-only import of three `$inferSelect` types from `schema.ts`, which is
+  erased at compile time. `schema.ts` has no `server-only`; `queries.ts` does,
+  and is never reached.
+- **The structural row type cannot drift from the real one.** A temporary probe
+  asserting `RezervacijaRed` from `src/db/queries.ts` and from
+  `src/domen/tipovi.ts` are assignable **both ways** typechecked at exit 0. The
+  probe was deleted afterwards; `git status` shows only `?? src/domen/`.
+- **Mutation testing** — the agent broke the code four ways and confirmed the
+  suite caught each: `>=` → `>` (11 failures), destination filter reading the
+  reservation instead of the leg (6), `uporediTekst` → byte compare (2),
+  departures-before-returns tiebreak removed (5).
+- The `>=` boundary is named in the test list twice: *"departure exactly today →
+  still outbound"* and *"flips the day AFTER departure, not on it"*.
+- Rollup proven both directions: *"a country matches every city in it (Grčka →
+  Hanioti)"* and *"a region matches only its own cities (Kasandra → Hanioti and
+  Siviri, not Sarti)"*. Filter keys are built on `drzava_sifra`, not the display
+  name, so re-seeding a renamed country cannot invalidate a saved filter.
+- Both-columns rule proven: *"a place matches from BOTH destination columns"*
+  and *"a departed trip leaves the Grčka filter, because its leg is now home"*.
+
+### Three interpretations, flagged rather than resolved silently
+
+**1. The departed-with-no-return booking is reachable in Dan mode.** The agent
+brief said "excluded from both modes"; SPEC §1's edge-case table says reachable
+"by search on the name, **or by filtering its past departure date**." SPEC won —
+`danView` is purely leg-in-range and applies neither the main-leg rule nor the
+today horizon. The booking is still absent from Raspored entirely.
+
+**2. `pretragaView` is a third list shape, and SPEC §2 names only two.** SPEC §3
+says search "is the only way to reach a booking that has no main date", but such
+a booking has no main leg to render, so it cannot be a row in either named mode.
+`pretragaView` emits one row per matching reservation, showing the main leg where
+there is one and the past departure leg where there is not. `prikaziListu`
+dispatches: date filter → `dan`, else search → `pretraga`, else `raspored`.
+**This is a real addition to SPEC §2 and should be written into the spec.**
+
+**3. What feeds the filter checkboxes.** Per SPEC §5, `destinacijeZaFilter` is
+every **active** destination ∪ **anything any booking references**, from either
+column, deduped by id. Ljubljana is absent with no bookings and appears exactly
+once with the seed rows.
+
+Two smaller calls, both documented in the code: the filter tree sorts
+alphabetically at every level rather than by `redosled` (that column is the
+client's display order for the booking dropdowns), and descending sort reverses
+only the primary key — departures still precede returns within a day, since that
+is a rule about a day, not about direction.
+
+### Two things Phase 5 needs to know
+
+- `StavkaListe.kljuc` is `<id>#<smer>`, **not** the reservation id. A same-day
+  round trip emits two rows for one reservation, so the id alone is not a safe
+  React key.
+- `resolveMainLeg` deliberately does *not* apply the "from today forward"
+  horizon — a booking that departed and returned last month still resolves to
+  its return leg, which is what the detail screen wants. `rasporedView` owns the
+  horizon.
+
 ---
 
-## Phase 4 — Auth and RLS
+## Phase 4 — Auth and RLS ✅
 
-**Agent:** `security`
+**Agent:** `security` · **Completed 28.08.2026.**
+
+**Fully unblocked — Block B closed 28.08.2026.** Both accounts exist in
+`auth.users`, confirmed, and the badge names and colours are settled:
+
+| User id | Badge name | Colour |
+|---|---|---|
+| `56231ad7-e99a-4425-ae45-f87a82b2c07d` | Mihajlo | `#2563eb` |
+| `22ecbb36-23fd-4d78-905d-fb8f0d2c89ca` | Petar | `#d97706` |
+
+**The profile swap needs a specific order.** The two placeholder profiles
+cannot simply be deleted or re-keyed: the eight seed reservations reference
+them and both FKs are `ON DELETE RESTRICT` with no `ON UPDATE CASCADE`, so
+an in-place `update profiles set id = …` is blocked just as a delete is.
+The migration must, in one transaction:
+
+1. insert the two real profile rows, taking `email` **from `auth.users`**
+   rather than a literal — `src/db/seed.ts` is committed to GitHub and must
+   not carry either account holder's personal address;
+2. re-point `reservations.kreirao` from each placeholder to its real id
+   (4 rows each, currently split evenly);
+3. delete the two placeholder rows;
+4. only then add the `profiles.id` → `auth.users(id)` foreign key.
+
+Doing 4 before 1–3 fails: the placeholder UUIDs are absent from `auth.users`.
 
 **RLS is already on.** `drizzle/0001_ukljuci_rls.sql` enabled it on all four
 tables with no policies, so the door is locked by default and the publishable key
@@ -387,8 +498,8 @@ does not start by opening anything.
 
 **Deliverables**
 - Supabase Auth via `@supabase/ssr` — browser, server and admin clients
-- `middleware.ts` refreshing the session and protecting everything except
-  `/prijava` and static assets
+- ~~`middleware.ts`~~ **`src/proxy.ts`** refreshing the session and protecting
+  everything except `/prijava` and static assets — renamed in Next 16, see below
 - `/prijava` screen in Serbian with correct `autocomplete` attributes
 - **RLS policies for every table, written into migrations** (see SPEC §9)
 - `profiles.id` becomes a real foreign key to `auth.users(id)`
@@ -408,12 +519,111 @@ does not start by opening anything.
 **Not blocked.** You create the two accounts in the Supabase dashboard and set
 their passwords there. I never handle them.
 
+### What was built
+
+| File | Purpose |
+|---|---|
+| `drizzle/0002_profili_i_rls_politike.sql` | real profiles, the `auth.users` FK, 9 RLS policies |
+| `drizzle/meta/0002_snapshot.json`, `_journal.json` | hand-written migration, journal kept consistent |
+| `src/lib/supabase/client.ts` | browser client (publishable key) |
+| `src/lib/supabase/server.ts` | per-request server client, publishable key + cookie session |
+| `src/lib/supabase/admin.ts` | secret key, server-only, bypasses RLS |
+| `src/lib/supabase/middleware.ts` | session refresh + redirect logic |
+| `src/proxy.ts` | route protection (**not** `middleware.ts` — see below) |
+| `src/app/prijava/{page,prijava-forma,actions}.tsx` | login screen and Server Action |
+| `src/app/actions/nalog.ts` | logout |
+| `src/db/schema.ts` | models `auth.users` via `pgSchema("auth")`, reference-only |
+| `src/db/seed.ts` | placeholder UUIDs gone; reads ids and emails from `auth.users` |
+
+### One deviation from this plan, and it is correct
+
+This plan said `middleware.ts`. **Next 16 deprecated that file and export in
+favour of `proxy.ts` / `export function proxy`** — confirmed in the bundled docs
+at `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`:
+*"The `middleware` file convention is deprecated and has been renamed to
+`proxy`."* The build output confirms it is wired up, printing `ƒ Proxy (Middleware)`.
+This is exactly the class of breaking change `AGENTS.md` exists to warn about.
+**The wording above and in `.claude/agents/security.md` should be corrected.**
+
+### Evidence
+
+Re-verified in the main session against the live hosted project — not taken from
+the agent's report.
+
+- **`pg_tables … rowsecurity = false` → zero rows.** All four tables still RLS-on.
+- **9 policies, every one scoped to `authenticated`.** Counted from `pg_policies`:
+  `reservations` select/insert/update/delete, `profiles` select + update-own-row,
+  `destinacije` select, `settings` select/update. **Policies granting anything to
+  `anon`: 0.**
+- **Anon curl, publishable key, no session** → `HTTP 200 []` from *all four*
+  tables: `reservations`, `profiles`, `destinacije`, `settings`.
+- **Anon writes change nothing.** `POST /rest/v1/reservations` → `HTTP 401`.
+  `DELETE` → `HTTP 204` **but zero rows removed** — PostgREST reports success
+  while RLS filters every row out of scope. Reservation count before and after:
+  **8 and 8**. Worth knowing: a 204 here is not a breach, but it does not read
+  like a rejection either.
+- **The `auth.users` foreign key is real and enforcing.** `information_schema`
+  reports it as absent — a privilege false-negative, because `auth.users` is
+  owned by another role. `pg_constraint` shows
+  `profiles_id_users_id_fk FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE`,
+  and a live insert of a profile whose id is not an auth user was **rejected**
+  by that constraint (tested in a rolled-back transaction).
+- **Profiles are the real accounts.** Two rows, `Mihajlo` `#2563eb` and `Petar`
+  `#d97706`, both present in `auth.users`, and each row's `email` **matches
+  `auth.users.email` exactly** — proving it was copied by the migration rather
+  than typed in. Placeholder profiles remaining: **0**.
+- **All 8 reservations survived the re-point**, 4 to each account.
+- **Route protection**, tested against a real `next start` server: `/`,
+  `/nepostojeca-ruta`, `/detalji/abc`, `/podesavanja` → **`307` to `/prijava`**;
+  `/prijava` itself → `200`.
+- **No secret in anything the browser receives.** Clean rebuild, then grep of
+  `.next/static` for the literal secret value, `sb_secret_`, `SUPABASE_SECRET_KEY`
+  and connection strings → **0 files each**. The served `/prijava` HTML likewise
+  contains none. The secret's only occurrence anywhere under `.next` is
+  `.next/cache/turbopack/….sst`, a local build cache, and `/.next/` is gitignored.
+- `npm run typecheck` exit 0 · `npm run lint` exit 0 · `npm run test` 178/178 ·
+  `npm run build` succeeds (routes `/` and `/prijava`, plus the Proxy).
+
+### Session longevity — what was and was not verified
+
+The refresh cookie is written with `Max-Age=34560000` (400 days), and
+`azurirajSesiju` calls `getClaims()` on every navigation, which refreshes an
+access token that is near expiry. So the *mechanism* for surviving a browser
+restart and a multi-day gap is in place and was observed in a real `Set-Cookie`.
+**Nobody waited days.** Elapsed-time behaviour is unverified and stays unverified
+until Phase 9 on the owner's actual phone.
+
+### A mistake the agent flagged rather than hid
+
+While testing the cookie round trip it ran one `curl -i` that printed a
+`Set-Cookie` containing a full session JWT — which embeds the account email —
+into its own transcript. It caught this, switched to silent curls with cookie
+jars, and revoked the session with `signOut({scope:"global"})`.
+
+**Verified in the main session:** `auth.sessions` → **0 rows**;
+`auth.refresh_tokens` → **0 total, 0 active**. The leaked token is dead. No
+password was involved at any point — the test sessions were minted via
+`admin.generateLink()` + `verifyOtp()`, never `signInWithPassword`.
+
+### Two things Phase 5 should know
+
+- **`src/lib/supabase/client.ts` is currently unused.** `sb_publishable_` appears
+  in **zero** files under `.next/static`, because login runs through a Server
+  Action and nothing client-side has needed the browser client yet. It is correct
+  code, but it is untested in a real bundle — the first client component to use
+  it is the first real exercise of that path.
+- **Deleting an account in the dashboard will fail while it has reservations.**
+  `profiles.id → auth.users(id)` is `ON DELETE CASCADE`, but
+  `reservations.kreirao → profiles.id` is `ON DELETE RESTRICT`, so the cascade is
+  blocked. That is the safe direction — no silent data loss — but it is a
+  surprise if someone tries it.
+
+
 ---
 
-## Phase 5 — Screens
+## Phase 5 — Screens ⏳ code complete, device gates outstanding
 
-**Agent:** `ui` · The largest phase. Consider splitting across invocations:
-list first, then form, then detail and settings.
+**Agent:** none — built in the main session. **01.09.2026.**
 
 **Deliverables**
 - **Lista** — sticky header, date-grouped cards, direction chips, creator badges
@@ -434,6 +644,124 @@ list first, then form, then detail and settings.
   correctly on an existing reservation that references one
 - Zero Serbian strings inlined in JSX — all from `tekst.ts`
 - Zero filtering or sorting reimplemented in components
+
+### What was built
+
+Five routes, ten components, three new modules, two new test files.
+
+| File | Purpose |
+|---|---|
+| `src/app/page.tsx` | Lista — reads `searchParams`, calls `danasBeograd()` once |
+| `src/app/nova/page.tsx` | Nova rezervacija |
+| `src/app/rezervacija/[id]/page.tsx` | Detalji |
+| `src/app/rezervacija/[id]/izmeni/page.tsx` | Izmeni |
+| `src/app/podesavanja/page.tsx` | Podešavanja, plus the logout button |
+| `src/app/actions/rezervacije.ts` | create · edit · delete Server Actions |
+| `src/app/actions/podesavanja.ts` | default home destination |
+| `src/components/filter-sheet.tsx` | the bottom sheet — date, sort, destinations |
+| `src/components/kaskada-destinacija.tsx` | Država → Regija → Grad |
+| `src/components/forma-rezervacije.tsx` | the shared Nova/Izmeni form |
+| `src/components/lista-rezervacija.tsx` | day headings and the Polasci/Povratci split |
+| `src/components/kartica-rezervacije.tsx` | one card — renders a *leg*, not a booking |
+| `src/components/polje-pretrage.tsx` | debounced search into the URL |
+| `src/components/dugme-brisanja.tsx` | delete behind the confirm Dialog |
+| `src/components/forma-podesavanja.tsx`, `izbor.tsx`, `cip-smera.tsx`, `bedz-autora.tsx` | settings form, native select, direction chip, creator badge |
+| `src/domen/izbor-destinacija.ts` | the checkbox selection algebra (+ 21 tests) |
+| `src/domen/kaskada.ts` | the form's dropdown lists (+ 11 tests) |
+| `src/lib/validacija.ts` | the Zod schema shared by form and action (+ 12 tests) |
+| `src/lib/url-stanje.ts` | filter/sort/search ⇄ query string |
+| `src/lib/navigacija.ts` | the `nazad` path guard |
+| `src/lib/auth.ts` | `zahtevajKorisnika()` — see below |
+
+**Filter state lives in the URL, not in React state.** The list stays a Server
+Component that renders once; a filtered view is linkable and survives a reload;
+and the back button steps through filter changes the way a phone user expects.
+
+**Three new domain modules, because the gate says zero logic in components.**
+The checkbox algebra (ticking a country, then unticking one city inside it) and
+the dropdown ordering are both filter logic and both are tested. Note that the
+two orderings differ on purpose: the *form* dropdowns follow `redosled`, the
+client's own display order, while the *filter* tree stays A–Z — that split was
+already decided in Phase 3 and is now load-bearing in two places.
+
+### One addition beyond the plan, and the reason for it
+
+**`src/lib/auth.ts` — every page and action re-checks the session itself.**
+
+The screens read through `src/db/queries.ts`, which connects as `postgres`, the
+owner of the tables, and therefore **bypasses RLS entirely**. For a REST call
+with the publishable key, RLS is the boundary and Phase 4 proved it holds. For a
+server render it is not in the path at all, and the only thing between an
+unauthenticated request and the reservations would have been `src/proxy.ts` —
+which is a convenience redirect by its own documentation, and which sits on a
+layer that has had a real bypass (CVE-2025-29927). `zahtevajKorisnika()` repeats
+the check where the data actually is. It is cheap: `getClaims()` verifies the
+JWT locally.
+
+### Evidence
+
+Run in the main session, not summarised from anywhere.
+
+- `npm run typecheck` exit 0 · `npm run lint` exit 0 (see the note below).
+- `npm run test` — **222 passed, 13 files**, up from 178/11. The 44 new tests are
+  the selection algebra (21), the cascade lists (11) and the form schema (12).
+- `npm run test:tz` — **222 tests identical under UTC · Europe/Belgrade ·
+  Europe/Athens · Pacific/Auckland · America/Los_Angeles**, closing with
+  *"Svih 5 vremenskih zona daje isti rezultat."*
+- `npm run build` succeeds. Seven routes, five of them new, plus `ƒ Proxy`.
+- **Route protection, against a real `next start`:** `/`, `/nova`,
+  `/podesavanja`, `/rezervacija/<uuid>` and `/rezervacija/abc/izmeni` all return
+  **307 → `/prijava`**; `/prijava` itself returns 200. Confirmed in a browser as
+  well: `http://localhost:3000/` lands on the login screen.
+- **Zero Serbian strings inlined in JSX.** A diacritic grep over `src/app` and
+  `src/components` returns only prose inside comments. It caught one real hit —
+  `layout.tsx` had `title` and `description` spelled out; both now come from
+  `T.app`.
+- **No Cyrillic character anywhere in `src`**, checked across every `.ts`/`.tsx`.
+
+**Three lint errors were fixed rather than suppressed.** `react-hooks/set-state-in-effect`
+flagged the search box, the filter sheet and the cascade — all three were the
+"derive state from a prop" pattern written as an effect. All three are now
+render-phase state adjustments, which is both what React documents and one fewer
+wasted frame showing stale content.
+
+### Two interpretations, flagged rather than resolved silently
+
+**1. Day headings follow the sort, not the mode.** `grupisiPoDanu` starts a new
+group whenever the date changes, so sorting by destination would render a column
+of one-row day groups. Sorted by destination the list therefore goes flat and
+each card carries its own date instead. SPEC §6 describes the date-grouped
+shape and does not say what should happen under the §3 destination sort; this is
+the gap being filled.
+
+**2. Nova leaves the departure date and the passenger count blank.** Neither is
+pre-filled, though today and `1` were both available. A booking that silently
+departs today, or silently carries one passenger where the answer was four, is a
+dispatch failure that looks like a correctly filled-in form. An empty field asks
+a question; a wrong default answers it. Costs one tap each.
+
+Two smaller calls, both documented in the code: the ⇅ swap exchanges the two
+*destinations* and leaves the dates alone (a departure date is a departure date
+whichever way the van is pointing), and the filter sheet also hosts the sort
+controls rather than opening a second sheet for two toggles.
+
+### What is NOT verified yet
+
+Everything above was run. These gates were not, and they are the ones that need
+a phone-shaped viewport and a logged-in session:
+
+- **No horizontal scroll at 375px.** Chrome refused to resize a maximised
+  window, so the layout has only been seen at 1920.
+- **Touch targets ≥ 44px, inputs ≥ 16px** — written to the rule throughout
+  (`h-11`/`h-12`, `text-base md:text-base`), but measured nowhere.
+- **The cascade, the ⇅ swap, the filter sheet and delete have not been driven by
+  hand.** Their logic is under test; their wiring is not.
+- **An inactive destination rendering on an existing booking** is proven at the
+  domain level (`katalogZaFormu`), not on the Ljubljana row in the real database.
+
+No login was performed to close these: authenticating is the owner's to do, and
+Phase 4 already had one incident of a session JWT reaching a transcript. Left
+for a short pass in the browser once someone is signed in, or for Phase 7.
 
 ---
 
@@ -560,7 +888,23 @@ are applied and the data is seeded. What remains is everything around it.
       captured 27.08.2026 and the client edits their own site
 - [ ] `profiles` has no `password_hash` — Supabase Auth owns credentials. This
       conflicts with the letter of SPEC §4; see Phase 1.
-- [ ] `profiles.id` is not yet a foreign key to `auth.users(id)`, and `seed.ts`
-      uses two placeholder UUIDs. Both are Phase 4.
+- [x] ~~`profiles.id` foreign key and the placeholder UUIDs~~ — done in
+      migration `0002`, verified by `pg_constraint` and a rejected insert.
+- [x] ~~`profiles.email` copied from `auth.users`, never hardcoded~~ — done;
+      each row's email matches `auth.users` exactly and no address appears in
+      any tracked file.
+- [ ] **This plan and `.claude/agents/security.md` both say `middleware.ts`.**
+      Next 16 renamed it to `proxy.ts`; the implementation follows Next, not
+      the plan. Correct both documents so the next agent does not re-add a
+      deprecated file.
 - [ ] **The repo has zero commits.** `git init` and the remote are done; nothing is
       tracked. Commit before Phase 8 — the Vercel deploy builds from GitHub.
+- [ ] **SPEC §2 names two list modes; the implementation has three.**
+      `pretragaView` was added because SPEC §3 requires search to reach a booking
+      with no main date, and neither named mode can render one. Fold it into
+      SPEC §2 or reject it — see Phase 3.
+- [ ] **SPEC §1 and the `domain-logic` agent brief disagree** about whether a
+      departed booking with no return date is reachable in Dan mode. SPEC §1 says
+      yes, by filtering its past departure date; the brief said no. SPEC was
+      followed. Correct `.claude/agents/domain-logic.md` so the next run of that
+      agent does not re-open it.

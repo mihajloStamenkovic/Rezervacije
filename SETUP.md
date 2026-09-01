@@ -17,8 +17,9 @@ Organised by **when** it's needed.
 | Supabase project | created, EU (Frankfurt), `eu-central-1` |
 | `.env.local` | filled in and working — migrations applied, data seeded |
 
-**Block A is done.** The database is live: 44 destinations, 2 placeholder profiles,
-8 test reservations, and RLS enabled on every table.
+**Block A is done.** The database is live: 44 destinations, the 2 real account
+profiles, 8 test reservations, and RLS enabled on every table — with policies
+applied as of Phase 4, so the publishable key alone still reads nothing.
 
 There is **no Docker and no local Supabase stack**. Development runs against the
 hosted project directly — one database, serving both dev and production. That is
@@ -43,31 +44,45 @@ one-way ride home points at.
 
 ---
 
-## BLOCK B — before Phase 4 (auth)
+## BLOCK B — done ✅
 
 ### B1. Create the two accounts
 
-In Supabase → Authentication → Users → **Add user**. You set the passwords right
-there, in their dashboard.
+- [x] **Both accounts created and confirmed** (28.08.2026)
 
-- [ ] Account 1 — email + password
-- [ ] Account 2 — email + password
+Verified read-only against `auth.users`: two rows, both
+`email_confirmed_at` set, metadata just `{"email_verified": true}`.
+Neither carries a display name — which is fine, Supabase Auth never uses
+one. The name on the card badge comes from `public.profiles.ime`, a column
+in our own schema (see B2).
 
-⚠️ **Do not send me the passwords.** There is no seed script and no env var for
-them — the passwords exist only in Supabase's own auth tables. I never touch them
-at any point.
+| Account | User id | Badge name | Colour |
+|---|---|---|---|
+| 1 | `56231ad7-e99a-4425-ae45-f87a82b2c07d` | Mihajlo | `#2563eb` blue |
+| 2 | `22ecbb36-23fd-4d78-905d-fb8f0d2c89ca` | Petar | `#d97706` amber |
 
-The emails are the logins. They don't need to be real or receive mail.
+The login emails live in `auth.users` and are deliberately **not repeated
+in this repo** — see the note under B2.
 
-Once they exist, send me the two user **ids** (visible in the dashboard). The seed
-currently uses placeholder UUIDs and needs the real ones.
+⚠️ **Passwords were never sent and are not needed.** They exist only in
+Supabase's own auth tables. No seed script, no env var, no repo file holds
+one.
 
 ### B2. Display names and badge colours
 
-- [ ] Name for each account (shows on the reservation badge — e.g. `Nikola`)
-- [ ] Badge colours, or let me pick two distinguishable ones
+- [x] **Names confirmed** (28.08.2026) — `Mihajlo` and `Petar`
+- [x] **Colours confirmed** — `#2563eb` blue and `#d97706` amber, the pair
+      already in the seed. They stay distinguishable under deuteranopia.
 
-Send me these two — they're not secrets.
+These are app data, not Supabase settings. `profiles.ime` is `NOT NULL` and
+renders on every reservation card badge and on the *Uneo* line of the detail
+screen (SPEC §6).
+
+**A note on the emails.** `profiles.email` is `NOT NULL UNIQUE`, so the two
+real addresses have to reach that table — but `src/db/seed.ts` is committed
+to GitHub, and hardcoding them there would put a personal address of each
+account holder into version control forever. Phase 4 should instead copy
+them out of `auth.users` in the migration, so the repo never carries them.
 
 ---
 
@@ -178,11 +193,15 @@ $25/month. Not needed to launch.
 
 ## Summary: what's outstanding
 
-**Block A is complete.** Nothing is outstanding from you right now, and Phase 3 —
-the main-leg engine — is unblocked.
+**Blocks A and B are complete.** Phases 3 and 4 are done and verified — the
+main-leg engine, and auth with RLS policies live on the hosted project.
+Nothing is outstanding from you right now.
 
-**Block B** when we reach auth: two accounts created in the dashboard, their user
-ids, names and badge colours.
+You can log in as soon as Phase 5 puts a real screen behind `/prijava`; the
+login itself already works. Use the two accounts you created — the passwords
+are the ones you set in the dashboard, and I have never seen them.
 
 **Block C** when we're ready to ship: Vercel, optionally Sentry, and a backup
-destination.
+destination. The only one of the three that needs a decision rather than a
+signup is **C3, where the nightly `pg_dump` should go** — Option 1 (GitHub
+Actions artifacts, zero setup) unless you'd rather have longer history.
