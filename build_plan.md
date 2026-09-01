@@ -828,6 +828,37 @@ dialog was opened and cancelled. Counts before and after the whole pass:
   Odustani and Obriši. Only the confirm button sits inside the form that posts
   to the Server Action. Cancelled; the booking is still there.
 
+### Added after sign-off — the card shows both ends of the leg
+
+01.09.2026, on the owner's request: a card reading `↓ Povratak · Beograd` says
+they are arriving but not where from, which is half the dispatch question. Cards
+now read `Solun → Beograd` on a return and `Beograd → Hanioti` on a departure.
+
+**The origin is inferred, because there is no origin column.** SPEC §4 has
+`destinacija_id` and `destinacija_povratka_id` and the nine columns are fixed,
+so the far end of a leg is the *other* column, picked by direction —
+`rutaEtape` in `src/domen/glavna-etapa.ts`, with 8 tests. That is exact for a
+round trip and for the one-way ride home, where the outbound column already
+holds home.
+
+**It has one honest limit.** The Greece → Beograd one-way is entered with
+Beograd in the outbound column and Beograd as the return, so both ends are the
+same row and the Greek town they set out from was never recorded anywhere.
+Rather than draw an arrow from Beograd to Beograd, the card collapses to the
+single name — Ana Marković renders as `↑ Odlazak · Beograd`. If the owner wants
+that origin, it needs a tenth column, which is a SPEC change and not this one.
+
+A side benefit worth noting: the same-day round trip is now legible. Dragan
+Đorđević's two rows on 30.08 used to read `Kopaonik` and `Beograd`; they now
+read `Beograd → Kopaonik` and `Kopaonik → Beograd`.
+
+Re-verified at 375px after the change: **zero horizontal overflow** on `/`,
+`/?od=…` and the Dan view. The origin is the half that ellipsizes and the
+destination never shrinks, so the place the van is going is always fully
+visible — stress-tested with names far longer than any real destination
+(`Bosanski Petrovac na Uni → Sveti Stefan Crnogorski`): still zero overflow,
+origin truncated, destination intact.
+
 One thing that is still **not** verified, and cannot be from a desktop browser:
 `tel:` actually dialling from a foreign network, and the session surviving a
 multi-day gap. Both are Phase 9, on the owner's phone.

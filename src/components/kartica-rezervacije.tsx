@@ -15,6 +15,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { BedzAutora } from "@/components/bedz-autora";
 import { CipSmera } from "@/components/cip-smera";
 import { imeDestinacije } from "@/domen/destinacije";
+import { jeIstaTacka, rutaEtape } from "@/domen/glavna-etapa";
 import type { StavkaListe } from "@/domen/tipovi";
 import { formatDatum } from "@/lib/datum";
 import { T, putnika } from "@/lib/tekst";
@@ -34,6 +35,10 @@ export function KarticaRezervacije({
   prikaziDatum?: boolean;
 }) {
   const { rezervacija, autor } = stavka.red;
+  // Both ends of this leg, so a return says where they are coming *from* and
+  // not just that they are arriving. Inferred from the two destination
+  // columns — see `rutaEtape`.
+  const ruta = rutaEtape(stavka.red, stavka.smer);
 
   return (
     <Link
@@ -49,7 +54,23 @@ export function KarticaRezervacije({
         </div>
         <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
           <CipSmera smer={stavka.smer} />
-          <span className="truncate">{imeDestinacije(stavka.destinacija)}</span>
+          {jeIstaTacka(ruta) ? (
+            // Both ends are the same place — a one-way ride home, where no
+            // origin was ever stored. One name is the whole truth.
+            <span className="truncate">{imeDestinacije(ruta.do)}</span>
+          ) : (
+            <span className="flex min-w-0 items-center gap-1">
+              {/* The origin is the half that ellipsizes: the destination is
+                  what the driver is being told, so it never shrinks. */}
+              <span className="truncate text-muted-foreground/80">
+                {imeDestinacije(ruta.od)}
+              </span>
+              <span className="shrink-0 text-muted-foreground/60">→</span>
+              <span className="shrink-0 font-medium text-foreground">
+                {imeDestinacije(ruta.do)}
+              </span>
+            </span>
+          )}
           <span aria-hidden="true">·</span>
           <span className="shrink-0">{putnika(rezervacija.brojPutnika)}</span>
         </div>

@@ -54,6 +54,14 @@ export type StavkaListe = Etapa & {
   kljuc: string;
 };
 
+/**
+ * Both ends of one leg — where it starts and where it finishes.
+ *
+ * Inferred, not stored: the schema has two destination columns and no origin
+ * column, so the far end of a leg is the *other* column. See `rutaEtape`.
+ */
+export type Ruta = { od: Destinacija; do: Destinacija };
+
 /** An inclusive calendar range. A single day is `od === do`. */
 export type OpsegDatuma = { od: Datum; do: Datum };
 

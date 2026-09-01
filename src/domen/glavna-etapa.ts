@@ -18,7 +18,7 @@
  * from two different countries (SPEC §7).
  */
 import { jeDatum } from "@/lib/datum";
-import type { Datum, Etapa, GlavnaEtapa, RezervacijaRed } from "./tipovi";
+import type { Datum, Etapa, GlavnaEtapa, RezervacijaRed, Ruta, Smer } from "./tipovi";
 
 /**
  * Guards the one comparison the app hinges on. `"2026-1-5" >= "2026-01-15"` is
@@ -98,4 +98,37 @@ export function resolveMainLeg(
 /** `true` when the booking is on no list at all — SPEC §1, edge case one. */
 export function bezGlavneEtape(red: RezervacijaRed, danas: Datum): boolean {
   return resolveMainLeg(red, danas) === null;
+}
+
+/**
+ * Where a leg starts and where it ends — SPEC §4, read against the grain.
+ *
+ * A card showing only `↓ Povratak · Beograd` says they are arriving but not
+ * where from, which is half the dispatch question. The other half is
+ * recoverable, because a booking's two destination columns are the two ends of
+ * the same journey and the direction says which is which:
+ *
+ *   odlazak   home → trip destination     (destinacijaPovratka → destinacija)
+ *   povratak  trip destination → home     (destinacija → destinacijaPovratka)
+ *
+ * **This is inference, not stored data.** There is no origin column: SPEC §4
+ * has `destinacija_id` and `destinacija_povratka_id` and nothing else, and the
+ * nine columns are fixed. Treating "where they come back to" as "where they
+ * set out from" is exact for a round trip, and exact for the one-way ride home
+ * the owner also books, because there the outbound column already holds home.
+ *
+ * It degenerates only when both columns are the same place — a booking that
+ * departs Beograd and returns to Beograd — where both ends are honestly the
+ * same and the caller can collapse the pair rather than draw an arrow from a
+ * town to itself.
+ */
+export function rutaEtape(red: RezervacijaRed, smer: Smer): Ruta {
+  return smer === "odlazak"
+    ? { od: red.destinacijaPovratka, do: red.destinacija }
+    : { od: red.destinacija, do: red.destinacijaPovratka };
+}
+
+/** `true` when both ends are the same place, so one name says everything. */
+export function jeIstaTacka(ruta: Ruta): boolean {
+  return ruta.od.id === ruta.do.id;
 }
