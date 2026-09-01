@@ -41,6 +41,15 @@ the publishable key with no session returns `[]` from all four tables.
 driving the cascade, the swap and delete by hand — need a phone-shaped viewport
 and a logged-in session, and neither has happened. See the end of Phase 5.
 
+**`profiles` is the access list — 01.09.2026.** Signups were switched off in the
+dashboard, and migration `0003` made membership the rule in the database rather
+than a convention: every policy now tests `je_clan()` instead of `USING (true)`.
+An `auth.users` row with no `profiles` row reads nothing and writes nothing.
+Proven by role impersonation in a rolled-back transaction — a member sees 8
+reservations and could delete 8; a stranger with a valid session sees **0** and
+deletes **0**. Adding a person is now two steps, and skipping the second fails
+closed: create the account in the dashboard, then insert their `profiles` row.
+
 **Verified on the hosted project:** migrations `0000` and `0001` applied · 44
 destinacije, 2 profila, 8 rezervacija, 1 settings row · RLS enabled on all four
 tables with zero policies, so the publishable key returns `[]` from every table
@@ -886,8 +895,13 @@ are applied and the data is seeded. What remains is everything around it.
       (28.08.2026). The seed writes it into the `settings` row.
 - [ ] Re-check `data/destinacije.json` against the live site before launch; it was
       captured 27.08.2026 and the client edits their own site
-- [ ] `profiles` has no `password_hash` — Supabase Auth owns credentials. This
-      conflicts with the letter of SPEC §4; see Phase 1.
+- [x] ~~`profiles` has no `password_hash`~~ — settled 01.09.2026 and still no
+      password column. Supabase Auth owns credentials in `auth.users`, which
+      hashes, salts and rate-limits them; a second copy in `public` would be a
+      source of truth that can disagree with the first, in a schema reachable
+      over PostgREST. What the owner actually wanted — *"profiles is the list of
+      who may enter"* — is delivered by migration `0003` instead. SPEC §4 should
+      be corrected to drop `password_hash` and say so.
 - [x] ~~`profiles.id` foreign key and the placeholder UUIDs~~ — done in
       migration `0002`, verified by `pg_constraint` and a rejected insert.
 - [x] ~~`profiles.email` copied from `auth.users`, never hardcoded~~ — done;
@@ -897,8 +911,8 @@ are applied and the data is seeded. What remains is everything around it.
       Next 16 renamed it to `proxy.ts`; the implementation follows Next, not
       the plan. Correct both documents so the next agent does not re-add a
       deprecated file.
-- [ ] **The repo has zero commits.** `git init` and the remote are done; nothing is
-      tracked. Commit before Phase 8 — the Vercel deploy builds from GitHub.
+- [x] ~~The repo has zero commits~~ — Phases 3–5 committed and pushed to
+      `origin/main` on 01.09.2026 (`b1aad88`), followed by the access-list work.
 - [ ] **SPEC §2 names two list modes; the implementation has three.**
       `pretragaView` was added because SPEC §3 requires search to reach a booking
       with no main date, and neither named mode can render one. Fold it into

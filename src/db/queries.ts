@@ -85,6 +85,21 @@ export async function aktivneDestinacije(): Promise<Destinacija[]> {
     .orderBy(asc(destinacije.drzava), asc(destinacije.redosled));
 }
 
+/**
+ * One profile, or `null` when the account is not on the access list.
+ *
+ * `null` is the whole point of this query: since migration 0003 a `profiles`
+ * row is what grants access, so "no row" is the answer that locks someone
+ * out. It reads through Drizzle, which connects as the table owner and
+ * bypasses RLS — deliberately, because this is the query that decides whether
+ * RLS would have let them in, and it must not be subject to the rule it is
+ * checking.
+ */
+export async function profilPoId(id: string): Promise<Profile | null> {
+  const [red] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
+  return red ?? null;
+}
+
 export async function sviProfili(): Promise<Profile[]> {
   return db.select().from(profiles).orderBy(asc(profiles.ime));
 }

@@ -22,6 +22,13 @@
       "when": 1787924581575,
       "tag": "0002_profili_i_rls_politike",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788262310195,
+      "tag": "0003_profili_kao_lista_pristupa",
+      "breakpoints": true
     }
   ]
 }

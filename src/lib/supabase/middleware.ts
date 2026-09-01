@@ -49,7 +49,36 @@ export async function azurirajSesiju(request: NextRequest) {
   // it first via the refresh token, so a session that is merely old (not
   // revoked) keeps renewing itself on every navigation indefinitely.
   const { data } = await supabase.auth.getClaims();
-  const prijavljen = data?.claims != null;
+  const korisnikId = data?.claims?.sub;
+
+  // A valid session proves the account exists in auth.users. It does not
+  // prove the account may use this app — since migration 0003 that is a row
+  // in `profiles` and nothing else.
+  //
+  // The check belongs *here*, in what this file calls "logged in", rather
+  // than only on the pages. If the proxy considered a stray account logged
+  // in while the pages refused it, the two would disagree and bounce the
+  // browser between `/` and `/prijava` forever. Treating "not a member" as
+  // "not logged in" keeps both ends of that redirect honest.
+  //
+  // This runs through the user's own RLS-bound session, so it is also a live
+  // check that the 0003 policies are doing their job: a non-member's select
+  // returns no rows rather than being filtered out afterwards. It costs one
+  // round trip per navigation, which for a two-person app is worth paying
+  // for a boundary that cannot be skipped.
+  //
+  // Fails closed. An error here reads as "not a member", which sends the
+  // browser to a login form it can recover from — the alternative, letting a
+  // request through because a check failed, is not recoverable.
+  let prijavljen = false;
+  if (korisnikId) {
+    const { data: profil } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", korisnikId)
+      .maybeSingle();
+    prijavljen = profil != null;
+  }
 
   const { pathname } = request.nextUrl;
   const javna = jePutanjaJavna(pathname);

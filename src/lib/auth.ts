@@ -1,36 +1,49 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { profilPoId } from "@/db/queries";
+import type { Profile } from "@/db/schema";
 import { supabaseServer } from "@/lib/supabase/server";
 
 /**
- * The session check every page and Server Action runs for itself.
+ * The check every page and Server Action runs for itself.
  *
- * `src/proxy.ts` already redirects a logged-out browser, so why check again?
- * Because the data on these screens is read through `src/db/queries.ts`, which
- * connects as `postgres` — the owner of the tables — and therefore **bypasses
- * RLS**. For a REST call with the publishable key, RLS is the boundary and it
- * holds. For a server render, it is not in the path at all, and the only thing
- * standing between an unauthenticated request and the reservations would be
- * the proxy.
+ * Two questions, and both have to be asked.
  *
- * A proxy is the wrong thing to rest that on. It is a convenience redirect by
- * design (see the note at the top of `src/proxy.ts`), it can be skipped by
- * route-matcher mistakes, and Next's own middleware layer has had a bypass
- * (CVE-2025-29927) that a crafted header was enough to trigger. So the check
- * is repeated where the data actually is: cheap, local to the request, and
- * true regardless of what ran before it.
+ * **1. Is there a valid session?** `src/proxy.ts` already redirects a
+ * logged-out browser, so why here too? Because these screens read through
+ * `src/db/queries.ts`, which connects as `postgres` — the owner of the tables
+ * — and therefore **bypasses RLS**. For a REST call with the publishable key,
+ * RLS is the boundary and it holds. For a server render it is not in the path
+ * at all, and the only thing left would be the proxy: a convenience redirect
+ * by its own documentation, on a layer that has had a real bypass
+ * (CVE-2025-29927). So the check is repeated where the data actually is.
  *
- * `getClaims()` rather than `getUser()`: it verifies the JWT signature
- * locally, which is what makes this affordable to call on every render.
+ * **2. Is the account on the access list?** A valid Supabase session proves
+ * someone exists in `auth.users`. It does not prove they may use this app.
+ * Since migration 0003 the answer to that is one thing and one thing only: a
+ * row in `profiles`. Signups are also switched off in the dashboard, but that
+ * is a toggle someone can flip back, and this is not.
+ *
+ * `getClaims()` verifies the JWT signature locally, which is what makes the
+ * first half affordable on every render; the second half is a primary-key
+ * lookup on a two-row table.
+ *
+ * Note what this deliberately does *not* do: sign the stray account out. A
+ * Server Component cannot write cookies, so `signOut()` here would throw
+ * during render. The session is left alone and simply refused — the proxy
+ * turns it away on the next navigation, and `prijaviSe` refuses to mint
+ * another one.
  */
-export type Korisnik = { id: string };
-
-export async function zahtevajKorisnika(): Promise<Korisnik> {
+export async function zahtevajKorisnika(): Promise<Profile> {
   const supabase = await supabaseServer();
   const { data, error } = await supabase.auth.getClaims();
   const id = data?.claims.sub;
 
   if (error || !id) redirect("/prijava");
-  return { id };
+
+  const profil = await profilPoId(id);
+  if (!profil) redirect("/prijava");
+
+  return profil;
 }
