@@ -6,7 +6,7 @@ agents in `.claude/agents/`.
 Read `SPEC.md` first. It is the source of truth; this file is only the order of
 operations.
 
-## Status — 01.09.2026
+## Status — 04.09.2026
 
 | Phase | State |
 |---|---|
@@ -17,9 +17,26 @@ operations.
 | 4 · Auth and RLS | done |
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
-| 7 · Verification gate | **next** |
-| 8 · Deploy | backups **green and restore-verified**; Vercel, CI and Sentry remain |
+| 7 · Verification gate | **run 04.09.2026, NOT passed** — 2 correctness defects and 5 doc deviations open |
+| 8 · Deploy | blocked on Phase 7. Backups **green and restore-verified**; Vercel, CI and Sentry remain |
 | 9 · Handover | not started |
+
+**Phase 7 ran and found things, which is the gate working.** The domain core came
+through clean — 261 tests across 16 files, identical under five timezones, and
+the main leg rule, all three list modes, the filter rollup and all four sort keys
+were each re-derived from SPEC and found correct. The two real defects are both
+outside `src/domen/`: the **login screen's inputs are 32px tall**, below the 44px
+floor, because every Phase 5 device gate ran signed in and `/prijava` is the one
+screen you see logged out; and the **delete dialog and filter sheet both announce
+"Close" in English** to a screen reader, while the Serbian string for it sits
+unused in `tekst.ts`. Full write-up under Phase 7.
+
+Five further deviations are documentation rather than code — most consequentially
+**SPEC §9 lists CI as a service that exists when it does not**, so nothing runs
+the 261 tests on push, and **SPEC §5 contradicts itself on the destination
+counts** (the heading's `7 · 18 · 45` is right; two sentences in its own body are
+stale). One is a genuine SPEC ambiguity about whether the destination filter is
+scoped to rows or to legs, and is flagged rather than resolved.
 
 **There is one database and it is the real one.** Development and production are
 the same hosted Supabase project, `biqiztxeiqmrgmngemhf`, in the EU
@@ -1156,6 +1173,174 @@ mobile at 375px, data safety, RLS, and the timezone check.
 
 **Done when:** no correctness bugs and no spec deviations remain open.
 
+### First run — 04.09.2026. NOT signed off.
+
+The gate was run and **found things**, which is the gate working. Two confirmed
+correctness defects and five documentation deviations are open, so Phase 7 stays
+open and nothing deploys. Everything below was re-verified in the main session
+against the source — the agent's report was the starting point, not the finding.
+
+**The environment had to be rebuilt first.** This checkout had no `node_modules`
+and no `.env.local`; the latter is gitignored and does not travel with the repo.
+`npm install` restored 838 packages and the `allowScripts` approvals for
+`esbuild` and `unrs-resolver` carried over, so vitest, tsx and drizzle-kit all
+work. The owner supplied `.env.local`. Its shape was checked without reading any
+value, and all five variables avoid the traps recorded in Phase 0: bare project
+URL with no `/rest/v1/`, the new `sb_publishable_` / `sb_secret_` key names,
+`DATABASE_URL` on the transaction pooler 6543, `DIRECT_URL` on the session
+pooler 5432, and neither on `db.<ref>.supabase.co`.
+
+#### Gates — all green
+
+| Gate | Result |
+|---|---|
+| `npm run test` | **261 passed, 16 files** (was 234/14 — the gate added 27) |
+| `npm run test:tz` | **261 identical across all five timezones** |
+| `npm run typecheck` | exit 0, both TS projects |
+| `npm run lint` | exit 0 |
+| `npm run build` | 7 routes + `ƒ Proxy`; `build:sw` **37 URLs, 1.03 MB** |
+
+**Two test files were added, no application code was touched:**
+`src/domen/faza7-kapija.test.ts` (20 tests — the SPEC §1/§2/§5 rows that had no
+direct assertion) and `src/db/kolone.test.ts` (7 tests — the nine columns as a
+guard rather than a comment). All 27 passed on the first run.
+
+**The domain core came through clean.** The main leg rule, the `>=` boundary, all
+three list modes, the filter rollup, all four sort keys including the reservation
+id tiebreak, Serbian collation and pluralization, and the no-JS-`Date` rule were
+each re-derived from SPEC and found correct. Newly proven and not previously
+asserted anywhere: a departure exactly today whose return is *also* today still
+resolves to ↑ Odlazak; `sortirajStavke` is idempotent and stable across three
+input permutations and five repeated renders; and the id tiebreak really is
+implemented, not merely documented — reversing the input array produces an
+identical order.
+
+#### Live gates, run from the main session
+
+- **RLS holds.** The publishable key with no session returns `HTTP 200 []` — two
+  bytes — from all four tables.
+- **Nine policies, 4/2/2/1, every one scoped to `authenticated`.** Policies
+  granting anything to `anon`: **0**. Tables with `rowsecurity = false`: **0**.
+- **Live counts:** `reservations` 8 · `profiles` 2 · `destinacije` 45 ·
+  `settings` 1. 36 destinations active; Slovenija and BiH inactive as specified;
+  Serbia is `Beograd · Kopaonik · Niš` with Beograd first.
+- **Nine columns on the real table**, both `datum_` columns `date`, not
+  `timestamp`.
+- **No secret in the built bundle.** Zero files under `.next/static` contain the
+  secret key value, `sb_secret_`, `SUPABASE_SECRET_KEY`, the database password or
+  `postgresql://`. The publishable key is absent too — which confirms the Phase 4
+  note that `src/lib/supabase/client.ts` is still unused.
+
+**The anonymous-INSERT probe was deliberately NOT re-run.** Phase 4 recorded it
+as 401. Repeating it aims a write at the one real production database, and if RLS
+had regressed it would land a junk row there with no sandbox to catch it. It sits
+behind a `PROBE_WRITE=1` flag, unrun.
+
+#### Two confirmed correctness defects
+
+**1. The login screen's inputs are 32px tall — below the 44px floor.**
+`src/components/ui/input.tsx:11` has the shadcn base `h-8 … text-base …
+md:text-sm`. Every other `Input` in the app overrides it with
+`h-11 text-base md:text-base` — the reservation form's five fields, the filter
+range picker and the search box all do. The two inputs in
+`src/app/prijava/prijava-forma.tsx:22` and `:38` pass **no className at all**, so
+they inherit 2rem and the uncountered `md:text-sm`. No global CSS rescues them:
+`globals.css` has no `input` rule.
+
+The reason this survived is precise and worth recording: the Phase 5 device gate
+measured `/`, `/nova` and `/podesavanja`. **`/prijava` was never measured** — it
+is the one screen reached while logged out, and every gate ran signed in.
+
+**2. Two English strings on live user-facing paths.**
+`src/components/ui/dialog.tsx:79` and `src/components/ui/sheet.tsx:80` both render
+`<span className="sr-only">Close</span>`, and both components default
+`showCloseButton = true`. Neither caller opts out — `dugme-brisanja.tsx:59` is the
+**delete confirmation dialog** and `filter-sheet.tsx:169` is the **filter sheet**.
+So a screen reader announces "Close" in English on two of the app's most-used
+controls, against SPEC's *"UI language: Serbian, Latin script"*.
+
+The Serbian string already exists and is dead code: `T.filter.zatvori` at
+`src/lib/tekst.ts:66` is declared and never referenced. (`dialog.tsx:118` has a
+third `Close`, on a component nothing renders.)
+
+#### Five deviations that are documentation, not code
+
+3. **SPEC §5 contradicts itself on the destination counts.** Recounted from
+   `data/destinacije.json`: **7 countries · 18 regions · 45 cities · 11
+   single-city regions**. The section heading says exactly that and is right. Two
+   sentences in its own body are stale — *"with 44 rows"* and *"is 33 now that
+   the Serbian pickup towns are in"*, the latter true only during the few hours
+   the 23 withdrawn towns were in the file. SPEC §9 and `RUNBOOK.md:120` also
+   still say the verified restore returned 44 destinacije; the actual figure
+   recorded above is 67, or 45 after the same-day trim. **The live table is 45 —
+   no re-seed is missing, only the prose.**
+
+4. **SPEC §9 lists CI as a service that exists.** `.github/` contains exactly one
+   file, `rezerva.yml`, the nightly backup. There is no test workflow. Phase 8
+   below correctly still lists it as an open deliverable, so the work is
+   scheduled — but SPEC asserts it as present, and for an app whose entire safety
+   net is 261 tests plus `test:tz`, **nothing currently runs them on push.**
+
+5. **Inactive destinations are not refused server-side.** SPEC §11 settled that
+   Slovenija and BiH must not be bookable. The dropdowns are correct, but
+   `src/lib/validacija.ts:38` validates the destination as `z.uuid()` with no
+   catalogue or `aktivna` lookup, and `sacuvajRezervaciju` adds none. A
+   hand-crafted POST would create a booking on Ljubljana. Tamper-only, by one of
+   two trusted accounts, and the FK still blocks an id that is not in the
+   catalogue at all — but the check lives in Postgres rather than in the schema.
+
+6. **`broj_putnika` has a floor but no ceiling, and is not parsed as decimal.**
+   `0`, `-1` and `1.5` are all rejected. `1e3` → 1000, `0x10` → 16 and
+   `2147483648` all pass Zod and reach Postgres, where the last dies on int4
+   overflow as the generic *"Čuvanje nije uspelo."* SPEC names no upper bound, so
+   this is an omission rather than a contradiction. Related: `1.5` is rejected
+   with *"Broj putnika mora biti veći od nule"*, which is not why it was rejected.
+
+7. **The destination filter matches the leg, not the booking — SPEC is
+   ambiguous about which was meant.** SPEC §5 says a place *"matches bookings
+   that reference it from **either** `destinacija_id` **or**
+   `destinacija_povratka_id`."* `prolaziDestinacije` matches the destination of
+   the leg being rendered. Both readings are defensible and SPEC §1's own worked
+   example backs the code — a departed Greek trip correctly leaves the Grčka
+   filter. The consequence, measured on the eight fixtures: 8 of 8 rows reference
+   Beograd in one column or the other, but the Beograd filter in Raspored returns
+   2. Stefan Nikolić — departed, no return date — carries Beograd in that column
+   and cannot be reached by the Beograd filter in **any** mode, because he has no
+   leg to render. **Not resolved here.** SPEC should say whether the requirement
+   is scoped to rows or to legs.
+
+#### Polish, recorded and not fixed
+
+- `T.lista.prazoUzFilter` (`src/lib/tekst.ts:33`, used at `src/app/page.tsx:125`)
+  is missing an `n` — `praznoUzFilter`. The rendered Serbian is correct.
+- **The count line above the list counts legs, not bookings**
+  (`src/app/page.tsx:97`). In Dan mode a same-day round trip is two rows, so one
+  booking reads *"2 rezervacije"*.
+- Three pieces of dead code: `supabaseBrowser()`, `aktivneDestinacije()` in
+  `src/db/queries.ts`, and `T.filter.zatvori`.
+- **`settings` has no INSERT policy** — migration `0003` grants select and update
+  only, while `postaviPodrazumevanuDestinaciju` is an
+  `insert … onConflictDoUpdate`. Harmless today because that path runs through
+  Drizzle as the table owner, but the policy set does not describe the write the
+  app actually performs.
+- **"Today" goes stale offline.** Navigations are cached `NetworkFirst` with
+  `maxAgeSeconds: 24h` and `danasBeograd()` is baked into the cached HTML, so
+  opening the app offline the next morning shows yesterday's `danas` / `sutra`
+  headings. Inherent to caching the list, which SPEC §7 accepts.
+
+#### Two things the gate could not determine
+
+- **A save attempted while `navigator.onLine` is true but the network is
+  actually dead.** The button is enabled, the POST bypasses the service worker
+  and fails. Whether that surfaces as a Serbian message or Next's own error page
+  is not decidable from the source — `sacuvajRezervaciju`'s `try/catch` wraps the
+  database call, not the transport. Needs a browser with request blocking.
+- **The `sr-Latn` collation depends on the deployment runtime's ICU.** On a
+  small-icu Node, `Intl.Collator("sr-Latn")` falls back to root collation and
+  `Čačak` would sort before `Cetinje`. A test catches it — but per finding 4,
+  nothing runs the tests on push, so that guard is currently only as good as
+  somebody remembering to run them before a deploy.
+
 ---
 
 ## Phase 8 — Deploy
@@ -1338,3 +1523,36 @@ Two bugs were fixed before it went green, both mine:
       back. The same edit brought the brief up to **three** list modes —
       `pretragaView` and `prikaziListu` were missing from it entirely, which is
       the closed item two lines up read from the other side.
+- [ ] **Phase 7: the login screen's inputs are 32px tall.** Below the 44px floor.
+      `src/app/prijava/prijava-forma.tsx:22` and `:38` pass no className, so they
+      inherit `h-8` and `md:text-sm` from `src/components/ui/input.tsx:11`; every
+      other input in the app overrides both. Fix is `h-11 text-base md:text-base`,
+      matching the seven that are already correct — then measure `/prijava` at
+      375px, which no gate has ever done.
+- [ ] **Phase 7: "Close" is announced in English** on the delete dialog and the
+      filter sheet — `src/components/ui/dialog.tsx:79` and
+      `src/components/ui/sheet.tsx:80`. Use `T.filter.zatvori`, which already
+      exists at `src/lib/tekst.ts:66` and is currently dead code.
+- [ ] **Phase 7: SPEC §5 contradicts itself on the destination counts.** The
+      heading's `7 countries · 18 regions · 45 cities` is correct — recounted
+      from the JSON, which also has 11 single-city regions. The body's "44 rows"
+      and "33 now" are stale, as are SPEC §9 and `RUNBOOK.md:120` on the restore
+      returning 44. Prose only; the live table is 45.
+- [ ] **Phase 7: SPEC §9 lists CI as a service that exists.** `.github/` holds
+      only the nightly backup. Nothing runs the 261 tests on push. Phase 8 has
+      the deliverable; SPEC should stop claiming it is already there.
+- [ ] **Phase 7: inactive destinations are not refused server-side.**
+      `src/lib/validacija.ts:38` is a bare `z.uuid()` with no catalogue or
+      `aktivna` check. Dropdowns are correct, so this is tamper-only — but SPEC
+      §11 settled that Slovenija and BiH are not bookable.
+- [ ] **Phase 7: `broj_putnika` has no upper bound and is not parsed as
+      decimal.** `1e3`, `0x10` and `2147483648` all pass Zod; the last dies at
+      Postgres on int4 overflow as a generic failure. Also, `1.5` is rejected
+      with "mora biti veći od nule", which is not the actual reason.
+- [ ] **Phase 7 — needs the owner's call: is the destination filter scoped to
+      rows or to legs?** SPEC §5 says a place matches bookings referencing it from
+      **either** column; the code matches the destination of the leg being
+      rendered, which SPEC §1's worked example backs. Consequence: a booking that
+      departed with no return date carries Beograd in the return column and
+      cannot be reached by the Beograd filter in any mode. Both readings are
+      defensible; SPEC should say which is meant.
