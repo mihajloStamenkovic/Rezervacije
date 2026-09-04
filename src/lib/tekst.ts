@@ -176,11 +176,19 @@ export const T = {
     telefonObavezan: "Unesi broj telefona.",
     telefonNeispravan: "Broj telefona nije ispravan.",
     destinacijaObavezna: "Izaberi destinaciju.",
+    /** The id parsed, but names a destination that is no longer offered. */
+    destinacijaNijeUPonudi: "Ta destinacija više nije u ponudi.",
     datumPolaskaObavezan: "Izaberi datum polaska.",
     datumNeispravan: "Datum nije ispravan.",
     povratakPrePolaska: "Povratak ne može biti pre polaska.",
     brojPutnikaObavezan: "Unesi broj putnika.",
-    brojPutnikaNeispravan: "Broj putnika mora biti veći od nule.",
+    /**
+     * Covers zero, negatives, decimals and exponent/hex notation in one
+     * sentence. The old wording said only "greater than zero", which was the
+     * wrong reason for `1.5`.
+     */
+    brojPutnikaNeispravan: "Broj putnika mora biti ceo broj veći od nule.",
+    brojPutnikaPrevelik: "Najviše 100 putnika po rezervaciji.",
     nijeNadjeno: "Rezervacija nije pronađena.",
     neuspelo: "Čuvanje nije uspelo. Pokušaj ponovo.",
   },

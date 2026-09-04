@@ -37,6 +37,18 @@ const datumPolaska = z
  */
 const destinacija = z.uuid({ message: T.greske.destinacijaObavezna });
 
+/**
+ * Upper bound on passengers.
+ *
+ * SPEC names no maximum, so this is a guardrail rather than a business rule:
+ * without one, `2147483648` passed validation and died at Postgres on int4
+ * overflow, surfacing as the generic "Čuvanje nije uspelo." The largest real
+ * booking in the data is 21 — a minibus — so 100 is far above anything the
+ * business runs and far below anything that breaks the column. If the owner
+ * ever charters a coach, this is the one line to change.
+ */
+export const MAX_PUTNIKA = 100;
+
 export const RezervacijaSchema = z
   .object({
     ime: z.string().trim().min(1, { message: T.greske.imeObavezno }),
@@ -80,12 +92,21 @@ export const RezervacijaSchema = z
       .trim()
       .min(1, { message: T.greske.brojPutnikaObavezan })
       .transform((v, ctx) => {
+        // Digits only, checked BEFORE `Number()`. `Number` happily accepts
+        // `1e3` (1000), `0x10` (16) and `  7  `, none of which anyone typed
+        // into a passenger-count box on purpose. `Number.isInteger` does not
+        // catch them, because the results really are integers.
+        if (!/^\d+$/.test(v)) {
+          ctx.addIssue({ code: "custom", message: T.greske.brojPutnikaNeispravan });
+          return z.NEVER;
+        }
         const n = Number(v);
-        if (!Number.isInteger(n) || n <= 0) {
-          ctx.addIssue({
-            code: "custom",
-            message: T.greske.brojPutnikaNeispravan,
-          });
+        if (n <= 0) {
+          ctx.addIssue({ code: "custom", message: T.greske.brojPutnikaNeispravan });
+          return z.NEVER;
+        }
+        if (n > MAX_PUTNIKA) {
+          ctx.addIssue({ code: "custom", message: T.greske.brojPutnikaPrevelik });
           return z.NEVER;
         }
         return n;

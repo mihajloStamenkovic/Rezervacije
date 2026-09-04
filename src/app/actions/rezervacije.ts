@@ -6,8 +6,10 @@ import {
   izmeniRezervaciju,
   obrisiRezervaciju as obrisiRed,
   rezervacijaPoId,
+  sveDestinacije,
   upisiRezervaciju,
 } from "@/db/queries";
+import { katalogZaFormu } from "@/domen/kaskada";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { putanjaNazad } from "@/lib/navigacija";
 import { T } from "@/lib/tekst";
@@ -15,6 +17,7 @@ import {
   RezervacijaSchema,
   greskePolja,
   izFormData,
+  type GreskePolja,
   type StanjeForme,
 } from "@/lib/validacija";
 
@@ -51,6 +54,43 @@ export async function sacuvajRezervaciju(
     return { ok: false, greske: greskePolja(razultat.error) };
   }
   const podaci = razultat.data;
+
+  /*
+   * The schema can only say "that is a uuid". It cannot say "that destination
+   * is still offered", because it has no database and must not grow one.
+   *
+   * SPEC §5 settled that Slovenija and BiH are not bookable, and the dropdowns
+   * honour it — but a Server Action is a public endpoint, so a hand-built POST
+   * reached straight past them until now. The foreign key still blocked an id
+   * that is in no row at all; an id belonging to an INACTIVE row sailed through.
+   *
+   * The allowed set comes from `katalogZaFormu`, the same function the form's
+   * dropdowns are built from, so the check and the UI cannot drift apart. Its
+   * second argument is what keeps an existing booking editable: a reservation
+   * already pointing at Ljubljana may be saved again with Ljubljana, because
+   * inactive means "not offered for new bookings", never "unresolvable"
+   * (SPEC §5).
+   */
+  const postojeca = id === null ? null : await rezervacijaPoId(id);
+  if (id !== null && postojeca === null) {
+    return { ok: false, greske: {}, opsta: T.greske.nijeNadjeno };
+  }
+
+  const dozvoljene = new Set(
+    katalogZaFormu(await sveDestinacije(), [
+      postojeca?.destinacija.id,
+      postojeca?.destinacijaPovratka.id,
+    ]).map((d) => d.id),
+  );
+
+  const greske: GreskePolja = {};
+  if (!dozvoljene.has(podaci.destinacijaId)) {
+    greske.destinacijaId = T.greske.destinacijaNijeUPonudi;
+  }
+  if (!dozvoljene.has(podaci.destinacijaPovratkaId)) {
+    greske.destinacijaPovratkaId = T.greske.destinacijaNijeUPonudi;
+  }
+  if (Object.keys(greske).length > 0) return { ok: false, greske };
 
   try {
     if (id === null) {

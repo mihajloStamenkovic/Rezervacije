@@ -17,8 +17,8 @@ operations.
 | 4 · Auth and RLS | done |
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
-| 7 · Verification gate | **run 04.09.2026.** Both correctness defects fixed and the `/prijava` gate closed; 2 hardening items remain |
-| 8 · Deploy | blocked on Phase 7. Backups **green and restore-verified**; Vercel, CI and Sentry remain |
+| 7 · Verification gate | **done — signed off 04.09.2026** |
+| 8 · Deploy | **next.** Backups **green and restore-verified**; Vercel, CI and Sentry remain |
 | 9 · Handover | not started |
 
 **Phase 7 ran and found things, which is the gate working.** The domain core came
@@ -42,9 +42,14 @@ corrected** — including the one genuine ambiguity, which the owner settled: th
 destination filter is scoped to **the leg**, not the booking. The code was
 already right; the spec was reworded and now states the cost outright.
 `/prijava` was then **measured at 375px for the first time in the project** and
-passes — zero overflow, every control 44px at 16px font. Two hardening items
-remain before Phase 7 can be signed off: inactive destinations are still not
-refused server-side, and `broj_putnika` still has no upper bound.
+passes — zero overflow, every control 44px at 16px font. The last two hardening
+items were closed the same day: inactive destinations are now refused
+server-side, and `broj_putnika` has an upper bound and a digits-only parse.
+
+**Phase 7 is signed off.** 265 tests across 16 files, identical under five
+timezones; typecheck, lint and build clean; RLS verified against the live
+project; and every defect the gate raised is either fixed or written into
+`SPEC.md` as a decision. Phase 8 is next.
 
 **There is one database and it is the real one.** Development and production are
 the same hosted Supabase project, `biqiztxeiqmrgmngemhf`, in the EU
@@ -1312,6 +1317,61 @@ Incidental: the screen rendered in **dark mode**, which is the Phase 6
 `prefers-color-scheme` fix confirmed live on a third screen. Nothing was typed
 into either field and no login was attempted.
 
+#### Both hardening items closed — 04.09.2026
+
+**Inactive destinations are now refused server-side.** The schema cannot do this
+— it has no database and must not grow one — so the check sits in
+`sacuvajRezervaciju`, which is where a hand-built POST actually lands. The
+allowed set is built by **`katalogZaFormu`, the same function the form's
+dropdowns are built from**, so the server rule and the UI cannot drift apart.
+Its second argument is what keeps an existing booking editable: a reservation
+already pointing at Ljubljana may be saved again with Ljubljana, because
+inactive means *not offered for new bookings*, never *unresolvable* (SPEC §5).
+A rejection now names the field — *"Ta destinacija više nije u ponudi."* —
+instead of arriving as the generic save failure.
+
+**`broj_putnika` is parsed digits-only and capped at 100.** The regex runs
+*before* `Number()`, which is the whole point: `Number("1e3")` is 1000 and
+`Number("0x10")` is 16, both genuine integers, so `Number.isInteger` never
+caught them. `MAX_PUTNIKA` is exported and documented as a guardrail rather
+than a business rule — SPEC names no maximum, the largest real booking in the
+data is 21, and the bound exists so `2147483648` stops at the form with a
+sentence instead of at Postgres with an int4 overflow reported as *"Čuvanje
+nije uspelo."* The error message was also wrong for `1.5`: it said "greater than
+zero" when the problem was that it is not a whole number. It now reads
+*"Broj putnika mora biti ceo broj veći od nule."*
+
+Four tests were added for these — exponent and hex notation, a negative, the cap
+including the old overflow value, and `21` still accepted, because the fix must
+not break the minibus already in the data.
+
+### Phase 7 signed off — 04.09.2026
+
+| Gate | Result |
+|---|---|
+| `npm run test` | **265 passed, 16 files** |
+| `npm run test:tz` | **265 identical across all five timezones** |
+| `npm run typecheck` | exit 0, both TS projects |
+| `npm run lint` | exit 0 |
+| `npm run build` | 7 routes + `ƒ Proxy`; `build:sw` 37 URLs, 1.03 MB |
+| RLS, live | `[]` from all four tables anonymously; 9 policies, 0 to `anon` |
+| `/prijava` at 375px | zero overflow; every control 44px at 16px |
+
+**Done when: no correctness bugs and no spec deviations remain open** — met. The
+two correctness defects are fixed and re-measured, the two hardening items are
+closed with tests, and every deviation is either corrected in `SPEC.md` or
+recorded there as a decision with its cost stated.
+
+Three things remain unverifiable from a desktop and stay in Phase 9: `tel:`
+dialling from a foreign network, session survival into iOS standalone mode, and
+a save attempted while `navigator.onLine` is true but the connection is dead.
+One known gap is carried into Phase 8 rather than closed here: **nothing runs
+this suite on push**, so the guarantees in the table above hold as of this
+commit and not automatically thereafter.
+
+---
+
+
 #### Five deviations that are documentation, not code
 
 3. **SPEC §5 contradicts itself on the destination counts.** Recounted from
@@ -1330,7 +1390,8 @@ into either field and no login was attempted.
    scheduled — but SPEC asserts it as present, and for an app whose entire safety
    net is 261 tests plus `test:tz`, **nothing currently runs them on push.**
 
-5. **Inactive destinations are not refused server-side.** SPEC §11 settled that
+5. ~~**Inactive destinations are not refused server-side.**~~ **Fixed
+   04.09.2026 — see "Both hardening items closed" below.** SPEC §11 settled that
    Slovenija and BiH must not be bookable. The dropdowns are correct, but
    `src/lib/validacija.ts:38` validates the destination as `z.uuid()` with no
    catalogue or `aktivna` lookup, and `sacuvajRezervaciju` adds none. A
@@ -1338,7 +1399,8 @@ into either field and no login was attempted.
    two trusted accounts, and the FK still blocks an id that is not in the
    catalogue at all — but the check lives in Postgres rather than in the schema.
 
-6. **`broj_putnika` has a floor but no ceiling, and is not parsed as decimal.**
+6. ~~**`broj_putnika` has a floor but no ceiling, and is not parsed as
+   decimal.**~~ **Fixed 04.09.2026 — see below.**
    `0`, `-1` and `1.5` are all rejected. `1e3` → 1000, `0x10` → 16 and
    `2147483648` all pass Zod and reach Postgres, where the last dies on int4
    overflow as the generic *"Čuvanje nije uspelo."* SPEC names no upper bound, so
@@ -1602,14 +1664,14 @@ Two bugs were fixed before it went green, both mine:
       departed with no return date cannot be reached by the filter in any mode,
       only by search or by its past departure date, which is the trade §1
       already accepted.
-- [ ] **Phase 7: inactive destinations are not refused server-side.**
-      `src/lib/validacija.ts:38` is a bare `z.uuid()` with no catalogue or
-      `aktivna` check. Dropdowns are correct, so this is tamper-only — but SPEC
-      §11 settled that Slovenija and BiH are not bookable.
-- [ ] **Phase 7: `broj_putnika` has no upper bound and is not parsed as
-      decimal.** `1e3`, `0x10` and `2147483648` all pass Zod; the last dies at
-      Postgres on int4 overflow as a generic failure. Also, `1.5` is rejected
-      with "mora biti veći od nule", which is not the actual reason.
+- [x] ~~Phase 7: inactive destinations are not refused server-side~~ — fixed
+      04.09.2026 in `sacuvajRezervaciju`, using `katalogZaFormu` so the server
+      check and the form's dropdowns cannot drift apart. An existing booking on
+      an inactive destination stays editable, per SPEC §5.
+- [x] ~~Phase 7: `broj_putnika` has no upper bound and is not parsed as
+      decimal~~ — fixed 04.09.2026. Digits-only regex before `Number()`, capped
+      at `MAX_PUTNIKA = 100`, and the message for `1.5` now names the real
+      reason. Four tests added, including `21` still accepted.
 - [ ] **Phase 7 — needs the owner's call: is the destination filter scoped to
       rows or to legs?** SPEC §5 says a place matches bookings referencing it from
       **either** column; the code matches the destination of the leg being

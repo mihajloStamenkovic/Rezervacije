@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  MAX_PUTNIKA,
   RezervacijaSchema,
   greskePolja,
   izFormData,
@@ -95,6 +96,44 @@ describe("RezervacijaSchema", () => {
     expect(greskaZa({ brojPutnika: "nekoliko" }).brojPutnika).toBe(
       T.greske.brojPutnikaNeispravan,
     );
+  });
+
+  /**
+   * `Number()` accepts more than anyone types into a passenger box. Each of
+   * these produced a real integer and passed validation before Phase 7:
+   * `1e3` became 1000, `0x10` became 16, and `2147483648` reached Postgres and
+   * died on int4 overflow as the generic "Čuvanje nije uspelo."
+   */
+  it("rejects exponent and hex notation rather than silently converting it", () => {
+    for (const zapis of ["1e3", "0x10", "1e21", "+5", " 5 ".trim() + "e1"]) {
+      expect(greskaZa({ brojPutnika: zapis }).brojPutnika).toBe(
+        T.greske.brojPutnikaNeispravan,
+      );
+    }
+  });
+
+  it("rejects a negative count with the same message as zero", () => {
+    expect(greskaZa({ brojPutnika: "-1" }).brojPutnika).toBe(
+      T.greske.brojPutnikaNeispravan,
+    );
+  });
+
+  it("caps the passenger count and says so in its own words", () => {
+    expect(parsiraj({ brojPutnika: String(MAX_PUTNIKA) }).data?.brojPutnika).toBe(
+      MAX_PUTNIKA,
+    );
+    expect(greskaZa({ brojPutnika: String(MAX_PUTNIKA + 1) }).brojPutnika).toBe(
+      T.greske.brojPutnikaPrevelik,
+    );
+    // The value that used to reach Postgres and overflow int4.
+    expect(greskaZa({ brojPutnika: "2147483648" }).brojPutnika).toBe(
+      T.greske.brojPutnikaPrevelik,
+    );
+  });
+
+  it("still accepts the largest real booking in the data", () => {
+    // Dragan Đorđević's minibus — 21 putnik, from the seed rows.
+    expect(parsiraj({ brojPutnika: "21" }).data?.brojPutnika).toBe(21);
   });
 
   it("distinguishes a missing departure date from a malformed one", () => {
