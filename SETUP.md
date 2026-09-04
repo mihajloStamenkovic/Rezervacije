@@ -96,8 +96,9 @@ them out of `auth.users` in the migration, so the repo never carries them.
 
 **Free** on the Hobby plan. This app is nowhere near its limits.
 
-Note: the repo currently has **zero commits**. I'll commit and push before this
-step — Vercel builds from GitHub, so there needs to be something there.
+Note: the repo is pushed and CI is green. Set the three environment variables
+**before** the first deploy — see "Vercel (production)" below. Without them the
+build fails at page-data collection, which is what happened on 04.09.2026.
 
 ### C2. Sentry (optional, recommended)
 
@@ -149,13 +150,33 @@ publish that host on IPv4 and it fails with `ENOTFOUND`. The session pooler on p
 
 ### Vercel (production)
 
-The same five, plus `SENTRY_DSN`. Same project, same values.
+**Three, not five.** Same values as `.env.local`, set for **all** environments
+(Production, Preview, Development):
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | as in `.env.local` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | as in `.env.local` |
+| `DATABASE_URL` | as in `.env.local` — the **transaction** pooler, port **6543** |
+
+Both `NEXT_PUBLIC_` values must exist **before the build**, not just at runtime:
+Next inlines them into the client bundle, so adding them after a deploy has no
+effect until you redeploy.
+
+Deliberately **not** on Vercel:
+
+- `SUPABASE_SECRET_KEY` — it bypasses RLS and nothing in the request path uses
+  it. Only `src/lib/supabase/admin.ts` reads it, and nothing imports that file;
+  it is for manual scripts. Leave it on the local machine.
+- `DIRECT_URL` — migrations and seeds only, and those never run on Vercel.
+
+`SENTRY_DSN` joins the list if and when Sentry is added.
 
 ### GitHub Actions secrets
 
 | Secret | Why |
 |---|---|
-| `SUPABASE_DB_URL` | session-pooler connection, for the nightly `pg_dump` |
+| `DIRECT_URL` | session-pooler connection, port **5432**, for the nightly `pg_dump` |
 
 **No `AUTH_SECRET`.** Supabase issues and rotates its own JWTs.
 

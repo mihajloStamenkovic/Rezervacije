@@ -1497,14 +1497,60 @@ Three consequences that do not follow automatically from a `set-url`:
    Secrets and variables → Actions on the new repository, or the nightly job
    fails on its own guard clause: *"Tajna DIRECT_URL nije podesena."*
    Its value is the session pooler on **5432**, not the transaction pooler.
-3. **Vercel must be pointed at the new repository** and given all five
-   environment variables. `DATABASE_URL` is the pooled connection on **6543**;
-   `DIRECT_URL` on 5432 is for migrations only and must never be in the
-   request path.
+3. **Vercel must be pointed at the new repository** and given its
+   environment variables — **three**, not five; see "The first deploy failed"
+   below. `DATABASE_URL` is the pooled connection on **6543**; `DIRECT_URL` on
+   5432 is for migrations only, must never be in the request path, and does not
+   belong on Vercel at all.
 
 The backup workflow itself needed no edit: it addresses the repository through
 `${{ github.repository }}` and authenticates with `${{ github.token }}`, so it
 follows the repository it is running in.
+
+### The first deploy failed — 04.09.2026
+
+The Vercel project was created and built commit `041928e` with **no environment
+variables set**. It failed at page-data collection:
+
+```
+Error: Failed to collect configuration for /nova
+  [cause]: Error: Nedostaje promenljiva okruženja: DATABASE_URL.
+      at b (src/env.ts:8:11)
+      at module evaluation (src/db/index.ts:19:50)
+```
+
+Not a defect. `src/db/index.ts:19` constructs the postgres client at **module
+scope**, so `databaseUrl()` runs whenever the module is evaluated — and
+`next build` evaluates every route module to collect its config. The client is
+lazy about *connecting*, which is why a placeholder URL is enough, but it is not
+lazy about *reading the variable*. This is exactly why the CI `gradnja` job
+injects placeholders; CI being green was never evidence that Vercel would build.
+
+**Three variables, not five.** Measured, not assumed — `.env.local` was moved
+aside and `next build` run with only these three, which produced a complete
+route table (8 routes, proxy included):
+
+| Variable | Why |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | inlined into the client bundle at build time |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same — must exist *at build*, not just at runtime |
+| `DATABASE_URL` | transaction pooler, port **6543** |
+
+The other two are deliberately absent, and that is a security property rather
+than an omission:
+
+- **`SUPABASE_SECRET_KEY` bypasses RLS**, and nothing in the request path uses
+  it. Grepping for importers of `src/lib/supabase/admin.ts` returns nothing —
+  the file's own header says it is for manual scripts and is "never imported by
+  a route, Server Action or Server Component". Putting it in Vercel would place
+  an RLS-bypassing credential in a deployment that has no use for it.
+- **`DIRECT_URL`** is read only by `migrate.ts`, `reset.ts`, `seed.ts` and
+  `seed-destinacije.ts`, none of which run on Vercel. Standing rule 9 gates the
+  destructive commands; not shipping their connection string is the cheapest
+  possible reinforcement.
+
+If a later change does import the admin client, the build will not warn — it
+will fail at runtime on the first request that reaches it. Worth remembering.
 
 ### The backups came across — 04.09.2026
 
