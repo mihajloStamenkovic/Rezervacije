@@ -1,6 +1,6 @@
 ---
 name: security
-description: Owns authentication, sessions, route protection, RLS policies and secret handling for Kombi Rezervacije using Supabase Auth. Use for anything touching login, sessions, middleware, row-level security, or how keys and passwords are handled.
+description: Owns authentication, sessions, route protection, RLS policies and secret handling for Kombi Rezervacije using Supabase Auth. Use for anything touching login, sessions, the proxy (what Next used to call middleware), row-level security, or how keys and passwords are handled.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
@@ -24,9 +24,10 @@ a permission — it never restricts anything.
 
 ## RLS is the security boundary, not the middleware
 
-Middleware redirects a logged-out browser to `/prijava`. That is a convenience. The
-actual boundary is Postgres: anyone can `curl` the REST endpoint with the
-publishable key, and RLS is the only thing standing there.
+`src/proxy.ts` redirects a logged-out browser to `/prijava`. That is a convenience,
+and its own documentation says so. The actual boundary is Postgres: anyone can
+`curl` the REST endpoint with the publishable key, and RLS is the only thing
+standing there.
 
 **RLS is already enabled on all four tables** with zero policies — default-deny,
 applied in `drizzle/0001_ukljuci_rls.sql`. Your job is to write the policies that
@@ -68,8 +69,20 @@ from a client component fails the build. That is the intended guard. Use
 
 ## Sessions
 
-Cookie sessions refreshed in `middleware.ts`. Everything is protected except
-`/prijava` and static assets.
+Cookie sessions are refreshed in **`src/proxy.ts`**, which delegates to
+`azurirajSesiju` in `src/lib/supabase/middleware.ts`. Everything is protected
+except `/prijava`, `/ikone/`, the manifest and static assets.
+
+**Do not create `middleware.ts`.** Next 16 deprecated that file convention and
+renamed it to `proxy` — `export function proxy`, confirmed in the bundled docs at
+`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`.
+The build prints `ƒ Proxy (Middleware)` when it is wired up. The helper module
+under `src/lib/supabase/` keeps the name `middleware.ts` because that is what
+Supabase's own docs call it; that is a library file, not a route convention.
+
+One thing the exclusion list has already got wrong once: the icon directory is
+`public/ikone/`, in Serbian like everything else, **not** `icons/`. Excluding the
+wrong name makes every icon return a redirect and silently kills installability.
 
 The owner opens this app a few times a week, sometimes after a gap. A session that
 expires in an hour means logging in from a parked van in Greece. Verify the session

@@ -77,7 +77,7 @@ while server-side queries are unaffected.
 | `supabase` | Schema, Drizzle models, migrations, seeds, query layer | sonnet |
 | `locale` | Serbian strings, date formatting, collation, phone normalization | sonnet |
 | `domain-logic` | Main leg rule, list modes, filter + sort semantics | opus |
-| `security` | Supabase Auth, sessions, middleware, **RLS policies**, secrets | sonnet |
+| `security` | Supabase Auth, sessions, `proxy.ts`, **RLS policies**, secrets | sonnet |
 | `ui` | All screens, Tailwind, shadcn, mobile-first — **and** PWA, offline, install | sonnet |
 | `developer` | Routes, Server Actions, Zod, wiring — **and** Vercel, CI, backups | sonnet |
 | `tester` | Spec conformance, edge cases, timezone, mobile, evidence | opus |
@@ -1317,16 +1317,24 @@ Two bugs were fixed before it went green, both mine:
 - [x] ~~`profiles.email` copied from `auth.users`, never hardcoded~~ — done;
       each row's email matches `auth.users` exactly and no address appears in
       any tracked file.
-- [ ] **This plan and `.claude/agents/security.md` both say `middleware.ts`.**
-      Next 16 renamed it to `proxy.ts`; the implementation follows Next, not
-      the plan. Correct both documents so the next agent does not re-add a
-      deprecated file.
+- [x] ~~This plan and `.claude/agents/security.md` both say `middleware.ts`~~ —
+      corrected 04.09.2026. The agent table above now says `proxy.ts`, and the
+      security brief describes `src/proxy.ts` refreshing the session via
+      `azurirajSesiju`, with an explicit *do not create `middleware.ts`* and the
+      docs path that proves the rename. `src/lib/supabase/middleware.ts` keeps
+      its name on purpose — it is a Supabase helper, not a route convention —
+      and the brief now says so. The Phase 4 narrative above is left as written:
+      it is the record of a deviation that was correct.
 - [x] ~~The repo has zero commits~~ — Phases 3–5 committed and pushed to
       `origin/main` on 01.09.2026 (`b1aad88`), followed by the access-list work.
 - [x] ~~SPEC §2 names two list modes; the implementation has three~~ —
       `pretragaView` is now written into SPEC §2.
-- [ ] **SPEC §1 and the `domain-logic` agent brief disagree** about whether a
-      departed booking with no return date is reachable in Dan mode. SPEC §1 says
-      yes, by filtering its past departure date; the brief said no. SPEC was
-      followed. Correct `.claude/agents/domain-logic.md` so the next run of that
-      agent does not re-open it.
+- [x] ~~SPEC §1 and the `domain-logic` agent brief disagree~~ about whether a
+      departed booking with no return date is reachable in Dan mode — corrected
+      04.09.2026. SPEC §1 says yes, by filtering its past departure date; the
+      brief said "excluded from both modes" and "reachable only via search". SPEC
+      was followed in the code, and the brief now states the SPEC rule, names the
+      test case, and records that the old wording was wrong so it does not come
+      back. The same edit brought the brief up to **three** list modes —
+      `pretragaView` and `prikaziListu` were missing from it entirely, which is
+      the closed item two lines up read from the other side.

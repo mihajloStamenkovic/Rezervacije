@@ -1,6 +1,6 @@
 ---
 name: domain-logic
-description: Implements and tests the core domain rules of Kombi Rezervacije — the main leg rule, the two list modes, filter semantics and sort order. Use for any change to how reservations are resolved, filtered, grouped or ordered. This is the hardest logic in the app; route it here rather than doing it inline.
+description: Implements and tests the core domain rules of Kombi Rezervacije — the main leg rule, the three list modes, filter semantics and sort order. Use for any change to how reservations are resolved, filtered, grouped or ordered. This is the hardest logic in the app; route it here rather than doing it inline.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
@@ -13,9 +13,11 @@ your contract. Read them completely — the edge case table in §1 is not option
 
 ## What you own
 
-- `src/domen/` — the whole directory. It does not exist yet; you create it
+- `src/domen/` — the whole directory. **It exists and is under test.** Read what
+  is there before you write; do not re-create it from this brief
 - `resolveMainLeg(reservation, today)` — the rule the whole app turns on
-- The two list modes: **Raspored** (no date filter) and **Dan** (date filter active)
+- The three list modes: **Raspored** (no date filter), **Dan** (date filter
+  active) and **Pretraga** (search, no date filter), dispatched by `prikaziListu`
 - Filter composition: date AND destination; multiple destinations OR together
 - Sort order, including the same-day tiebreak
 - The distinct-destinations list that feeds the filter checkboxes
@@ -37,27 +39,46 @@ else if (datum_povratka)     → main leg is RETURN
                                mainDate = datum_povratka
                                mainDestination = destinacija_povratka
                                direction = 'povratak'
-else                         → NO main leg. Excluded from every list view.
-                               Reachable only via search.
+else                         → NO main leg. Absent from Raspored entirely.
+                               Still reachable — see below.
 ```
+
+**A booking with no main leg is not invisible.** SPEC §1's edge-case table is
+explicit: it drops off Raspored, and is reachable *"by search on the name, **or by
+filtering its past departure date**."* Dan mode is purely leg-in-range — it applies
+neither this rule nor the "from today forward" horizon — so a past departure date
+reaches it. Pretraga reaches it too, rendering its departure leg because there is
+no main leg to render.
+
+Earlier versions of this brief said "excluded from both modes" and "reachable only
+via search". That was wrong and SPEC won; do not re-introduce it.
 
 `today` is **always** a `YYYY-MM-DD` string computed in `Europe/Belgrade`. It is
 passed in, never read from `new Date()` inside your functions — that is what makes
 this testable and what keeps both accounts seeing the same list from any country.
 Use `danasBeograd()` from `src/lib/datum.ts` at the entry point only.
 
-## The two modes are genuinely different shapes
+## The three modes are genuinely different shapes
 
 This trips people up. Get it explicit:
 
 - **Raspored** (no date filter) emits **one row per reservation** — its main leg,
-  where `mainDate >= today`. Sorted by `mainDate` ascending.
+  where `mainDate >= today`. Sorted by `mainDate` ascending. This is the only mode
+  that owns the today horizon.
 - **Dan** (date filter active) emits **one row per matching leg**. A reservation
   can produce two rows if both its legs fall in the range. Departures group first,
-  then returns.
+  then returns. Neither the main leg rule nor the horizon applies.
+- **Pretraga** (search active, no date filter) emits **one row per matching
+  reservation**, with no horizon — the main leg where there is one, the past
+  departure leg where there is not. It exists because SPEC §3 makes search a way
+  to reach a booking with no main date, and such a booking has no main leg for
+  either mode above to render. Written into SPEC §2 on 01.09.2026.
 
-Do not try to collapse these into one code path with a flag. Two named functions
-that each do one thing correctly beats one clever function that does both badly.
+`prikaziListu` dispatches: date filter → `dan`, else search → `pretraga`, else
+`raspored`.
+
+Do not try to collapse these into one code path with a flag. Named functions that
+each do one thing correctly beat one clever function that does all three badly.
 
 ## Sort order — same day
 
@@ -105,7 +126,8 @@ tests with `today` injected as a fixed string. Cover, at minimum:
 - Departure in the future → outbound leg
 - Departure yesterday, return in future → return leg
 - Departure today → **outbound** (boundary: `>=`, not `>`)
-- Departure passed, no return date → excluded from both modes
+- Departure passed, no return date → absent from **Raspored**, but still rendered
+  by **Dan** when that past departure date is in range, and by **Pretraga**
 - Departure and return the same day, in Dan mode → appears in both groups
 - Greece → Belgrade one-way (destination is a home town) → behaves like any trip
 - Destination filter matching a leg, not a booking
