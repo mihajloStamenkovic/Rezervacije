@@ -13,7 +13,7 @@ Organised by **when** it's needed.
 | npm 11.18.0 | installed |
 | git 2.52.0 | installed |
 | psql 18.3 | installed — needed for backups |
-| GitHub repo | `github.com/mihajloStamenkovic/Rezervacije` |
+| GitHub repo | `github.com/PetarSosic/Rezervacije` — moved 04.09.2026, was `mihajloStamenkovic/Rezervacije` |
 | Supabase project | created, EU (Frankfurt), `eu-central-1` |
 | `.env.local` | filled in and working — migrations applied, data seeded |
 

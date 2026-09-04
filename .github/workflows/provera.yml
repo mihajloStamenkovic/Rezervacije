@@ -1,0 +1,138 @@
+name: Provera
+
+# The gate that Phase 7 closed by hand, run automatically from now on.
+#
+# Why this exists at all: this app has no status column, no undo, and one
+# database that is both dev and production. The 265 tests plus `test:tz` are
+# the only safety net, and until this file landed nothing ran them except a
+# person remembering to. SPEC §9 even listed CI as a service in use while it
+# did not exist — corrected 04.09.2026.
+#
+# The highest-value job here is `zone`. `danasBeograd()` and every date rule
+# in `src/domen/` must behave identically wherever the server happens to run,
+# and a Vercel region change is not the moment to discover otherwise.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run's answer irrelevant.
+concurrency:
+  group: provera-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Node 24, matching the machine this project is developed on. Pinned rather
+  # than floating: a minor Node bump has changed ICU data before, and ICU is
+  # exactly what the sr-Latn collation test depends on.
+  NODE_VERSION: "24"
+
+jobs:
+  provera:
+    name: Tipovi, lint i testovi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci`, not `npm install`: it installs exactly the lockfile and fails
+      # if package.json and the lock have drifted, which is the point of running
+      # this on a pull request.
+      #
+      # npm 11 gates postinstall scripts. `esbuild` and `unrs-resolver` are
+      # approved in package.json under `allowScripts`; without those approvals
+      # vitest, tsx and drizzle-kit are all silently broken.
+      - name: Instaliraj zavisnosti
+        run: npm ci
+
+      - name: Provera tipova
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testovi
+        run: npm run test
+
+  zone:
+    name: Vremenske zone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instaliraj zavisnosti
+        run: npm ci
+
+      # Runs the whole suite once per timezone in its own process, because Node
+      # reads TZ only at startup. UTC · Europe/Belgrade · Europe/Athens ·
+      # Pacific/Auckland · America/Los_Angeles must produce identical results.
+      #
+      # A failure here means a date rule is reading the machine's clock instead
+      # of the injected Belgrade "today" (standing rule 5), which on a server in
+      # another region shows the owner the wrong day's schedule.
+      - name: Ista lista u svih pet zona
+        run: npm run test:tz
+
+  gradnja:
+    name: Gradnja
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instaliraj zavisnosti
+        run: npm ci
+
+      # Placeholders, deliberately — NOT the real credentials.
+      #
+      # `src/env.ts` throws on a missing variable at module evaluation, so the
+      # build needs these to exist. It does not need them to work: the postgres
+      # client in `src/db/index.ts` is lazy and opens no connection until a
+      # query runs, and every data route is dynamic (`ƒ`), so nothing queries
+      # at build time. Verified locally on 04.09.2026 by building with
+      # `.env.local` moved aside.
+      #
+      # Keeping them fake is the security property. A build job holding the
+      # real secret key would put it one `echo` away from a public log, to
+      # prove nothing this job is here to prove.
+      - name: Gradnja i servisni radnik
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:6543/postgres
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/postgres
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          SUPABASE_SECRET_KEY: sb_secret_ci_placeholder
+        run: npm run build
+
+      # The Phase 4 gate, automated. The secret key must never reach anything
+      # the browser downloads. Greps the built output rather than the source,
+      # because the source is not what ships.
+      - name: Nijedna tajna u klijentskom paketu
+        run: |
+          set -euo pipefail
+          PAO=0
+          for OBRAZAC in "sb_secret_" "SUPABASE_SECRET_KEY" "postgresql://" "DIRECT_URL"; do
+            if grep -rl -- "$OBRAZAC" .next/static public/sw.js 2>/dev/null | grep -q .; then
+              echo "::error::„$OBRAZAC“ se pojavljuje u klijentskom paketu."
+              grep -rl -- "$OBRAZAC" .next/static public/sw.js 2>/dev/null || true
+              PAO=1
+            fi
+          done
+          if [ "$PAO" -eq 1 ]; then exit 1; fi
+          echo "::notice::Nijedna tajna nije u .next/static ni u sw.js."

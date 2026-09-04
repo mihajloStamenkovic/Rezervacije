@@ -386,7 +386,7 @@ Adding and editing need a connection.
 |---|---|---|
 | Supabase | Postgres + Auth, EU (Frankfurt) | Free tier — see caveats |
 | Vercel | Next.js hosting, auto-deploy from GitHub | Free (Hobby) |
-| GitHub | `mihajloStamenkovic/Rezervacije` — repo, nightly backup job. **CI is not built yet** — see below | Free |
+| GitHub | `PetarSosic/Rezervacije` — repo, CI, nightly backup job | Free |
 | Sentry | Free tier. Know why it broke while he is driving through Greece. | Free |
 | Domain | Skip initially; `*.vercel.app` is fine once it is a home screen icon | ~€10/yr |
 
@@ -452,18 +452,30 @@ replayed into a scratch schema inside a transaction and rolled back, returning
 If the owner later wants managed backups and no pause risk, that is Supabase Pro
 at $25/month. Not needed to launch.
 
-### CI does not exist yet
+### CI
 
-`.github/` contains exactly one workflow, `rezerva.yml`, the nightly backup.
-**Nothing runs the test suite on push or on a pull request.** This section
-previously listed CI among the services in use; corrected 04.09.2026.
+`.github/workflows/provera.yml`, added 04.09.2026 with the move to the
+`PetarSosic` account. Runs on every push to `main`, every pull request against
+it, and on demand. Three jobs:
 
-It matters more than a missing convenience. The suite is 261 tests plus
-`test:tz`, and it is the only thing standing between a deployment runtime with a
-small-ICU Node and `Intl.Collator("sr-Latn")` silently falling back to root
-collation — which would sort `Čačak` before `Cetinje` and break every list in the
-app in a way no page would report. The guard exists; nothing currently pulls the
-trigger. The workflow is a Phase 8 deliverable in `build_plan.md`.
+| Job | What it guards |
+|---|---|
+| `provera` | `npm ci`, typecheck, lint, the full test suite |
+| `zone` | `test:tz` — the suite under five timezones, which must agree |
+| `gradnja` | `npm run build` plus a grep proving no secret reached the client bundle |
+
+`zone` is the one that earns its keep. The suite is the only thing standing
+between a deployment runtime with a small-ICU Node and `Intl.Collator("sr-Latn")`
+silently falling back to root collation — which would sort `Čačak` before
+`Cetinje` and break every list in the app in a way no page would report. Until
+04.09.2026 this section listed CI as a service in use while nothing ran the
+tests at all; that is now true rather than aspirational.
+
+`gradnja` builds with **placeholder** environment values, never the real ones.
+`src/env.ts` throws on a missing variable, so the build needs them to exist — but
+not to work, because the postgres client is lazy and every data route is dynamic,
+so nothing queries at build time. A CI job holding the real secret key would put
+it one `echo` away from a public log, to prove nothing the job is there to prove.
 
 ### Deliberately not using
 

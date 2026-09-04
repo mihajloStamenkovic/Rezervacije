@@ -18,7 +18,7 @@ operations.
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
 | 7 · Verification gate | **done — signed off 04.09.2026** |
-| 8 · Deploy | **next.** Backups **green and restore-verified**; Vercel, CI and Sentry remain |
+| 8 · Deploy | **in progress.** Repo moved to `PetarSosic`, CI built; backups green and restore-verified; Vercel and Sentry remain |
 | 9 · Handover | not started |
 
 **Phase 7 ran and found things, which is the gate working.** The domain core came
@@ -157,7 +157,8 @@ Phase 9  Device smoke test + handover     (main session)
 **Agent:** none — main session. **Completed 28.08.2026.**
 
 - `create-next-app`: TypeScript strict, App Router, Tailwind v4, ESLint
-- `git remote add origin https://github.com/mihajloStamenkovic/Rezervacije.git`
+- `git remote add origin https://github.com/PetarSosic/Rezervacije.git`
+  (originally `mihajloStamenkovic/Rezervacije`; moved 04.09.2026 — see Phase 8)
 - Install: `drizzle-orm`, `drizzle-kit`, `postgres`, `zod`,
   `@supabase/supabase-js`, `@supabase/ssr`, `date-fns`, `libphonenumber-js`,
   `@serwist/next`
@@ -198,7 +199,10 @@ drizzle-kit **0.31.10**, postgres **3.4.9**, zod **4.4.3**,
   the user's home directory otherwise makes Turbopack guess the workspace root
   and warn on every start.
 - `git init` plus `origin` → `github.com/mihajloStamenkovic/Rezervacije`.
-  No commits made.
+  No commits made. **That account was left behind on 04.09.2026**; `origin` now
+  points at `github.com/PetarSosic/Rezervacije`. Recorded as it happened rather
+  than rewritten, because where the backups from Phase 8 currently live depends
+  on it.
 
 **Evidence:** `npm run dev` → `Ready in 1120ms`, `GET / 200`. `npm run build` →
 compiled, 2 static routes. `tsc --noEmit` → exit 0.
@@ -1467,9 +1471,77 @@ are applied and the data is seeded. What remains is everything around it.
   one (5432), as a build step or separate job, never in the request path
 - `/api/health` checking database connectivity
 - Sentry with PII scrubbed in `beforeSend` — this app stores names and phone numbers
-- GitHub Action: `typecheck` + lint + tests on PR
+- ~~GitHub Action: `typecheck` + lint + tests on PR~~ ✅ **built 04.09.2026**
 - **Nightly `pg_dump` GitHub Action** — backup *and* keep-alive
 - `RUNBOOK.md` with the restore procedure and how to re-seed destinations
+
+### The repository moved — 04.09.2026
+
+`origin` is now **`github.com/PetarSosic/Rezervacije`**, matching the account
+that also owns Vercel. It was `mihajloStamenkovic/Rezervacije`. The local git
+identity was already `PetarSosic <petarsosic4@gmail.com>`, so authorship needed
+no change, and the new repository was confirmed reachable and **empty** before
+anything was repointed.
+
+**Nothing has been pushed yet.** Five commits are ahead of the old remote and
+publishing them to a new repository is the owner's call, not a side effect of
+changing a URL.
+
+Three consequences that do not follow automatically from a `set-url`:
+
+1. **The existing backups do not move.** They live on the orphan branch
+   `rezerve` in the *old* repository, including commit `2f03368` and the dump
+   that was restore-verified. The new repository has no `rezerve` branch; the
+   nightly job will create one from scratch on its first run there. Nothing is
+   lost as long as the old repository still exists — but it is now the only
+   copy of every dump taken before today.
+2. **Secrets do not move.** `DIRECT_URL` must be set again under Settings →
+   Secrets and variables → Actions on the new repository, or the nightly job
+   fails on its own guard clause: *"Tajna DIRECT_URL nije podesena."*
+   Its value is the session pooler on **5432**, not the transaction pooler.
+3. **Vercel must be pointed at the new repository** and given all five
+   environment variables. `DATABASE_URL` is the pooled connection on **6543**;
+   `DIRECT_URL` on 5432 is for migrations only and must never be in the
+   request path.
+
+The backup workflow itself needed no edit: it addresses the repository through
+`${{ github.repository }}` and authenticates with `${{ github.token }}`, so it
+follows the repository it is running in.
+
+### CI ✅ — 04.09.2026
+
+`.github/workflows/provera.yml`. On every push to `main`, every pull request
+against it, and on demand. Three jobs, deliberately separate so a failure names
+itself:
+
+| Job | Runs | Guards |
+|---|---|---|
+| `provera` | `npm ci` · `typecheck` · `lint` · `test` | the 265 tests, and lockfile drift — `npm ci` fails if `package.json` and the lock disagree |
+| `zone` | `test:tz` | the suite under five timezones, which must agree exactly |
+| `gradnja` | `npm run build` + a secret grep | that it builds at all, and that no secret reached the client bundle |
+
+**`zone` is the job that earns its keep.** A date rule that reads the machine
+clock instead of the injected Belgrade "today" shows the owner the wrong day's
+schedule from a server in another region, and no page reports an error when it
+happens. Same for the `sr-Latn` collation on a small-ICU runtime.
+
+**`gradnja` builds with placeholder credentials, never the real ones.**
+`src/env.ts` throws on a missing variable at module evaluation, so the build
+needs the five to exist — it does not need them to work, because the postgres
+client in `src/db/index.ts` is lazy and every data route is dynamic, so nothing
+queries at build time. **Verified locally on 04.09.2026** by moving `.env.local`
+aside and building against placeholders: succeeded, 7 routes plus `ƒ Proxy`,
+`build:sw` 37 URLs / 1.03 MB. A CI job holding the real secret key would put it
+one `echo` away from a public log to prove nothing this job is here to prove.
+
+The secret grep is the Phase 4 gate automated: `sb_secret_`,
+`SUPABASE_SECRET_KEY`, `postgresql://` and `DIRECT_URL` must appear in neither
+`.next/static` nor the generated `public/sw.js`.
+
+**Unproven until it runs on GitHub.** Everything above was checked locally on
+Windows; the workflow itself has never executed. Node 24 is pinned rather than
+floating, because a minor Node bump has changed ICU data before and ICU is
+exactly what the collation test depends on.
 
 **Done when**
 - Production URL loads and login works
