@@ -1489,12 +1489,10 @@ changing a URL.
 
 Three consequences that do not follow automatically from a `set-url`:
 
-1. **The existing backups do not move.** They live on the orphan branch
-   `rezerve` in the *old* repository, including commit `2f03368` and the dump
-   that was restore-verified. The new repository has no `rezerve` branch; the
-   nightly job will create one from scratch on its first run there. Nothing is
-   lost as long as the old repository still exists — but it is now the only
-   copy of every dump taken before today.
+1. ~~**The existing backups do not move.**~~ **Migrated 04.09.2026 — see
+   "The backups came across" below.** They lived on the orphan branch `rezerve`
+   in the *old* repository, including commit `2f03368` and the dump that was
+   restore-verified.
 2. **Secrets do not move.** `DIRECT_URL` must be set again under Settings →
    Secrets and variables → Actions on the new repository, or the nightly job
    fails on its own guard clause: *"Tajna DIRECT_URL nije podesena."*
@@ -1507,6 +1505,40 @@ Three consequences that do not follow automatically from a `set-url`:
 The backup workflow itself needed no edit: it addresses the repository through
 `${{ github.repository }}` and authenticates with `${{ github.token }}`, so it
 follows the repository it is running in.
+
+### The backups came across — 04.09.2026
+
+**The same commits, not copies.** This clone still held the old remote's objects
+under `refs/remotes/origin/rezerve` — `git remote set-url` rewrites a URL, it
+does not discard fetched objects — so the branch was recreated locally from
+`cb83929` and pushed to the new repository with its history intact. No dump was
+re-taken, re-compressed or reconstructed.
+
+Four nights migrated, `2f03368` (01.09) through `cb83929` (04.09):
+
+```
+dump/2026/2026-09-01.sql.gz   4937 B   ← the restore-verified one
+dump/2026/2026-09-02.sql.gz   4143 B
+dump/2026/2026-09-03.sql.gz   4141 B
+dump/2026/2026-09-04.sql.gz   4140 B   ← taken that morning, before the move
+csv/2026-09-0{1,2,3,4}-rezervacije.csv + csv/rezervacije-najnovije.csv
+```
+
+Two details worth reading rather than skipping:
+
+- **The 01.09 dump is ~800 bytes larger than the three after it.** That is the
+  destination trim, visible in the backups: 67 rows that night, 45 from the next
+  one on. It independently corroborates the Phase 8 restore record above.
+- **All five CSVs are byte-identical** — one blob, `b9030ef4`, referenced five
+  times. Nobody has entered or changed a reservation since 01.09, and the CSV is
+  a snapshot of current state rather than a diff. Expected, but it would look
+  alarming to someone checking backups for the first time on a bad day.
+
+**Still an orphan after the move:** `git merge-base main rezerve` finds nothing,
+so cloning the code still never drags the backups along.
+
+**The old repository stays until a green nightly run lands here.** It is
+currently the only other copy.
 
 ### CI ✅ — 04.09.2026
 

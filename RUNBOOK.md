@@ -67,6 +67,31 @@ The workflow needs one secret. In GitHub:
 
 Then run it once by hand to confirm: **Actions → Nocna rezerva → Run workflow**.
 
+Do not wait for 01:30 UTC to find out whether the secret is right. The job fails
+fast without it — *"Tajna DIRECT_URL nije podesena"* — rather than committing an
+empty backup, but a red run at 02:30 in the morning is a night with no dump.
+
+### The repository moved — 04.09.2026
+
+The project moved from `mihajloStamenkovic/Rezervacije` to
+**`PetarSosic/Rezervacije`**, which is now private. Three things this changed,
+all of them already handled:
+
+- **Secrets did not come along.** `DIRECT_URL` had to be set again on the new
+  repository. That is the step above.
+- **The `rezerve` branch was migrated by hand**, with its history intact — all
+  four nights from `2f03368` (01.09, the dump that was restore-verified)
+  through `cb83929` (04.09). It was pushed from a local clone that still held
+  the old remote's objects, so the commits are the *same* commits, not copies.
+  Verified after the move: still an orphan branch, `git merge-base main rezerve`
+  finds nothing.
+- **The workflow itself needed no edit.** It addresses the repository through
+  `${{ github.repository }}` and authenticates with `${{ github.token }}`, so it
+  follows whichever repository it runs in.
+
+The old repository is no longer the place to look, but do not delete it until
+you have seen at least one green nightly run land on the new one.
+
 ---
 
 ## 2. Restoring
