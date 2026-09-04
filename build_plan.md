@@ -18,7 +18,7 @@ operations.
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
 | 7 · Verification gate | **done — signed off 04.09.2026** |
-| 8 · Deploy | **in progress.** Repo moved to `PetarSosic`, CI built; backups green and restore-verified; Vercel and Sentry remain |
+| 8 · Deploy | **in progress.** Repo moved to `PetarSosic`; CI green on Linux; backups migrated and running nightly there. **Vercel, `/api/health` and Sentry remain** |
 | 9 · Handover | not started |
 
 **Phase 7 ran and found things, which is the gate working.** The domain core came
@@ -1537,8 +1537,20 @@ Two details worth reading rather than skipping:
 **Still an orphan after the move:** `git merge-base main rezerve` finds nothing,
 so cloning the code still never drags the backups along.
 
-**The old repository stays until a green nightly run lands here.** It is
-currently the only other copy.
+**Proven green on the new repository — 04.09.2026.** With `DIRECT_URL` set as a
+secret there, `Nocna rezerva` was run by hand and produced commit `434e5dc`,
+**whose parent is `cb83929`** — it appended to the migrated history rather than
+starting a branch of its own, which is the thing the migration had to get right.
+
+It did **not** add a fifth file. The run fell on the same UTC date as the last
+old-repo run and dump names are keyed by UTC date, so it replaced
+`dump/2026/2026-09-04.sql.gz` (4140 → 4139 bytes). One dump per calendar day,
+re-running replaces that day's; the fifth appears at the next 01:30 UTC. Worth
+recording because "I ran the backup and no new file appeared" reads like a
+failure and is not one.
+
+The old repository is now redundant — every dump it holds is here, as the same
+commits. Keeping it costs nothing and is the cheaper side of the trade.
 
 ### CI ✅ — 04.09.2026
 
