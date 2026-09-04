@@ -43,6 +43,12 @@ export const T = {
   nav: {
     nazad: "Nazad",
     podesavanja: "Podešavanja",
+    /**
+     * The ✕ on a Dialog or a Sheet. Lives here rather than under `filter`
+     * because both primitives render it — the delete confirmation uses it too,
+     * and a filter-namespaced string on a delete dialog reads as a mistake.
+     */
+    zatvori: "Zatvori",
   },
 
   smer: {
@@ -63,7 +69,6 @@ export const T = {
     dugme: "Filter",
     primeni: "Primeni",
     obrisiSve: "Obriši sve",
-    zatvori: "Zatvori",
     datum: "Datum",
     danas: "danas",
     ovaNedelja: "ova nedelja",

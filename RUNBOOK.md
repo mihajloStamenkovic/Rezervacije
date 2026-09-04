@@ -117,8 +117,10 @@ gunzip -c dump/2026/2026-09-01.sql.gz | sed 's/"public"/"rezerva_proba"/g' > /tm
   echo "ROLLBACK;"; } | psql "$DIRECT_URL" -v ON_ERROR_STOP=1
 ```
 
-Verified this way on 01.09.2026: 44 destinacije, 2 profila, 8 rezervacija,
-1 settings row, restored and rolled back cleanly.
+Verified this way on 01.09.2026: 67 destinacije — 45 after the same-day trim of
+the withdrawn Serbian pickup towns — plus 2 profila, 8 rezervacija and 1 settings
+row, restored and rolled back cleanly. (This line read 44 until 04.09.2026; the
+live table has been 45 since the trim, and no re-seed was ever missing.)
 
 ---
 

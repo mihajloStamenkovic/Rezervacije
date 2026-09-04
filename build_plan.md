@@ -17,7 +17,7 @@ operations.
 | 4 · Auth and RLS | done |
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
-| 7 · Verification gate | **run 04.09.2026, NOT passed** — 2 correctness defects and 5 doc deviations open |
+| 7 · Verification gate | **run 04.09.2026.** Both correctness defects fixed; 2 hardening items and one browser gate remain |
 | 8 · Deploy | blocked on Phase 7. Backups **green and restore-verified**; Vercel, CI and Sentry remain |
 | 9 · Handover | not started |
 
@@ -31,12 +31,19 @@ screen you see logged out; and the **delete dialog and filter sheet both announc
 "Close" in English** to a screen reader, while the Serbian string for it sits
 unused in `tekst.ts`. Full write-up under Phase 7.
 
-Five further deviations are documentation rather than code — most consequentially
-**SPEC §9 lists CI as a service that exists when it does not**, so nothing runs
-the 261 tests on push, and **SPEC §5 contradicts itself on the destination
-counts** (the heading's `7 · 18 · 45` is right; two sentences in its own body are
-stale). One is a genuine SPEC ambiguity about whether the destination filter is
-scoped to rows or to legs, and is flagged rather than resolved.
+Five further deviations were documentation rather than code — most
+consequentially **SPEC §9 listed CI as a service that exists when it does not**,
+so nothing runs the 261 tests on push, and **SPEC §5 contradicted itself on the
+destination counts** (the heading's `7 · 18 · 45` was right; two sentences in its
+own body were stale).
+
+**Both defects were fixed the same day, and `SPEC.md` and `RUNBOOK.md` were
+corrected** — including the one genuine ambiguity, which the owner settled: the
+destination filter is scoped to **the leg**, not the booking. The code was
+already right; the spec was reworded and now states the cost outright. Three
+things remain before Phase 7 can be signed off: `/prijava` has still never been
+measured at 375px, inactive destinations are still not refused server-side, and
+`broj_putnika` still has no upper bound.
 
 **There is one database and it is the real one.** Development and production are
 the same hosted Supabase project, `biqiztxeiqmrgmngemhf`, in the EU
@@ -1263,6 +1270,23 @@ The Serbian string already exists and is dead code: `T.filter.zatvori` at
 `src/lib/tekst.ts:66` is declared and never referenced. (`dialog.tsx:118` has a
 third `Close`, on a component nothing renders.)
 
+#### Both fixed, same day
+
+The two inputs on `/prijava` now carry `h-11 text-base md:text-base` — the exact
+override the other seven already had, so nine of nine `Input`s clear the floor.
+All three `Close` strings now render `T.nav.zatvori`; the string moved out of
+`filter` into `nav`, because both primitives render it and a filter-namespaced
+string on a delete confirmation reads as a mistake. `grep` for an English
+`Close` in `src` now returns nothing.
+
+Re-run after the fixes: **261 tests, 16 files** · `typecheck` exit 0 ·
+`lint` exit 0 · `build` 7 routes + `ƒ Proxy`, `build:sw` 37 URLs / 1.03 MB.
+
+**The 375px measurement of `/prijava` is still not done** and is the reason
+Phase 7 is not signed off on this defect. The fix is the same class of change
+the other seven inputs already carry, so it is very likely correct — but "very
+likely" is what the Phase 5 gate assumed about this screen in the first place.
+
 #### Five deviations that are documentation, not code
 
 3. **SPEC §5 contradicts itself on the destination counts.** Recounted from
@@ -1523,24 +1547,33 @@ Two bugs were fixed before it went green, both mine:
       back. The same edit brought the brief up to **three** list modes —
       `pretragaView` and `prikaziListu` were missing from it entirely, which is
       the closed item two lines up read from the other side.
-- [ ] **Phase 7: the login screen's inputs are 32px tall.** Below the 44px floor.
-      `src/app/prijava/prijava-forma.tsx:22` and `:38` pass no className, so they
-      inherit `h-8` and `md:text-sm` from `src/components/ui/input.tsx:11`; every
-      other input in the app overrides both. Fix is `h-11 text-base md:text-base`,
-      matching the seven that are already correct — then measure `/prijava` at
-      375px, which no gate has ever done.
-- [ ] **Phase 7: "Close" is announced in English** on the delete dialog and the
-      filter sheet — `src/components/ui/dialog.tsx:79` and
-      `src/components/ui/sheet.tsx:80`. Use `T.filter.zatvori`, which already
-      exists at `src/lib/tekst.ts:66` and is currently dead code.
-- [ ] **Phase 7: SPEC §5 contradicts itself on the destination counts.** The
-      heading's `7 countries · 18 regions · 45 cities` is correct — recounted
-      from the JSON, which also has 11 single-city regions. The body's "44 rows"
-      and "33 now" are stale, as are SPEC §9 and `RUNBOOK.md:120` on the restore
-      returning 44. Prose only; the live table is 45.
-- [ ] **Phase 7: SPEC §9 lists CI as a service that exists.** `.github/` holds
-      only the nightly backup. Nothing runs the 261 tests on push. Phase 8 has
-      the deliverable; SPEC should stop claiming it is already there.
+- [x] ~~Phase 7: the login screen's inputs are 32px tall~~ — fixed 04.09.2026.
+      Both inputs in `src/app/prijava/prijava-forma.tsx` now carry
+      `h-11 text-base md:text-base`, the same override the other seven already
+      had; nine of nine `Input`s in the app now clear the 44px floor.
+      **Still to do: measure `/prijava` at 375px in a browser** — no gate has
+      ever run against that screen, which is how this survived.
+- [x] ~~Phase 7: "Close" is announced in English~~ — fixed 04.09.2026. All three
+      occurrences now render `T.nav.zatvori`. The string moved from `filter` to
+      `nav`, because both primitives render it and a filter-namespaced string on
+      a delete confirmation reads as a mistake. No English string remains in
+      `src`.
+- [x] ~~Phase 7: SPEC §5 contradicts itself on the destination counts~~ —
+      corrected 04.09.2026. "44 rows" → 45, single-city regions "33" → 11, and
+      SPEC §9 plus `RUNBOOK.md` now record the restore as 67 (45 after the trim).
+      Entered in the SPEC changelog.
+- [x] ~~Phase 7: SPEC §9 lists CI as a service that exists~~ — corrected
+      04.09.2026. The services table now says CI is not built, and §9 has a
+      subsection explaining why the gap matters: nothing runs the suite on push,
+      and that suite is the only guard against a small-ICU runtime breaking
+      `sr-Latn` collation silently. **The workflow itself is still unbuilt** —
+      it remains a Phase 8 deliverable.
+- [x] ~~Phase 7: is the destination filter scoped to rows or to legs?~~ —
+      **settled by the owner 04.09.2026: the leg.** The code was already right;
+      SPEC §5 was reworded, and now states the cost outright — a booking that
+      departed with no return date cannot be reached by the filter in any mode,
+      only by search or by its past departure date, which is the trade §1
+      already accepted.
 - [ ] **Phase 7: inactive destinations are not refused server-side.**
       `src/lib/validacija.ts:38` is a bare `z.uuid()` with no catalogue or
       `aktivna` check. Dropdowns are correct, so this is tamper-only — but SPEC

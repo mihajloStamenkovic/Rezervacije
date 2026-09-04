@@ -28,6 +28,7 @@ export function PrijavaForma() {
           autoFocus
           required
           disabled={uToku}
+          className="h-11 text-base md:text-base"
         />
       </div>
 
@@ -42,6 +43,7 @@ export function PrijavaForma() {
           autoComplete="current-password"
           required
           disabled={uToku}
+          className="h-11 text-base md:text-base"
         />
       </div>
 

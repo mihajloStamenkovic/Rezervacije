@@ -172,9 +172,13 @@ region alone does not tell the driver where to go.
 
 So the form has **three cascading dropdowns**: Država → Regija → Grad. Where a
 region contains **exactly one city**, the third dropdown auto-selects and is
-hidden. That set was ten regions when this was written and is 33 now that the
-Serbian pickup towns are in — which is exactly why the instruction is
-**implement the rule, not the list**. Changing country clears region and city.
+hidden. That set was ten regions when this was written and is **11** now — which
+is exactly why the instruction is **implement the rule, not the list**. Changing
+country clears region and city.
+
+> It briefly read "33" here, which was true only during the few hours on
+> 01.09.2026 when the 23 withdrawn Serbian towns were in the file. Corrected
+> 04.09.2026 by recounting `data/destinacije.json`.
 
 ### The `destinacije` table
 
@@ -188,7 +192,7 @@ Serbian pickup towns are in — which is exactly why the instruction is
 | `aktivna` | boolean | Offerable for new bookings — see below |
 | `redosled` | int | Display order within its country |
 
-One row per **city**. Country and region are denormalized onto it — with 44 rows
+One row per **city**. Country and region are denormalized onto it — with 45 rows
 total, a three-table join buys nothing and costs clarity.
 
 ### Inactive destinations must still resolve
@@ -224,14 +228,30 @@ what the dropdown sorts by and Beograd must be first.
 
 This is a hard requirement and survives the move to reference data:
 
-> The destination filter is **one canonical list**. A place appears **once** and
-> matches bookings that reference it from **either** `destinacija_id` **or**
-> `destinacija_povratka_id`.
+> The destination filter is **one canonical list**. A place appears **once**, and
+> it is matched from **either** `destinacija_id` **or** `destinacija_povratka_id`
+> — neither column is privileged, and there is no second list.
 
 The owner books one-way rides *home* — Greece → Belgrade — where Belgrade sits in
 the outbound field. If the filter split into "trip destinations" and "home towns",
 Belgrade would appear as two checkboxes and ticking one would silently miss half
 the Belgrade bookings.
+
+**The filter is scoped to the leg on screen, not to the whole booking.** Settled
+04.09.2026; earlier wording here said "matches bookings that reference it", which
+read as row-scoped and disagreed with §1's own worked example. A row is shown
+when the destination of the leg being rendered matches. So a trip to Hanioti
+leaves the Grčka filter the day it departs, because from that moment its leg is
+the journey home — which is precisely what §1 describes, and what makes the
+filter answer *"who is going there"* rather than *"who has ever been there"*.
+
+The two readings differ on real data. Of the eight seed bookings, all eight
+reference Beograd in one column or the other, while the Beograd filter in
+Raspored returns two. The cost is stated plainly: **a booking that departed with
+no return date carries Beograd in its return column and cannot be reached by the
+Beograd filter in any mode**, because it has no leg left to render. That booking
+is reached the two ways §1 already names — by search, or by filtering its past
+departure date — and this is the same accepted trade-off, not a new one.
 
 Grouping the filter by **country** is fine and encouraged — that is a real
 hierarchy in the data. Grouping by **trip-versus-home** is wrong — that is an
@@ -366,7 +386,7 @@ Adding and editing need a connection.
 |---|---|---|
 | Supabase | Postgres + Auth, EU (Frankfurt) | Free tier — see caveats |
 | Vercel | Next.js hosting, auto-deploy from GitHub | Free (Hobby) |
-| GitHub | `mihajloStamenkovic/Rezervacije` — repo, CI, nightly backup job | Free |
+| GitHub | `mihajloStamenkovic/Rezervacije` — repo, nightly backup job. **CI is not built yet** — see below | Free |
 | Sentry | Free tier. Know why it broke while he is driving through Greece. | Free |
 | Domain | Skip initially; `*.vercel.app` is fine once it is a home screen icon | ~€10/yr |
 
@@ -426,11 +446,24 @@ silently contains nothing is worse than none.
 
 A restore was **performed and verified**, not merely enabled: the dump was
 replayed into a scratch schema inside a transaction and rolled back, returning
-44 destinacije, 2 profila, 8 rezervacija and 1 settings row. Procedure in
-`RUNBOOK.md`.
+67 destinacije — 45 after the same-day trim of the withdrawn Serbian towns — plus
+2 profila, 8 rezervacija and 1 settings row. Procedure in `RUNBOOK.md`.
 
 If the owner later wants managed backups and no pause risk, that is Supabase Pro
 at $25/month. Not needed to launch.
+
+### CI does not exist yet
+
+`.github/` contains exactly one workflow, `rezerva.yml`, the nightly backup.
+**Nothing runs the test suite on push or on a pull request.** This section
+previously listed CI among the services in use; corrected 04.09.2026.
+
+It matters more than a missing convenience. The suite is 261 tests plus
+`test:tz`, and it is the only thing standing between a deployment runtime with a
+small-ICU Node and `Intl.Collator("sr-Latn")` silently falling back to root
+collation — which would sort `Čačak` before `Cetinje` and break every list in the
+app in a way no page would report. The guard exists; nothing currently pulls the
+trigger. The workflow is a Phase 8 deliverable in `build_plan.md`.
 
 ### Deliberately not using
 
@@ -481,6 +514,25 @@ property (§9) asserted as fact that was not true. Changes: three list modes
 and Niš as the two Serbian pickup points (§5), the *Jednosmerna vožnja* option
 (§5), route on the cards (§6), `profiles` as the access list and backups built
 and restore-verified (§9).
+
+**04.09.2026** — corrections from the Phase 7 verification gate. The gate found
+no defect in the domain core; everything below is this document being wrong about
+code that was right.
+
+- **§5, the destination filter is scoped to the leg, not the booking.** The
+  earlier wording — "matches bookings that reference it from either column" —
+  read as row-scoped and contradicted §1's own worked example. The owner settled
+  it in favour of the leg. The consequence is now stated in full, including the
+  booking that cannot be reached by filter at all.
+- **§5, counts.** "44 rows" → **45**; single-city regions "33" → **11**. The 33
+  was true only during the hours the withdrawn Serbian towns were in the file.
+  Recounted from `data/destinacije.json`: 7 countries · 18 regions · 45 cities ·
+  11 single-city regions, which is what the section heading already said.
+- **§9, CI was listed as a service in use. It does not exist.** `.github/` holds
+  only the nightly backup. Given a new subsection, because nothing running the
+  suite on push is a real gap, not a formality.
+- **§9, the verified restore returned 67 destinacije (45 after the trim)**, not
+  44. `RUNBOOK.md` carried the same stale figure and was corrected with it.
 
 **Standing rule:** if the code and this file disagree, that is a bug in one of
 them — report it rather than quietly following whichever is nearer.
