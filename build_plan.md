@@ -17,7 +17,7 @@ operations.
 | 4 · Auth and RLS | done |
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
-| 7 · Verification gate | **run 04.09.2026.** Both correctness defects fixed; 2 hardening items and one browser gate remain |
+| 7 · Verification gate | **run 04.09.2026.** Both correctness defects fixed and the `/prijava` gate closed; 2 hardening items remain |
 | 8 · Deploy | blocked on Phase 7. Backups **green and restore-verified**; Vercel, CI and Sentry remain |
 | 9 · Handover | not started |
 
@@ -40,10 +40,11 @@ own body were stale).
 **Both defects were fixed the same day, and `SPEC.md` and `RUNBOOK.md` were
 corrected** — including the one genuine ambiguity, which the owner settled: the
 destination filter is scoped to **the leg**, not the booking. The code was
-already right; the spec was reworded and now states the cost outright. Three
-things remain before Phase 7 can be signed off: `/prijava` has still never been
-measured at 375px, inactive destinations are still not refused server-side, and
-`broj_putnika` still has no upper bound.
+already right; the spec was reworded and now states the cost outright.
+`/prijava` was then **measured at 375px for the first time in the project** and
+passes — zero overflow, every control 44px at 16px font. Two hardening items
+remain before Phase 7 can be signed off: inactive destinations are still not
+refused server-side, and `broj_putnika` still has no upper bound.
 
 **There is one database and it is the real one.** Development and production are
 the same hosted Supabase project, `biqiztxeiqmrgmngemhf`, in the EU
@@ -1282,10 +1283,34 @@ string on a delete confirmation reads as a mistake. `grep` for an English
 Re-run after the fixes: **261 tests, 16 files** · `typecheck` exit 0 ·
 `lint` exit 0 · `build` 7 routes + `ƒ Proxy`, `build:sw` 37 URLs / 1.03 MB.
 
-**The 375px measurement of `/prijava` is still not done** and is the reason
-Phase 7 is not signed off on this defect. The fix is the same class of change
-the other seven inputs already carry, so it is very likely correct — but "very
-likely" is what the Phase 5 gate assumed about this screen in the first place.
+#### `/prijava` measured at 375px — 04.09.2026, gate closed
+
+Driven in Chrome against a real `next start`, logged out. Chrome on Windows still
+refuses to size a window below ~393px — `resize_window` to 375 reported success
+and `innerWidth` stayed 1920 — so the measurement used the Phase 5 method: a
+**same-origin iframe pinned to exactly 375px**, confirmed by reading
+`innerWidth: 375` from inside it before measuring anything.
+
+| | |
+|---|---|
+| Horizontal overflow | `scrollWidth - clientWidth` = **0** |
+| `#email` | 327 × **44**, font **16px**, `autocomplete="email"`, `inputmode="email"` |
+| `#lozinka` | 327 × **44**, font **16px**, `autocomplete="current-password"` |
+| *Prijavi se* | 327 × **44**, font **16px** |
+
+Zero elements under 44×44, zero inputs under 16px. Re-measured at **414, 768 and
+1024** as well, because the second half of the defect was `md:text-sm` biting at
+the `md` breakpoint: overflow 0 and 44h/16px at every width.
+
+**The fix was proven load-bearing rather than assumed.** Stripping `h-11` back to
+`h-8` and `md:text-base` back to `md:text-sm` in the live DOM reproduced the
+reported defect exactly — **32h/16px at 375, 32h/14px at 768** — and restoring the
+classes returned it to 44h/16px. So the numbers above are the override working,
+not a floor the base class was meeting anyway.
+
+Incidental: the screen rendered in **dark mode**, which is the Phase 6
+`prefers-color-scheme` fix confirmed live on a third screen. Nothing was typed
+into either field and no login was attempted.
 
 #### Five deviations that are documentation, not code
 
@@ -1551,8 +1576,11 @@ Two bugs were fixed before it went green, both mine:
       Both inputs in `src/app/prijava/prijava-forma.tsx` now carry
       `h-11 text-base md:text-base`, the same override the other seven already
       had; nine of nine `Input`s in the app now clear the 44px floor.
-      **Still to do: measure `/prijava` at 375px in a browser** — no gate has
-      ever run against that screen, which is how this survived.
+      **Measured at 375px and closed the same day** — zero overflow, both inputs
+      and the submit button 327×44 at 16px, re-checked at 414/768/1024, and the
+      old 32h/14px reproduced by stripping the classes to prove the fix carries
+      it. `/prijava` had never been measured by any gate, which is how this
+      survived Phases 5 and 6.
 - [x] ~~Phase 7: "Close" is announced in English~~ — fixed 04.09.2026. All three
       occurrences now render `T.nav.zatvori`. The string moved from `filter` to
       `nav`, because both primitives render it and a filter-namespaced string on
