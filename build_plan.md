@@ -18,7 +18,7 @@ operations.
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
 | 7 · Verification gate | **done — signed off 04.09.2026** |
-| 8 · Deploy | **in progress.** Live at `rezervacije-jet.vercel.app`, login confirmed by the owner; CI green; backups nightly; `/api/health` built and verified both ways. **Sentry remains — and needs a decision, not just code** |
+| 8 · Deploy | **done — signed off 05.09.2026** |
 | 9 · Handover | not started |
 
 **Phase 7 ran and found things, which is the gate working.** The domain core came
@@ -1470,10 +1470,48 @@ are applied and the data is seeded. What remains is everything around it.
 - Runtime uses the **pooled** connection (6543); migrations use the **session**
   one (5432), as a build step or separate job, never in the request path
 - ~~`/api/health` checking database connectivity~~ ✅ **built 05.09.2026**
-- Sentry with PII scrubbed in `beforeSend` — this app stores names and phone numbers
+- ~~Sentry with PII scrubbed in `beforeSend`~~ ❌ **declined 05.09.2026** — reasoning in SPEC.md
 - ~~GitHub Action: `typecheck` + lint + tests on PR~~ ✅ **built 04.09.2026**
 - **Nightly `pg_dump` GitHub Action** — backup *and* keep-alive
 - `RUNBOOK.md` with the restore procedure and how to re-seed destinations
+
+### Signed off — 05.09.2026
+
+**The bar was "production URL loads and login works." Both hold**, and the owner
+signed in himself; nothing here rests on a screen that merely rendered.
+
+| Deliverable | Evidence |
+|---|---|
+| Vercel linked, env vars set | 3 variables, `DATABASE_URL` stored as **Secret**, production + preview. Two dashboards were not consulted — `vercel env ls` was. |
+| Pooled connection at runtime | `DATABASE_URL` is 6543. `DIRECT_URL` is **not on Vercel at all**, so it cannot reach the request path by accident. |
+| `/api/health` | `200`/`503` both reproduced, the 503 against a genuinely unreachable host. |
+| CI | `Provera` — three jobs, green on Linux. |
+| Nightly backup | Running on the new repository, appended to the migrated history. |
+| `RUNBOOK.md` | Restore, re-seed, and now "ask `/api/health` first". |
+| Sentry | **Declined.** Not skipped — decided, with the reasoning written into SPEC.md. |
+
+**Three things this phase got wrong before it got them right**, all worth
+keeping because each looked like something it was not:
+
+1. **The first deploy failed with no env vars.** Green CI was mistaken for
+   evidence the deploy would build. It never was — the CI build job injects
+   placeholders precisely because `src/db/index.ts` reads `DATABASE_URL` at
+   module scope.
+2. **The second deploy built perfectly and served 404 on every page.** The
+   framework preset was `Other`, so Vercel published `public/` and discarded
+   the Next build. The fact that broke the deadlock was `/sw.js` returning
+   `200` while `/` did not.
+3. **`/api/health` was redirected to `/prijava`** until the proxy matcher
+   excluded it — a health check that reports healthy while the database is
+   down, which is worse than not having one.
+
+None of the three were defects in the application. All three were configuration,
+and all three would have read as "the app is broken" to anybody looking at the
+site rather than at the responses.
+
+**Deferred to Phase 9**, unchanged: `tel:` dialling from a foreign network,
+session survival into iOS standalone mode, multi-day session longevity, and a
+save attempted while `navigator.onLine` is true but the connection is dead.
 
 ### The repository moved — 04.09.2026
 

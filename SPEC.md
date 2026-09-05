@@ -387,13 +387,36 @@ Adding and editing need a connection.
 | Supabase | Postgres + Auth, EU (Frankfurt) | Free tier — see caveats |
 | Vercel | Next.js hosting, auto-deploy from GitHub | Free (Hobby) |
 | GitHub | `PetarSosic/Rezervacije` — repo, CI, nightly backup job | Free |
-| Sentry | Free tier. Know why it broke while he is driving through Greece. | Free |
+| ~~Sentry~~ | **Declined 05.09.2026** — see below. Vercel's runtime logs plus `/api/health` instead. | — |
 | Domain | Skip initially; `*.vercel.app` is fine once it is a home screen icon | ~€10/yr |
 
 **Total running cost: €0.**
 
 No email service (no signups, no password reset — reset in the Supabase dashboard).
 No analytics (two users).
+No error reporting service — see below.
+
+### No Sentry — decided 05.09.2026
+
+Earlier drafts of this document listed Sentry, and Phase 8 planned it with PII
+scrubbed in `beforeSend`. The owner chose not to add it. Recording the reasoning
+rather than just the outcome, because "why is there no error tracking?" is a
+fair question for whoever reads this next:
+
+- **This app stores real customers' names and phone numbers.** An error report
+  carries whatever was in scope when it was thrown. Scrubbing can be made
+  correct, but it has to *stay* correct through every future change, and a
+  mistake in it sends a stranger's phone number to a third party.
+- **Two users, one owner.** The population that could hit an unreported bug is
+  two people who can describe it in a sentence.
+- **The two failures that actually take this app down are already covered.**
+  A paused Supabase project and an unreachable database both show up in
+  `/api/health`, and the nightly backup job goes red. Neither needs Sentry.
+
+The cost of this decision is real and worth naming: a runtime error that does
+not take the app down will be noticed only when somebody mentions it. If that
+starts happening, revisit — Sentry with a strict `beforeSend` remains the right
+answer, not a different service.
 
 ### Who may enter — `profiles` is the access list
 

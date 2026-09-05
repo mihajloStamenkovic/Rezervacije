@@ -100,14 +100,15 @@ Note: the repo is pushed and CI is green. Set the three environment variables
 **before** the first deploy — see "Vercel (production)" below. Without them the
 build fails at page-data collection, which is what happened on 04.09.2026.
 
-### C2. Sentry (optional, recommended)
+### C2. Sentry — declined ✅
 
-- [ ] Sign up at sentry.io, free tier, platform **Next.js**
-- [ ] Give me the DSN, or add it to Vercel's env vars yourself
+- [x] **Decided 05.09.2026: no Sentry.** Nothing for you to sign up for.
 
-A Sentry DSN ships in the client bundle by design, so it isn't a secret the way a
-key is. Worth having: the owner won't file a bug report, he'll say "it didn't
-work" three days later.
+Vercel's runtime logs plus `/api/health` cover the failures that take the app
+down. The reasoning is in SPEC.md under "No Sentry"; the short version is that
+this app holds real customers' phone numbers and a scrubbing rule has to stay
+correct forever, against a benefit that two users can supply by saying what
+happened.
 
 ### C3. Backup destination
 
@@ -170,7 +171,7 @@ Deliberately **not** on Vercel:
   it is for manual scripts. Leave it on the local machine.
 - `DIRECT_URL` — migrations and seeds only, and those never run on Vercel.
 
-`SENTRY_DSN` joins the list if and when Sentry is added.
+There is no `SENTRY_DSN` — Sentry was declined on 05.09.2026.
 
 ### GitHub Actions secrets
 
@@ -184,7 +185,7 @@ Deliberately **not** on Vercel:
 
 ## Things I cannot do — these are yours
 
-1. **Create accounts.** Supabase, Vercel, Sentry.
+1. **Create accounts.** Supabase and Vercel. (Sentry was declined.)
 2. **Enter passwords.** Including the two app accounts — create them in Supabase's
    dashboard and don't send them to me.
 3. **Click through OAuth grants.** Vercel ↔ GitHub.
@@ -222,7 +223,6 @@ You can log in as soon as Phase 5 puts a real screen behind `/prijava`; the
 login itself already works. Use the two accounts you created — the passwords
 are the ones you set in the dashboard, and I have never seen them.
 
-**Block C** when we're ready to ship: Vercel, optionally Sentry, and a backup
-destination. The only one of the three that needs a decision rather than a
-signup is **C3, where the nightly `pg_dump` should go** — Option 1 (GitHub
-Actions artifacts, zero setup) unless you'd rather have longer history.
+**Block C is done.** Vercel is live and configured, the nightly `pg_dump` runs
+to the `rezerve` branch on GitHub, and Sentry was declined. Nothing is
+outstanding from you.
