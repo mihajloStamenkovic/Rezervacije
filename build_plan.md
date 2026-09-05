@@ -1581,6 +1581,54 @@ Confirmed by `vercel env ls` — six rows, nothing in Development:
 | `NEXT_PUBLIC_SUPABASE_URL` | Config | Production, Preview |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Config | Production, Preview |
 
+### The second deploy built cleanly and still 404'd — 05.09.2026
+
+With the three variables in place the build went green — all 8 routes, the proxy
+and a service worker precaching 37 URLs — and **every page still returned 404**
+on the production domain `rezervacije-jet.vercel.app`.
+
+The evidence that separated the two possibilities:
+
+| Request | Result |
+|---|---|
+| `/` | `404`, `X-Vercel-Error: NOT_FOUND` |
+| `/prijava` | `404` |
+| `/manifest.webmanifest` (a Next route) | `404` |
+| `/sw.js` (a real file in `public/`) | **`200`** |
+
+Static files served, Next routes did not. That is not a broken alias and not a
+failed build — it is a deployment with no Next.js server in it. `vercel project
+inspect` said why:
+
+```
+Framework Preset    Other
+Output Directory    `public` if it exists, or `.`
+```
+
+Vercel never detected the framework. Per its docs, "if no framework is detected,
+'Other' will be selected", and then "only the contents of this Output Directory
+will be served statically" — so it ran `npm run build`, threw away everything
+`next build` produced, and published `public/` as a static folder. The build log
+looked perfect precisely because the build *was* perfect; nothing consumed it.
+
+Worth noting how close this came to being misread: the earlier failure was also
+a Vercel-side configuration gap, so "the build is green now" felt like the end
+of the story. The `sw.js` 200 was the fact that made the diagnosis possible —
+without it, an all-paths 404 looks like a DNS or alias problem.
+
+**Fixed by committing `vercel.json` with `"framework": "nextjs"`.** The dashboard
+dropdown (Settings → Build and Deployment → Framework Settings) would fix it
+equally well, but only until somebody re-imports the project — which is exactly
+how it got to "Other" in the first place. In the repository it is reviewable and
+cannot drift.
+
+A related observation from the same probes: the deployment URL, the git-main
+alias and the project alias all answer `302 → vercel.com/sso-api`, so
+**Deployment Protection is on** for those. The production domain is excluded,
+which is why it answered 404 rather than a redirect. That is the intended shape
+— the app's own login and RLS are the security boundary for the production
+domain, not Vercel's SSO gate.
+
 ### The backups came across — 04.09.2026
 
 **The same commits, not copies.** This clone still held the old remote's objects
