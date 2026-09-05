@@ -121,7 +121,6 @@ export const RezervacijaSchema = z
   );
 
 export type UlazRezervacije = z.input<typeof RezervacijaSchema>;
-export type PodaciRezervacije = z.output<typeof RezervacijaSchema>;
 
 /** Field name → first message. One message per field is all the form shows. */
 export type GreskePolja = Partial<Record<keyof UlazRezervacije, string>>;
