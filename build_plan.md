@@ -1552,6 +1552,35 @@ than an omission:
 If a later change does import the admin client, the build will not warn — it
 will fail at runtime on the first request that reaches it. Worth remembering.
 
+**Set on 05.09.2026, from the CLI rather than the dashboard.** `vercel link`
+attached the directory to `perica-mixa/rezervacije`, and a script piped each
+value out of `.env.local` on stdin — never as an argument, so no connection
+string reached shell history.
+
+Two traps the script exists to avoid, both of which would have produced a
+failure pointing nowhere near its cause:
+
+- **`.env.local` is CRLF.** Extracting a value with `sed` alone carries a
+  trailing carriage return into Vercel. A `DATABASE_URL` ending in `` is
+  accepted at write time and fails at connect time.
+- **`vercel env add` defaults to `--sensitive` for production and preview** —
+  the opposite of the dashboard default. Left alone it would have marked both
+  `NEXT_PUBLIC_` values sensitive, hiding them from us while Next inlines them
+  into the shipped bundle anyway. Hence the explicit `--no-sensitive`.
+
+Development was skipped deliberately, and two reasons agree: it feeds only
+`vercel dev` / `vercel env pull`, which this project does not use, and the
+Vercel API refuses sensitive variables in development — including it would have
+forced `DATABASE_URL` to be readable.
+
+Confirmed by `vercel env ls` — six rows, nothing in Development:
+
+| Variable | Type | Environments |
+|---|---|---|
+| `DATABASE_URL` | **Secret** (value `Hidden`) | Production, Preview |
+| `NEXT_PUBLIC_SUPABASE_URL` | Config | Production, Preview |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Config | Production, Preview |
+
 ### The backups came across — 04.09.2026
 
 **The same commits, not copies.** This clone still held the old remote's objects
