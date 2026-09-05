@@ -18,7 +18,7 @@ operations.
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
 | 7 · Verification gate | **done — signed off 04.09.2026** |
-| 8 · Deploy | **in progress.** Repo moved to `PetarSosic`; CI green on Linux; backups migrated and running nightly there; **the app is live at `rezervacije-jet.vercel.app`**. **`/api/health` and Sentry remain** |
+| 8 · Deploy | **in progress.** Live at `rezervacije-jet.vercel.app`, login confirmed by the owner; CI green; backups nightly; `/api/health` built and verified both ways. **Sentry remains — and needs a decision, not just code** |
 | 9 · Handover | not started |
 
 **Phase 7 ran and found things, which is the gate working.** The domain core came
@@ -1469,7 +1469,7 @@ are applied and the data is seeded. What remains is everything around it.
 - Vercel project linked to the GitHub repo, env vars set
 - Runtime uses the **pooled** connection (6543); migrations use the **session**
   one (5432), as a build step or separate job, never in the request path
-- `/api/health` checking database connectivity
+- ~~`/api/health` checking database connectivity~~ ✅ **built 05.09.2026**
 - Sentry with PII scrubbed in `beforeSend` — this app stores names and phone numbers
 - ~~GitHub Action: `typecheck` + lint + tests on PR~~ ✅ **built 04.09.2026**
 - **Nightly `pg_dump` GitHub Action** — backup *and* keep-alive
@@ -1661,6 +1661,47 @@ builds as Next.js.
 **Still unproven from here:** an actual sign-in. The login *screen* serves and
 the route guard works, but Phase 8's bar is "production URL loads **and login
 works**", and that needs a real password, which only the owner has.
+
+### Login works, and `/api/health` — 05.09.2026
+
+**The owner signed in on the production URL.** That closes the Phase 8 bar,
+"production URL loads and login works". Everything before this was reachability;
+this is the first proof that auth, the session cookie and RLS all work off this
+machine.
+
+`GET /api/health` is now live. It counts `destinacije` rather than running
+`SELECT 1`: a pooler that answers while the schema is missing is not a healthy
+deployment, and one round trip proves both. It is also the one table where a row
+count discloses nothing about anybody.
+
+**Verified in both directions, which is the only way a health check earns
+trust:**
+
+| Condition | Result |
+|---|---|
+| Real database | `200` · `{"status":"ok","baza":"ok","destinacija":45,"trajanjeMs":872,"danas":"2026-09-05"}` |
+| `DATABASE_URL` pointed at a dead host | `503` · `{"status":"greska","baza":"nedostupna","trajanjeMs":10}` |
+
+`destinacija: 45` matches the live table, and `danas` is the Belgrade date from
+`danasBeograd()` — so the endpoint also proves the date rule is running in the
+deployed zone.
+
+The 503 body carries **no error text**. The reason went to the runtime log
+instead, where it read `[health] baza nedostupna: "Failed query: select count(*)
+from \"destinacije\""` — no host, no credentials. A driver error can name the
+host it failed to reach, and this endpoint is public.
+
+**It had to be excluded from the proxy matcher**, and that is the subtle part.
+Without the exclusion `/api/health` answers `307 → /prijava`; a monitor follows
+the redirect, gets a login page that renders perfectly, records `200`, and
+reports the app healthy **while the database is unreachable** — the single
+failure the endpoint exists to catch.
+
+That is the same failure shape Phase 6 already paid for once, when the matcher
+said `icons/` and the directory was `ikone/`. So the matcher now has its own
+test (`src/proxy.test.ts`, 5 cases). Proven to fail: with `|api/health` removed
+from the pattern, the suite reports *"expected true to be false"* on exactly
+that case and nothing else. Suite is **270 tests across 17 files**.
 
 ### The backups came across — 04.09.2026
 

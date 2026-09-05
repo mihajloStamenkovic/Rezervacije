@@ -200,6 +200,26 @@ filter for as long as anything references it.
 
 ## 5. If the app is down
 
+**Ask the app first:** <https://rezervacije-jet.vercel.app/api/health>
+
+It needs no login, and it answers the one question the front page cannot. A
+page that renders is not proof of anything — every screen in this app loads
+fine from the edge and only fails once a query runs.
+
+```json
+{"status":"ok","baza":"ok","destinacija":45,"trajanjeMs":98,"danas":"2026-09-05"}
+```
+
+| What you get | What it means |
+|---|---|
+| `200` with `"baza":"ok"` | The app is running **and** reached the database. Whatever is wrong is not this. |
+| `503` with `"baza":"nedostupna"` | The app is running, the database is not answering. Go to step 1. |
+| Nothing, or a Vercel error page | The deployment itself is down. Vercel dashboard → Deployments. |
+
+The response deliberately carries no error text. The reason a query failed is
+in the Vercel runtime log, not in a public endpoint — a driver error can name
+the host it failed to reach.
+
 1. **Is the Supabase project paused?** Dashboard will say so. Unpause it, then
    check why the nightly job stopped running — that is what should have
    prevented it.

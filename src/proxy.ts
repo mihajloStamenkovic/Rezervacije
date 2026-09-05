@@ -29,12 +29,17 @@ export const config = {
      *   browser deciding whether the app is installable is handed the files
      *   rather than a 307 to /prijava on a logged-out visit to the bare
      *   domain. Without this the install prompt never appears at all.
+     * - api/health, so an uptime monitor gets the check rather than a 307 to
+     *   /prijava. A monitor cannot log in, and a redirect it follows to a
+     *   login page that renders perfectly is a 200 — the app would report
+     *   healthy while the database was unreachable, which is the single
+     *   failure that endpoint exists to catch.
      *
      * The icons live under `/ikone/`, not `/icons/`. This list was written in
      * Phase 4 against a guess at the directory name, and the guess was
      * English; Phase 6 built the directory in Serbian like everything else,
      * and the mismatch cost every icon a redirect until it was caught.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|ikone/).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.webmanifest|sw\\.js|ikone/|api/health).*)",
   ],
 };
