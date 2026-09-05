@@ -18,7 +18,7 @@ operations.
 | 5 · Screens | done |
 | 6 · Installable and offline | done — one gate deferred to Phase 9 |
 | 7 · Verification gate | **done — signed off 04.09.2026** |
-| 8 · Deploy | **in progress.** Repo moved to `PetarSosic`; CI green on Linux; backups migrated and running nightly there. **Vercel, `/api/health` and Sentry remain** |
+| 8 · Deploy | **in progress.** Repo moved to `PetarSosic`; CI green on Linux; backups migrated and running nightly there; **the app is live at `rezervacije-jet.vercel.app`**. **`/api/health` and Sentry remain** |
 | 9 · Handover | not started |
 
 **Phase 7 ran and found things, which is the gate working.** The domain core came
@@ -1628,6 +1628,39 @@ alias and the project alias all answer `302 → vercel.com/sso-api`, so
 which is why it answered 404 rather than a redirect. That is the intended shape
 — the app's own login and RLS are the security boundary for the production
 domain, not Vercel's SSO gate.
+
+### Live — 05.09.2026
+
+**https://rezervacije-jet.vercel.app**, deployment `qt19bot4l`, built in 50s
+from `1f79cdd`. Verified by request, not by looking at a dashboard:
+
+| Path | Response |
+|---|---|
+| `/` | `307` → `/prijava` |
+| `/prijava` | `200` |
+| `/nova` | `307` → `/prijava` |
+| `/manifest.webmanifest` | `200` |
+| `/sw.js` | `200` |
+
+The two redirects matter more than the two `200`s: they are `src/proxy.ts`
+running in production and refusing an unauthenticated request for a data route,
+which is the behaviour Phase 4 built and nothing had yet exercised off this
+machine.
+
+The Phase 4 secret gate, re-run against the deployed site rather than a local
+build: the login page plus all 10 scripts the browser downloads were fetched and
+searched for `sb_secret_`, `SUPABASE_SECRET_KEY`, `postgresql://` and
+`DIRECT_URL`. None present. The page renders Serbian correctly — *Prijava*,
+*Lozinka*, *Prijavi se*.
+
+Note that `vercel project inspect` still reports `Framework Preset: Other`. That
+is expected and not a leftover: `vercel.json` overrides the preset per
+deployment, so the project-level setting stays as it was while every deployment
+builds as Next.js.
+
+**Still unproven from here:** an actual sign-in. The login *screen* serves and
+the route guard works, but Phase 8's bar is "production URL loads **and login
+works**", and that needs a real password, which only the owner has.
 
 ### The backups came across — 04.09.2026
 
