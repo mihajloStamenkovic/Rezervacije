@@ -22,10 +22,16 @@ bookings. Mobile-first, Serbian (Latin script), Europe/Belgrade.
    one that entered it — see `src/domen/pristup.ts` for why deriving it from
    `kreirao` was tried and discarded.
 3. **Destinations are reference data, never free text.** Seeded from
-   `data/destinacije.json`, chosen from cascading dropdowns. The filter is **one
-   canonical list** — a place appears once and matches from **either**
+   `data/destinacije.json`, chosen from cascading dropdowns. The filter is
+   **one canonical list** — a place appears once and matches from **either**
    `destinacija_id` or `destinacija_povratka_id`. Grouping by country is fine;
-   grouping by trip-versus-home is not. Rows are never deleted, only deactivated.
+   grouping by trip-versus-home is not. Rows are never deleted, only
+   deactivated. Amended 06.09.2026 at the owner's request: a region or city
+   missing from the list can be typed in, but what is typed **becomes a row**
+   — matched first against the catalogue folded for case and diacritics, so
+   one town cannot end up in the list twice, and the country is never typed. A
+   reservation still points at a `destinacije` row and never at a name. See
+   `SPEC.md` §5 and `src/db/rucne-destinacije.ts`.
 4. **Dates are `YYYY-MM-DD` strings end to end.** No JS `Date` in the pipeline, no
    `timestamptz`, no `toISOString()` on a calendar date. `new Date("2026-01-01")`
    is midnight UTC and prints as the previous day in half the world.
@@ -51,7 +57,7 @@ bookings. Mobile-first, Serbian (Latin script), Europe/Belgrade.
 
 | Path | What lives there |
 |---|---|
-| `src/db/` | Drizzle schema, migrations, seeds, raw-row query layer |
+| `src/db/` | Drizzle schema, migrations, seeds, raw-row query layer, and `rucne-destinacije.ts` — the one place a typed place becomes a row |
 | `src/domen/` | Main leg rule, list modes, filters, sort, access rule (`pristup.ts`). **No database imports** |
 | `src/lib/` | `datum.ts`, `telefon.ts`, `tekst.ts` — dates, phones, every Serbian string |
 | `src/app/` | Routes, layouts, Server Actions |

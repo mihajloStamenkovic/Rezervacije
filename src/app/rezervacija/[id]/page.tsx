@@ -1,7 +1,7 @@
 /**
  * Detalji — SPEC §6, screen 4.
  *
- * *Pozovi* and *WhatsApp* are the reason this screen exists: the number is
+ * *Pozovi* and *Viber* are the reason this screen exists: the number is
  * stored in E.164 precisely so both links work from a Greek network, where a
  * saved `064…` would not connect (SPEC §7).
  *
@@ -29,7 +29,7 @@ import { zahtevajKorisnika } from "@/lib/auth";
 import { danasBeograd, formatDug } from "@/lib/datum";
 import { putanjaNazad } from "@/lib/navigacija";
 import { T, putnika } from "@/lib/tekst";
-import { formatTelefon, telLink, whatsAppLink } from "@/lib/telefon";
+import { formatTelefon, telLink, viberLink } from "@/lib/telefon";
 
 export default async function Detalji({
   params,
@@ -85,18 +85,17 @@ export default async function Detalji({
               {T.detalji.pozovi}
             </a>
           </Button>
+          {/* `viber://` hands off to the app the way `tel:` hands off to the
+              dialler — no `target="_blank"`, which would leave an empty tab
+              behind on the phone. */}
           <Button
             asChild
             variant="outline"
             className="h-12 flex-1 gap-2 text-base"
           >
-            <a
-              href={whatsAppLink(rezervacija.telefon)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={viberLink(rezervacija.telefon)}>
               <MessageCircleIcon className="size-4" />
-              {T.detalji.whatsapp}
+              {T.detalji.viber}
             </a>
           </Button>
         </div>

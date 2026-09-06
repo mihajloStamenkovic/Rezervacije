@@ -53,10 +53,18 @@ export function telLink(e164: string): string {
 }
 
 /**
- * `https://wa.me/381641234567` — wa.me takes digits only, no `+`, no spaces.
+ * `viber://chat?number=%2B381641234567` — Viber's click-to-chat deep link.
+ *
+ * The number carries its `+`, percent-encoded: Viber matches contacts on the
+ * international form, so a bare `381…` opens a chat with nobody.
+ *
+ * A custom scheme rather than an https link — Viber has no `wa.me` equivalent.
+ * It hands off to the installed app the way `tel:` hands off to the dialler,
+ * and does nothing at all on a device without Viber.
  */
-export function whatsAppLink(e164: string): string {
+export function viberLink(e164: string): string {
   const broj = parsePhoneNumberFromString(e164);
-  const cifre = (broj ? broj.number : e164).replace(/\D/g, "");
-  return `https://wa.me/${cifre}`;
+  const cifre = (broj ? broj.number : e164).replace(/[^\d+]/g, "");
+  const saPlusom = cifre.startsWith("+") ? cifre : `+${cifre}`;
+  return `viber://chat?number=${encodeURIComponent(saPlusom)}`;
 }

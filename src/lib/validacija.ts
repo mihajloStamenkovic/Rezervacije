@@ -19,6 +19,7 @@
  * exactly the comparison the return-before-departure check needs.
  */
 import { z } from "zod";
+import type { NovoMesto } from "@/domen/kaskada";
 import { jeDatum } from "@/lib/datum";
 import { normalizujTelefon } from "@/lib/telefon";
 import { T } from "@/lib/tekst";
@@ -30,12 +31,73 @@ const datumPolaska = z
   .refine(jeDatum, { message: T.greske.datumNeispravan });
 
 /**
- * `z.uuid` rather than a bare string: the value comes from a `<select>` whose
- * options are the reference table, so anything that is not a destination id is
- * a tampered submission, not a typo. Both cases get the same Serbian message —
- * "pick a destination" is the only useful thing to say about either.
+ * A leg's destination arrives as one of two things — SPEC §5, amended
+ * 06.09.2026.
+ *
+ * Either an **id** picked from the dropdowns, or a **place typed by hand**
+ * when the town is not in the list. The country is always picked, never typed,
+ * so what is typed is at most a region and a city.
+ *
+ * The two are carried in one field rather than two so the form has one error
+ * slot per leg. `id` still has to be a uuid — the value comes from a `<select>`
+ * whose options are the reference table, so anything else is a tampered
+ * submission, not a typo — but an *empty* id is no longer a failure on its own,
+ * because it is what a hand-typed place looks like.
+ *
+ * Nothing is created here. This says only that the input is well formed; the
+ * Server Action is what turns a typed place into a row, because that needs the
+ * catalogue and this file must never grow a database.
  */
-const destinacija = z.uuid({ message: T.greske.destinacijaObavezna });
+export type IzborDestinacije =
+  | { id: string; novo: null }
+  | { id: null; novo: NovoMesto };
+
+/**
+ * Longest name accepted for a typed region or city.
+ *
+ * A guardrail, not a business rule: the column is `text` and takes anything,
+ * but a name that does not fit a phone screen is a paste accident, and the row
+ * it would create is permanent (destinations are never deleted).
+ */
+export const MAX_NAZIVA = 60;
+
+export const DestinacijaSchema = z
+  .object({
+    id: z.string().trim(),
+    drzavaSifra: z.string().trim(),
+    regija: z.string().trim(),
+    grad: z.string().trim(),
+  })
+  .transform((v, ctx): IzborDestinacije => {
+    const odbij = (message: string) => {
+      ctx.addIssue({ code: "custom", message });
+      return z.NEVER;
+    };
+
+    if (v.id !== "") {
+      if (!z.uuid().safeParse(v.id).success) {
+        return odbij(T.greske.destinacijaObavezna);
+      }
+      return { id: v.id, novo: null };
+    }
+
+    // No id and no country either: nothing was chosen at all.
+    if (v.drzavaSifra === "") return odbij(T.greske.destinacijaObavezna);
+    // The region is optional. Povratak does not ask for one at all (it is
+    // Beograd on almost every booking), and on Odlazak the box may be left
+    // blank — a town with no region given becomes its own region, which is the
+    // shape `Srbija › Beograd › Beograd` already has in the seed. The Server
+    // Action fills it in; see `razresiDestinaciju`.
+    if (v.grad === "") return odbij(T.greske.nazivMestaObavezan);
+    if (v.regija.length > MAX_NAZIVA || v.grad.length > MAX_NAZIVA) {
+      return odbij(T.greske.nazivPredugacak);
+    }
+
+    return {
+      id: null,
+      novo: { drzavaSifra: v.drzavaSifra, regija: v.regija, grad: v.grad },
+    };
+  });
 
 /**
  * Upper bound on passengers.
@@ -71,10 +133,10 @@ export const RezervacijaSchema = z
         return e164;
       }),
 
-    destinacijaId: destinacija,
+    destinacija: DestinacijaSchema,
     datumPolaska,
 
-    destinacijaPovratkaId: destinacija,
+    destinacijaPovratka: DestinacijaSchema,
     // A return that has not been agreed yet is a legitimate booking (SPEC §8).
     datumPovratka: z
       .string()
@@ -137,18 +199,41 @@ export type StanjeForme =
  * `File | string | null`, and a missing field must arrive as `""` so the
  * schema reports "this is required" rather than "expected string".
  */
+/**
+ * One cascade's four inputs, read under their shared prefix: the id when a
+ * destination was picked, and the country/region/city when one was typed.
+ *
+ * The cascade renders all four every time, so a missing one arrives as `""`
+ * and `DestinacijaSchema` decides which combination is meaningful. Exported
+ * because Podešavanja renders the same cascade for the default home town.
+ */
+export function mestoIzFormData(formData: FormData, prefiks: string) {
+  const uzmi = (kljuc: string) => {
+    const v = formData.get(kljuc);
+    return typeof v === "string" ? v : "";
+  };
+  return {
+    id: uzmi(prefiks),
+    drzavaSifra: uzmi(`${prefiks}Drzava`),
+    regija: uzmi(`${prefiks}Regija`),
+    grad: uzmi(`${prefiks}Grad`),
+  };
+}
+
 export function izFormData(formData: FormData): UlazRezervacije {
   const uzmi = (kljuc: string) => {
     const v = formData.get(kljuc);
     return typeof v === "string" ? v : "";
   };
 
+  const mesto = (prefiks: string) => mestoIzFormData(formData, prefiks);
+
   return {
     ime: uzmi("ime"),
     telefon: uzmi("telefon"),
-    destinacijaId: uzmi("destinacijaId"),
+    destinacija: mesto("destinacija"),
     datumPolaska: uzmi("datumPolaska"),
-    destinacijaPovratkaId: uzmi("destinacijaPovratkaId"),
+    destinacijaPovratka: mesto("destinacijaPovratka"),
     datumPovratka: uzmi("datumPovratka"),
     brojPutnika: uzmi("brojPutnika"),
   };

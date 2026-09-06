@@ -104,6 +104,14 @@ export const T = {
     regija: "Regija",
     grad: "Grad",
     izaberi: "Izaberi…",
+    /** The last option of the region and city dropdowns (SPEC §5, amended). */
+    drugoRucno: "Drugo — upiši ručno",
+    nazivRegije: "Naziv regije",
+    /** Blank is allowed: an unnamed region makes the town its own (SPEC §5). */
+    nazivRegijeOpciono: "Naziv regije (nije obavezno)",
+    nazivMesta: "Naziv mesta",
+    nazivMestaPomoc: "Dodaje se u listu mesta i ostaje tu za sledeći put.",
+    nazivMestaPlaceholder: "npr. Novi Marmaras",
     datumPolaska: "Datum polaska",
     datumPovratka: "Datum povratka",
     datumPovratkaPomoc: "Ostavi prazno ako povratak još nije dogovoren.",
@@ -120,7 +128,7 @@ export const T = {
   detalji: {
     naslov: "Rezervacija",
     pozovi: "Pozovi",
-    whatsapp: "WhatsApp",
+    viber: "Viber",
     izmeni: "Izmeni",
     obrisi: "Obriši",
     uneo: "Uneo",
@@ -176,6 +184,9 @@ export const T = {
     telefonObavezan: "Unesi broj telefona.",
     telefonNeispravan: "Broj telefona nije ispravan.",
     destinacijaObavezna: "Izaberi destinaciju.",
+    /** "Drugo — upiši ručno" was chosen and the box left empty. */
+    nazivMestaObavezan: "Upiši naziv mesta.",
+    nazivPredugacak: "Naziv je predugačak.",
     /** The id parsed, but names a destination that is no longer offered. */
     destinacijaNijeUPonudi: "Ta destinacija više nije u ponudi.",
     datumPolaskaObavezan: "Izaberi datum polaska.",
