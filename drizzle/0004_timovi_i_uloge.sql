@@ -40,6 +40,14 @@
 -- bookings stay visible to their team, which is what the team needs after that
 -- person stops working. Were it part of the visibility rule, deactivating
 -- somebody would silently empty their crew's schedule.
+--
+-- HAND-WRITTEN, and it has to be. `drizzle-kit generate` produces the right
+-- columns in the wrong order: it adds `uloga` with its final default of
+-- 'korisnik' and then adds `profiles_tim_prema_ulozi`, which both existing
+-- rows violate the instant it is created, because a korisnik must have a team
+-- and neither of them has one. The generated file fails on the only database
+-- there is. The snapshot in `meta/0004_snapshot.json` is drizzle-kit's and is
+-- correct — only the DDL below is ours.
 --------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS "timovi" (

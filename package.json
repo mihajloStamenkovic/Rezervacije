@@ -19,7 +19,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "tsx src/db/reset.ts && npm run db:migrate && npm run db:seed:destinacije && npm run db:seed",
     "test:tz": "node scripts/test-tz.mjs",
-    "ikone": "node scripts/napravi-ikone.mjs"
+    "ikone": "node scripts/napravi-ikone.mjs",
+    "provera:vidljivost": "tsx src/db/provera-vidljivosti.ts"
   },
   "dependencies": {
     "@serwist/next": "9.5.12",

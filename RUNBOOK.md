@@ -157,23 +157,42 @@ policy tests `je_clan()`), in the login action, and in `src/proxy.ts`.
 
 Signups are also switched off in the Supabase dashboard.
 
+Since 06.09.2026 a row also carries a **role** (`admin` or `korisnik`) and, for
+a driver, a **team**. A driver sees their own team's bookings and nothing else;
+an owner sees everything.
+
 ### Adding a person
 
-Two steps, and skipping the second locks them out rather than letting them in:
+**From the app: Podešavanja → Nalozi.** Admins only — a driver is not shown the
+link and the route 404s for them.
 
-1. Supabase dashboard → **Authentication → Users → Add user**. Set their
-   password there. Nobody else ever handles it.
-2. Insert their row into `profiles` — `id` (the user id from step 1), `ime`,
-   `email`, `boja` (badge colour, e.g. `#2563eb`).
+Make the team first if it does not exist, then the account: ime, e-mail,
+password, badge colour, team. The password is typed once and told to the driver
+in person; there is no email in this flow. Behind the scenes it creates the
+`auth.users` account and the `profiles` row together, and if the second fails
+the first is deleted again, so a half-made account never survives.
+
+The Supabase dashboard route still works and is the fallback if the app is down,
+but it is now three things rather than two — account, then a `profiles` row with
+`uloga = 'korisnik'`, and `tim_id` set to a real team. A `korisnik` with no team
+violates a check constraint and will be rejected.
 
 ### Removing a person
 
-Delete their `profiles` row. They are locked out on their next request, with
-their password unchanged and their bookings untouched.
+**Take their access away — do not try to delete them.** Podešavanja → Nalozi →
+*Oduzmi pristup*. They are locked out on their next request, their password is
+unchanged, and the bookings they entered stay visible to their team.
 
-Do **not** delete them from `auth.users` while they have reservations —
-`reservations.kreirao` is `ON DELETE RESTRICT`, so it will fail. That is the
-safe direction: no silent data loss.
+An earlier version of this section said to delete their `profiles` row. **That
+does not work** and never did for anyone who had entered a booking:
+`reservations.kreirao → profiles.id` is `ON DELETE RESTRICT`, so the delete
+fails — and deleting them from `auth.users` fails too, because
+`profiles.id → auth.users.id` is `ON DELETE CASCADE` and the cascade runs into
+the same restrict. There is no way to remove such a person from either end, by
+design: no silent data loss. Deactivation is the removal.
+
+An admin cannot revoke their own access from this screen. If they could, and
+they were the last admin, nobody could undo it from inside the app.
 
 ---
 

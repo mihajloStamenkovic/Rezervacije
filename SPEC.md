@@ -1,13 +1,15 @@
 # Kombi Rezervacije — Specifikacija v1
 
-A shared reservation book for a two-person van transport business. One list, two
-accounts, both see everything. Mobile-first — it lives on a phone.
+A shared reservation book for a van transport business. Two owners who take the
+calls and dispatch, and drivers grouped into **teams** — everyone in a team sees
+that team's bookings and nobody else's. Mobile-first — it lives on a phone.
 
 |  |  |
 |---|---|
-| Accounts | 2 (fixed, no self-registration) |
-| Table columns | 9 |
-| Screens | 4 + settings |
+| Accounts | Created by an owner in the app. No self-registration. |
+| Roles | `admin` (owner) and `korisnik` (driver) |
+| Table columns | 9 for the trip, plus `tim_id` — who may see it |
+| Screens | 5 + settings |
 | UI language | Serbian, Latin script |
 | Timezone | Europe/Belgrade (fixed, not device) |
 
@@ -119,10 +121,22 @@ Nine columns. No status, no notes, no timestamps.
 | `destinacija_povratka_id` | → destinacije | Pre-filled from default home destination, editable |
 | `datum_povratka` | date | Optional — filled in later when confirmed |
 | `broj_putnika` | int | Displays as *"4 putnika"* |
-| `kreirao` | → profiles | Which of the two accounts entered it |
+| `kreirao` | → profiles | Who entered it. A badge, never a permission. |
+| `tim_id` | → timovi, nullable | **Who may see it.** `null` = administrators only. |
 
-Plus a `profiles` table: `id`, `ime`, `email`, `boja` (badge colour), and a
-`destinacije` reference table — see §5.
+`tim_id` is the tenth column and the only one that is not trip data. It is
+stored rather than derived from `kreirao` because the owners are the
+dispatchers: they take the calls and enter bookings that drivers then drive, so
+a booking has to be able to belong to a crew other than the one that entered
+it. Derived from the author, every booking an owner entered would have been
+invisible to the driver who had to make the trip — and silently, since an
+absent booking looks exactly like a quiet day. Storing it also freezes history:
+moving somebody between teams cannot retroactively hand their old customers'
+names and numbers to a different crew. See `src/domen/pristup.ts`.
+
+Plus a `profiles` table — `id`, `ime`, `email`, `boja` (badge colour), `uloga`,
+`tim_id`, `aktivan` — a `timovi` table (`id`, `naziv`), and a `destinacije`
+reference table, see §5.
 
 **There is no `password_hash`, deliberately.** Supabase Auth (§9) owns
 credentials in `auth.users`, where they are hashed, salted and rate-limited. A
@@ -418,6 +432,41 @@ not take the app down will be noticed only when somebody mentions it. If that
 starts happening, revisit — Sentry with a strict `beforeSend` remains the right
 answer, not a different service.
 
+### Who sees what — teams and roles (06.09.2026)
+
+`profiles` is still the access list, and is now also the authorisation model.
+
+| | Sees | May |
+|---|---|---|
+| `admin` | every booking, every team, every account | manage teams and accounts; file a booking under any team or under none |
+| `korisnik` | their own team's bookings, their own teammates | enter, edit and delete their team's bookings |
+
+Visibility inside a team is always mutual — that is what makes it a team rather
+than a list of permissions. A driver cannot see that accounts outside their team
+exist at all: not in a member list, not in a badge, and `/nalozi` returns 404
+rather than 403, because a 403 would confirm the screen is real.
+
+**Edit and delete stay team-wide.** `kreirao` remains a badge and never a
+permission: within one team anybody may fix anybody's booking, which is what a
+shared book means. Deletion is still permanent (§8).
+
+**`aktivan` governs signing in and never visibility.** Deactivating a driver
+locks them out on their next request; the bookings they entered stay visible to
+their team, which is what the team needs after that person stops working. It has
+to work this way because a `profiles` row cannot be deleted once that person has
+entered a booking — `reservations.kreirao` is `ON DELETE RESTRICT` and
+`profiles.id → auth.users.id` is `ON DELETE CASCADE`, so the delete fails from
+both ends. Deactivation is not a soft alternative to removal; it is the only
+removal there is.
+
+> **Where the boundary actually is.** The screens read through Drizzle, which
+> connects as the table owner and **bypasses RLS**, so the visibility rule is
+> enforced by the `WHERE` clause in `src/db/vidljivost.ts`. The RLS policies in
+> migration `0004` express the same rule independently for the PostgREST
+> surface. They cannot be one shared Postgres function — such a function reads
+> `auth.uid()`, which is NULL over the app's connection — so
+> `npm run provera:vidljivost` reconciles the two against real data.
+
 ### Who may enter — `profiles` is the access list
 
 Corrected 01.09.2026. This section previously asserted "no signups" as a fact.
@@ -541,6 +590,23 @@ All of it drops onto this schema later without a rewrite.
 ---
 
 ## 12. Changelog
+
+**06.09.2026** — teams and roles. The app stops being a two-person book.
+
+- **§4 gains a tenth column**, `tim_id`, and **standing rule 2 was amended** to
+  say what it always meant: the nine columns *describing the trip* are fixed.
+  The forbidden list is unchanged — no `status`, no `napomena`, no timestamps.
+- **§9 gains "Who sees what"**: `admin` and `korisnik`, teams as the unit of
+  visibility, `aktivan` as the only working revocation.
+- **The design was reversed once, before any of it shipped.** Visibility was
+  first derived from the booking's author, which is elegant and wrong here: the
+  owners are the dispatchers, so every booking they entered would have been
+  invisible to the driver who had to drive it — silently, because an absent
+  booking is indistinguishable from a quiet day. That is the same failure §1's
+  edge case already accepts once, and once is enough. Recorded because the
+  reasoning is the useful part.
+- **§9 now states where the boundary is.** RLS is not in the app's read path at
+  all. Under a flat book that was a footnote; with teams it is the whole thing.
 
 **01.09.2026** — this document was brought back in line with the code after
 Phases 3–5. It had drifted in six places, and one of them was a security

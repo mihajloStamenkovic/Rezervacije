@@ -13,21 +13,43 @@ row is your contract.
 
 ## The shape of this app's auth
 
-Two accounts. Fixed. Created by the developer in the Supabase dashboard — **not**
-by a seed script and **not** by self-registration. There is no signup screen, no
-password reset, no email verification, no OAuth, no magic links. A forgotten
-password is reset in the dashboard.
+Two roles, since migration `0004` (06.09.2026): **`admin`** — the two owners,
+who see every team and manage accounts — and **`korisnik`**, a driver who
+belongs to exactly one **team** and sees that team's bookings and no others.
 
-Both accounts see everything and can edit and delete everything. `kreirao` records
-which account entered a booking so the list can show a coloured badge. It is **not**
-a permission — it never restricts anything.
+Accounts are created by an owner at `/nalozi`, which is the one screen allowed
+to use the secret-key client (`src/lib/supabase/admin.ts`, whose header names
+the single permitted importer). There is still no signup screen, no password
+reset, no email verification, no OAuth and no magic links.
 
-## RLS is the security boundary, not the middleware
+`kreirao` records which account entered a booking, for the coloured badge. It is
+still **not** a permission — inside a team anybody may edit and delete anybody's
+booking. What restricts anything is `reservations.tim_id`, which says who may
+*see* the row; `null` there means administrators only.
 
-`src/proxy.ts` redirects a logged-out browser to `/prijava`. That is a convenience,
-and its own documentation says so. The actual boundary is Postgres: anyone can
-`curl` the REST endpoint with the publishable key, and RLS is the only thing
-standing there.
+Revocation is `profiles.aktivan = false`, and it is the only revocation that
+exists: `reservations.kreirao` is `ON DELETE RESTRICT` and
+`profiles.id → auth.users.id` is `ON DELETE CASCADE`, so an account that has
+entered a booking cannot be deleted from either end. `aktivan` gates signing in
+and never visibility — a deactivated driver's bookings stay with their team.
+
+## Two boundaries, and the app's is not RLS
+
+`src/proxy.ts` redirects a logged-out browser to `/prijava`. That is a
+convenience, and its own documentation says so.
+
+**For the publishable key, the boundary is RLS.** Anyone can `curl` the REST
+endpoint, and the policies are the only thing standing there.
+
+**For the app's own screens, RLS is not in the path at all.** Drizzle connects
+as the table owner and bypasses it; `auth.uid()` is NULL on that connection.
+What stops one team seeing another's bookings is the `WHERE` clause built in
+`src/db/vidljivost.ts`, which is why `sveRezervacije()` was deleted rather than
+deprecated — there is no unscoped read to reach for. The two expressions of the
+rule are reconciled against real data by `npm run provera:vidljivost`.
+
+Treat a change to one without the other as incomplete: an RLS policy alone
+changes nothing a user of the app can see.
 
 **RLS is already enabled on all four tables** with zero policies — default-deny,
 applied in `drizzle/0001_ukljuci_rls.sql`. Your job is to write the policies that
