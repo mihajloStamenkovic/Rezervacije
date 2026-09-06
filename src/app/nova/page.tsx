@@ -16,17 +16,23 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { FormaRezervacije } from "@/components/forma-rezervacije";
-import { podesavanja, sveDestinacije } from "@/db/queries";
+import { podesavanja, sveDestinacije, timoviZa } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
+import { podrazumevaniTim } from "@/domen/pristup";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { T } from "@/lib/tekst";
 import { putanjaNazad } from "@/lib/navigacija";
 
 export default async function Nova({ searchParams }: PageProps<"/nova">) {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
 
   const nazad = putanjaNazad((await searchParams).nazad);
-  const [sve, postavke] = await Promise.all([sveDestinacije(), podesavanja()]);
+  const [sve, postavke, timovi] = await Promise.all([
+    sveDestinacije(),
+    podesavanja(),
+    // Empty for a driver, which is what hides the field entirely.
+    timoviZa(korisnik),
+  ]);
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -46,6 +52,11 @@ export default async function Nova({ searchParams }: PageProps<"/nova">) {
           id={null}
           katalog={katalogZaFormu(sve)}
           nazad={nazad}
+          timovi={timovi}
+          // An admin belongs to no team, so this opens on "administrators
+          // only" and the warning is visible from the first render. They have
+          // to choose a crew on purpose — which is the entire point.
+          timPocetni={podrazumevaniTim(korisnik)}
           pocetna={{
             ime: "",
             telefon: "",

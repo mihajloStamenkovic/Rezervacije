@@ -37,6 +37,20 @@
  */
 import type { Profile } from "./tipovi";
 
+/**
+ * What the team dropdown submits for "administrators only".
+ *
+ * A sentinel rather than an empty string, because the form and the Server
+ * Action need to tell three states apart: a real team, deliberately
+ * administrators-only, and *the field was never rendered* — which is what a
+ * driver's form sends and which must be read as "my own team". An empty value
+ * is already spoken for by the third.
+ *
+ * It lives here rather than beside the action because a `"use server"` module
+ * may only export async functions.
+ */
+export const SAMO_ADMINI = "samo-admini";
+
 /** An account that sees every team and may manage who else may enter. */
 export function jeAdmin(profil: Pick<Profile, "uloga">): boolean {
   return profil.uloga === "admin";

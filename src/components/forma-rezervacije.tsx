@@ -24,11 +24,13 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { ArrowUpDownIcon } from "lucide-react";
+import { Izbor } from "@/components/izbor";
 import { KaskadaDestinacija } from "@/components/kaskada-destinacija";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { sacuvajRezervaciju } from "@/app/actions/rezervacije";
+import { SAMO_ADMINI } from "@/domen/pristup";
 import type { Destinacija } from "@/domen/tipovi";
 import { useNaMrezi } from "@/lib/mreza";
 import { T } from "@/lib/tekst";
@@ -49,6 +51,8 @@ export function FormaRezervacije({
   katalog,
   pocetna,
   nazad,
+  timovi,
+  timPocetni = null,
   jednosmernoPocetno = false,
 }: {
   /** `null` for a new booking, the reservation id when editing. */
@@ -56,6 +60,16 @@ export function FormaRezervacije({
   katalog: Destinacija[];
   pocetna: PocetnaRezervacija;
   nazad: string;
+  /**
+   * The teams an admin may file this booking under, and the one selected.
+   *
+   * Empty for a driver, and then no field is rendered at all — a driver can
+   * only ever file under their own team, so the question has one answer and
+   * asking it would be noise. The Server Action reads the field's *absence*
+   * as "my own team", never as "administrators only".
+   */
+  timovi?: readonly { id: string; naziv: string }[];
+  timPocetni?: string | null;
   /**
    * Passed in rather than inferred from an empty return date, because the
    * same empty field means two different things depending on the screen.
@@ -90,6 +104,9 @@ export function FormaRezervacije({
   const [datumPovratka, postaviDatumPovratka] = useState(pocetna.datumPovratka);
   const [odrediste, postaviOdrediste] = useState(pocetna.destinacijaId);
   const [povratak, postaviPovratak] = useState(pocetna.destinacijaPovratkaId);
+  // `SAMO_ADMINI` rather than "" so the sentinel survives a round trip: an
+  // empty string means "field not rendered" to the Server Action.
+  const [tim, postaviTim] = useState(timPocetni ?? SAMO_ADMINI);
   const [jednosmerno, postaviJednosmerno] = useState(jednosmernoPocetno);
 
   const greske: GreskePolja =
@@ -198,6 +215,36 @@ export function FormaRezervacije({
   return (
     <form action={action} className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="nazad" value={nazad} />
+
+      {timovi && timovi.length > 0 ? (
+        <Polje id="tim" oznaka={T.timovi.zaKoga}>
+          <Izbor
+            id="tim"
+            name="tim"
+            value={tim}
+            onChange={(e) => postaviTim(e.target.value)}
+            disabled={uToku}
+          >
+            {timovi.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.naziv}
+              </option>
+            ))}
+            <option value={SAMO_ADMINI}>{T.timovi.samoAdmini}</option>
+          </Izbor>
+          {/*
+            The one thing standing between "administrators only" and a real
+            trip that no driver can see. It is a permanent block rather than a
+            toast because the person choosing it is a dispatcher at 22:00 who
+            will not read anything that fades.
+          */}
+          {tim === SAMO_ADMINI ? (
+            <p className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+              {T.timovi.samoAdminiUpozorenje}
+            </p>
+          ) : null}
+        </Polje>
+      ) : null}
 
       <Polje id="ime" oznaka={T.forma.ime} greska={greske.ime}>
         <Input

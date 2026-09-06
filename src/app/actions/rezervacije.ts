@@ -10,7 +10,11 @@ import {
   upisiRezervaciju,
 } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
-import { podrazumevaniTim, smeDaDodeli } from "@/domen/pristup";
+import {
+  SAMO_ADMINI,
+  podrazumevaniTim,
+  smeDaDodeli,
+} from "@/domen/pristup";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { putanjaNazad } from "@/lib/navigacija";
 import { T } from "@/lib/tekst";
@@ -42,9 +46,6 @@ function odrediste(formData: FormData): string {
   const nazad = formData.get("nazad");
   return putanjaNazad(typeof nazad === "string" ? nazad : undefined);
 }
-
-/** The sentinel the team dropdown submits for "administrators only". */
-const SAMO_ADMINI = "samo-admini";
 
 /**
  * The team the form asked for: a uuid, `null` for administrators-only, or

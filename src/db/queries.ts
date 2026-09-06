@@ -20,10 +20,12 @@ import {
   profiles,
   reservations,
   settings,
+  timovi,
   type Destinacija,
   type NewReservation,
   type Profile,
   type Reservation,
+  type Tim,
 } from "./schema";
 
 /** Just enough of the author to draw a badge. See `joinedSelect`. */
@@ -97,6 +99,21 @@ export async function rezervacijaZa(
     .where(and(eq(reservations.id, id), uslovZa(vidilac)))
     .limit(1);
   return red ?? null;
+}
+
+/**
+ * The teams this person may file a booking under, in Serbian alphabetical
+ * order.
+ *
+ * Empty for a driver — not because they have no team, but because they have
+ * exactly one and the form does not ask a question with a single answer. The
+ * Server Action reads that absence as "my own team".
+ */
+export async function timoviZa(
+  vidilac: Pick<Profile, "uloga" | "timId">,
+): Promise<Tim[]> {
+  if (vidilac.uloga !== "admin") return [];
+  return db.select().from(timovi).orderBy(asc(timovi.naziv));
 }
 
 /** Every destination, active or not. Ordered for display: country, then order. */
