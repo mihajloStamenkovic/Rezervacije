@@ -1467,6 +1467,10 @@ commit and not automatically thereafter.
   `Čačak` would sort before `Cetinje`. A test catches it — but per finding 4,
   nothing runs the tests on push, so that guard is currently only as good as
   somebody remembering to run them before a deploy.
+  **Half-closed 04.09.2026:** CI (`Provera`) now runs the suite on every push,
+  so the guard is automatic on the Linux runner. What is still not proven is
+  the *Vercel* runtime's ICU — CI and production are different Node builds, and
+  nothing asserts collation on the deployed instance.
 
 ---
 
@@ -2035,10 +2039,7 @@ Two bugs were fixed before it went green, both mine:
       decimal~~ — fixed 04.09.2026. Digits-only regex before `Number()`, capped
       at `MAX_PUTNIKA = 100`, and the message for `1.5` now names the real
       reason. Four tests added, including `21` still accepted.
-- [ ] **Phase 7 — needs the owner's call: is the destination filter scoped to
-      rows or to legs?** SPEC §5 says a place matches bookings referencing it from
-      **either** column; the code matches the destination of the leg being
-      rendered, which SPEC §1's worked example backs. Consequence: a booking that
-      departed with no return date carries Beograd in the return column and
-      cannot be reached by the Beograd filter in any mode. Both readings are
-      defensible; SPEC should say which is meant.
+- [x] ~~**Phase 7 — needs the owner's call: is the destination filter scoped to
+      rows or to legs?**~~ — duplicate of the item closed above. **Settled by the
+      owner 04.09.2026: the leg.** Removed as an open question 06.09.2026; it had
+      been recorded twice in this list, once closed and once still open.
