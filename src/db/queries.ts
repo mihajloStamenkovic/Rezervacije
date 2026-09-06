@@ -12,7 +12,7 @@
  */
 import "server-only";
 import { alias } from "drizzle-orm/pg-core";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import { uslovZa } from "./vidljivost";
 import {
@@ -114,6 +114,69 @@ export async function timoviZa(
 ): Promise<Tim[]> {
   if (vidilac.uloga !== "admin") return [];
   return db.select().from(timovi).orderBy(asc(timovi.naziv));
+}
+
+/**
+ * Every account and every team, for the admin screen.
+ *
+ * Unscoped on purpose and safe to be: the only caller is `/nalozi`, which
+ * begins with `zahtevajAdmina()`. Named so that reaching for it by mistake
+ * reads wrong — there is no `sviProfili()`.
+ */
+export async function sviProfiliZaAdmina(): Promise<Profile[]> {
+  return db.select().from(profiles).orderBy(asc(profiles.ime));
+}
+
+export async function sviTimoviZaAdmina(): Promise<Tim[]> {
+  return db.select().from(timovi).orderBy(asc(timovi.naziv));
+}
+
+export async function napraviTim(naziv: string): Promise<Tim> {
+  const [red] = await db.insert(timovi).values({ naziv }).returning();
+  return red!;
+}
+
+/**
+ * Writes the `profiles` row for an account that already exists in
+ * `auth.users`.
+ *
+ * The email is read from `auth.users` rather than accepted as an argument, the
+ * same way `src/db/seed.ts` does it: `profiles.id` is a real foreign key, so
+ * the account must exist anyway, and this keeps an address from ever being a
+ * value this layer invents.
+ */
+export async function upisiProfil(vrednosti: {
+  id: string;
+  ime: string;
+  boja: string;
+  uloga: string;
+  timId: string | null;
+}): Promise<boolean> {
+  // Raw SQL for the same reason `src/db/seed.ts` uses it: the email is
+  // selected out of `auth.users`, a table the Drizzle schema models by its
+  // primary key alone because Supabase owns it.
+  const redovi = await db.execute(sql`
+    insert into profiles (id, ime, email, boja, uloga, tim_id, aktivan)
+    select id, ${vrednosti.ime}, email, ${vrednosti.boja},
+           ${vrednosti.uloga}, ${vrednosti.timId}::uuid, true
+    from auth.users
+    where id = ${vrednosti.id}
+    returning id
+  `);
+  return redovi.length > 0;
+}
+
+/** Role, team or active state. The admin screen's only write to a profile. */
+export async function izmeniProfil(
+  id: string,
+  vrednosti: Partial<Pick<Profile, "ime" | "boja" | "uloga" | "timId" | "aktivan">>,
+): Promise<Profile | null> {
+  const [red] = await db
+    .update(profiles)
+    .set(vrednosti)
+    .where(eq(profiles.id, id))
+    .returning();
+  return red ?? null;
 }
 
 /** Every destination, active or not. Ordered for display: country, then order. */
