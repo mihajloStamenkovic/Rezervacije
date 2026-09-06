@@ -20,6 +20,7 @@ import {
   napraviNalog,
   napraviTim,
   promeniAktivnost,
+  promeniTim,
   type StanjeNaloga,
 } from "@/app/actions/nalozi";
 import { T } from "@/lib/tekst";
@@ -164,6 +165,45 @@ export function FormaNaloga({
       <Button type="submit" disabled={uToku} className="h-12 text-base">
         {T.timovi.napravi}
       </Button>
+    </form>
+  );
+}
+
+/**
+ * Move a driver to another crew.
+ *
+ * Their existing bookings do not move with them: a booking carries its own
+ * `tim_id`, so history stays where it happened and nobody's old customers are
+ * handed to a crew that never drove them. If a specific trip should follow the
+ * person, an admin reassigns that booking on its own edit screen.
+ *
+ * Submits on change rather than behind a save button — there is one field and
+ * a button beside it would only be a second tap.
+ */
+export function IzborTima({
+  id,
+  timId,
+  timovi,
+}: {
+  id: string;
+  timId: string | null;
+  timovi: readonly { id: string; naziv: string }[];
+}) {
+  return (
+    <form action={promeniTim.bind(null, id)}>
+      <Izbor
+        name="timId"
+        defaultValue={timId ?? ""}
+        aria-label={T.timovi.tim}
+        className="h-9 w-auto text-sm"
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+      >
+        {timovi.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.naziv}
+          </option>
+        ))}
+      </Izbor>
     </form>
   );
 }

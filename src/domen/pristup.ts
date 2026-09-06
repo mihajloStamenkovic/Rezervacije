@@ -104,20 +104,17 @@ export function smeDaDodeli(
   return timId !== null && timId === vidilac.timId;
 }
 
-/**
- * May `vidilac` see that account `drugi` exists at all — in a member list, a
- * badge, a delete confirmation?
+/*
+ * There was a `mozeVidetiProfil` here and it has been removed rather than left
+ * standing unused.
  *
- * The owners asked that a driver not learn of accounts outside their team.
- * Everyone can always see themselves, without which an admin would vanish
- * from their own screens.
+ * It answered "may this person see that this account exists", which sounds
+ * necessary and is not: the only screen that lists accounts is `/nalozi`,
+ * which admins alone can reach, and every author a driver ever sees on a badge
+ * is by construction someone whose booking they can already see. The rule had
+ * no caller and a security helper nobody calls is worse than none — it reads
+ * like protection that is in force.
+ *
+ * If a member list for drivers is ever added, the rule it needs is
+ * `mozeVideti(vidilac, drugi.timId)` plus "everyone sees themselves".
  */
-export function mozeVidetiProfil(
-  vidilac: Pick<Profile, "id" | "uloga" | "timId">,
-  drugi: Pick<Profile, "id" | "uloga" | "timId">,
-): boolean {
-  if (vidilac.id === drugi.id) return true;
-  if (jeAdmin(vidilac)) return true;
-  if (jeAdmin(drugi)) return false;
-  return mozeVideti(vidilac, drugi.timId);
-}

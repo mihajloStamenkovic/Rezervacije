@@ -159,9 +159,24 @@ export async function promeniAktivnost(
   revalidatePath("/nalozi");
 }
 
-/** Move somebody to another crew. Their existing bookings do not move. */
-export async function promeniTim(id: string, timId: string): Promise<void> {
+/**
+ * Move somebody to another crew. Their existing bookings do not move.
+ *
+ * Takes `FormData` rather than the id directly because it is bound as a form
+ * action — `promeniTim.bind(null, id)` leaves the form's own payload as the
+ * second argument.
+ */
+export async function promeniTim(
+  id: string,
+  formData: FormData,
+): Promise<void> {
   await zahtevajAdmina();
+
+  const timId = formData.get("timId");
+  // A driver must end up on a real team: the `profiles_tim_prema_ulozi` check
+  // would reject anything else anyway, and failing here says so sooner.
+  if (typeof timId !== "string" || !z.uuid().safeParse(timId).success) return;
+
   await izmeniProfil(id, { uloga: "korisnik", timId });
   revalidatePath("/nalozi");
 }

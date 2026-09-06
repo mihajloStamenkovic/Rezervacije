@@ -3,7 +3,6 @@ import { ADMIN, BIVSI, MARIJA, NIKOLA, STEFAN, TIM_A, TIM_B } from "./fiksture";
 import {
   jeAdmin,
   mozeVideti,
-  mozeVidetiProfil,
   podrazumevaniTim,
   smeDaDodeli,
 } from "./pristup";
@@ -106,25 +105,5 @@ describe("smeDaDodeli — who may file under which team", () => {
       if (smeDaDodeli(NIKOLA, tim)) expect(mozeVideti(NIKOLA, tim)).toBe(true);
       if (smeDaDodeli(STEFAN, tim)) expect(mozeVideti(STEFAN, tim)).toBe(true);
     }
-  });
-});
-
-describe("mozeVidetiProfil — who a driver knows exists", () => {
-  it("hides accounts outside the team, admins included", () => {
-    expect(mozeVidetiProfil(NIKOLA, MARIJA)).toBe(true);
-    expect(mozeVidetiProfil(NIKOLA, STEFAN)).toBe(false);
-    expect(mozeVidetiProfil(NIKOLA, ADMIN)).toBe(false);
-  });
-
-  it("everyone can always see themselves", () => {
-    // Without this an admin disappears from their own member list, because an
-    // admin is on no team.
-    expect(mozeVidetiProfil(ADMIN, ADMIN)).toBe(true);
-    expect(mozeVidetiProfil(NIKOLA, NIKOLA)).toBe(true);
-  });
-
-  it("an admin sees every account", () => {
-    expect(mozeVidetiProfil(ADMIN, NIKOLA)).toBe(true);
-    expect(mozeVidetiProfil(ADMIN, STEFAN)).toBe(true);
   });
 });

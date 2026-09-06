@@ -12,12 +12,16 @@
  */
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { FormaNaloga, FormaTima, PrekidacPristupa } from "@/components/forma-naloga";
+import {
+  FormaNaloga,
+  FormaTima,
+  IzborTima,
+  PrekidacPristupa,
+} from "@/components/forma-naloga";
 import { sviProfiliZaAdmina, sviTimoviZaAdmina } from "@/db/queries";
 import { jeAdmin } from "@/domen/pristup";
 import { zahtevajAdmina } from "@/lib/auth";
-import { T } from "@/lib/tekst";
-import { uporediTekst } from "@/lib/tekst";
+import { T, uporediTekst } from "@/lib/tekst";
 
 export default async function Nalozi() {
   const admin = await zahtevajAdmina();
@@ -80,6 +84,11 @@ export default async function Nalozi() {
                             </span>
                           )}
                         </span>
+                        <IzborTima
+                          id={p.id}
+                          timId={p.timId}
+                          timovi={timovi}
+                        />
                         <PrekidacPristupa
                           id={p.id}
                           aktivan={p.aktivan}
