@@ -100,7 +100,19 @@ export async function napraviNalog(
   }
   const { ime, email, lozinka, boja, timId } = polja.data;
 
-  const supabase = supabaseAdmin();
+  // `supabaseAdmin()` throws when SUPABASE_SECRET_KEY is missing, and it is a
+  // *deployment* fault rather than anything the owner typed — so it is caught
+  // here and named, instead of unwinding into Next's error page. That is
+  // exactly how this failed the first time it was used in production: the key
+  // was never added to Vercel, and creating an account crashed the screen with
+  // nothing to indicate why.
+  let supabase: ReturnType<typeof supabaseAdmin>;
+  try {
+    supabase = supabaseAdmin();
+  } catch {
+    return { ok: false, greska: T.timovi.nedostajeKljuc };
+  }
+
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password: lozinka,

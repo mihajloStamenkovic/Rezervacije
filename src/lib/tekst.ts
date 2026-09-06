@@ -237,6 +237,13 @@ export const T = {
     timObavezan: "Izaberi tim.",
     timPostoji: "Tim sa tim nazivom već postoji.",
     nalogNeuspeo: "Nalog nije napravljen. Proveri e-mail i pokušaj ponovo.",
+    /**
+     * A deployment fault, not a typing mistake — so it says so, and names the
+     * thing to fix. Anything vaguer sends the owner round the form again.
+     */
+    nedostajeKljuc:
+      "Server nema Supabase tajni ključ, pa ne može da napravi nalog. " +
+      "Dodaj SUPABASE_SECRET_KEY na Vercel.",
     /** The dropdown option that files a booking away from every driver. */
     samoAdmini: "Samo administratori",
     /**
