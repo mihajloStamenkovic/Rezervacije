@@ -13,7 +13,7 @@ rest of the app builds on.
 ## What you own
 
 - `src/lib/datum.ts` — date formatting and the Belgrade "today"
-- `src/lib/telefon.ts` — phone normalization and dial/WhatsApp links
+- `src/lib/telefon.ts` — phone normalization and dial/Viber links
 - `src/lib/tekst.ts` — every user-facing string, in one place
 - Collation used anywhere things sort alphabetically
 
@@ -92,7 +92,7 @@ This is what makes `tel:` links work from a Greek or German network — a number
 stored as `064 123 4567` will not dial abroad.
 
 The helpers already exist: `normalizujTelefon(unos)` → E.164 or `null`,
-`jeIspravanTelefon`, `formatTelefon(e164)` for display, `telLink`, `whatsAppLink`.
+`jeIspravanTelefon`, `formatTelefon(e164)` for display, `telLink`, `viberLink`.
 `normalizujTelefon` returns `null` rather than throwing so it drops straight into
 a Zod refinement.
 

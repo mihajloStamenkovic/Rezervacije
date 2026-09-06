@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  MAX_NAZIVA,
   MAX_PUTNIKA,
   RezervacijaSchema,
   greskePolja,
@@ -18,12 +19,28 @@ import { T } from "./tekst";
 const BEOGRAD = "00000000-0000-4000-8000-200000000001";
 const HANIOTI = "00000000-0000-4000-8000-200000000005";
 
+/** A destination picked from the dropdowns: an id, nothing typed. */
+const izabrana = (id: string) => ({
+  id,
+  drzavaSifra: "",
+  regija: "",
+  grad: "",
+});
+
+/** A destination typed by hand: no id, a country picked, a name written. */
+const upisana = (regija: string, grad: string) => ({
+  id: "",
+  drzavaSifra: "grcka",
+  regija,
+  grad,
+});
+
 const ispravan: UlazRezervacije = {
   ime: "Marko Petrović",
   telefon: "064 123 4567",
-  destinacijaId: HANIOTI,
+  destinacija: izabrana(HANIOTI),
   datumPolaska: "2026-01-01",
-  destinacijaPovratkaId: BEOGRAD,
+  destinacijaPovratka: izabrana(BEOGRAD),
   datumPovratka: "2026-01-15",
   brojPutnika: "4",
 };
@@ -145,13 +162,63 @@ describe("RezervacijaSchema", () => {
     );
   });
 
-  it("rejects anything that is not a destination id", () => {
-    expect(greskaZa({ destinacijaId: "" }).destinacijaId).toBe(
+  it("rejects anything that is neither a destination id nor a typed place", () => {
+    expect(greskaZa({ destinacija: izabrana("") }).destinacija).toBe(
       T.greske.destinacijaObavezna,
     );
-    expect(greskaZa({ destinacijaPovratkaId: "Grčka" }).destinacijaPovratkaId).toBe(
-      T.greske.destinacijaObavezna,
+    expect(
+      greskaZa({ destinacijaPovratka: izabrana("Grčka") }).destinacijaPovratka,
+    ).toBe(T.greske.destinacijaObavezna);
+  });
+
+  /*
+   * SPEC §5, amended 06.09.2026: a place that is not in the list may be typed.
+   * The schema only says the input is well formed — it never creates a row,
+   * because it has no database. That is `razresiDestinaciju`'s job.
+   */
+  it("accepts a place typed by hand instead of an id", () => {
+    const r = parsiraj({ destinacija: upisana("Sitonija", "Novi Marmaras") });
+    expect(r.success).toBe(true);
+    expect(r.data?.destinacija).toEqual({
+      id: null,
+      novo: {
+        drzavaSifra: "grcka",
+        regija: "Sitonija",
+        grad: "Novi Marmaras",
+      },
+    });
+  });
+
+  it("keeps the picked id and no typed place when one was chosen", () => {
+    expect(parsiraj().data?.destinacija).toEqual({ id: HANIOTI, novo: null });
+  });
+
+  it("insists on the town, which is the part that cannot be inferred", () => {
+    expect(greskaZa({ destinacija: upisana("Sitonija", "") }).destinacija).toBe(
+      T.greske.nazivMestaObavezan,
     );
+  });
+
+  /*
+   * The region is optional — Povratak has no region field at all, and
+   * Odlazak's may be left blank. A town with no region becomes its own, which
+   * is the shape `Srbija › Beograd › Beograd` already has. Filling that in is
+   * the Server Action's job, so the schema only has to let it through.
+   */
+  it("accepts a typed town with no region", () => {
+    const r = parsiraj({ destinacija: upisana("", "Nikiti") });
+    expect(r.success).toBe(true);
+    expect(r.data?.destinacija).toEqual({
+      id: null,
+      novo: { drzavaSifra: "grcka", regija: "", grad: "Nikiti" },
+    });
+  });
+
+  it("refuses a name too long to be one", () => {
+    expect(
+      greskaZa({ destinacija: upisana("Sitonija", "a".repeat(MAX_NAZIVA + 1)) })
+        .destinacija,
+    ).toBe(T.greske.nazivPredugacak);
   });
 
   it("reports every bad field at once, not just the first", () => {
@@ -169,14 +236,22 @@ describe("izFormData", () => {
     const fd = new FormData();
     fd.set("ime", "Ana");
     fd.set("telefon", "0641234567");
-    fd.set("destinacijaId", HANIOTI);
+    fd.set("destinacija", HANIOTI);
     fd.set("datumPolaska", "2026-01-01");
-    fd.set("destinacijaPovratkaId", BEOGRAD);
+    fd.set("destinacijaPovratka", BEOGRAD);
     fd.set("brojPutnika", "2");
     // datumPovratka deliberately absent — the return is not agreed yet.
 
     const ulaz = izFormData(fd);
     expect(ulaz.datumPovratka).toBe("");
+    // The cascade's other three inputs are absent here, and must read as empty
+    // rather than as a half-typed place.
+    expect(ulaz.destinacija).toEqual({
+      id: HANIOTI,
+      drzavaSifra: "",
+      regija: "",
+      grad: "",
+    });
 
     const r = RezervacijaSchema.safeParse(ulaz);
     expect(r.success).toBe(true);

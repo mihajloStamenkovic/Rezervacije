@@ -9,9 +9,11 @@
  * mistyped phone number. Controlled state is what makes a rejected submission
  * keep everything the user typed.
  *
- * The two destination ids live here rather than inside the cascades because
- * the ⇅ swap has to move both at once, and because they are what the form
- * actually submits — the country and region selects are only the path to them.
+ * The two destination selections live here rather than inside the cascades
+ * because the ⇅ swap has to move both at once, and because they are what the
+ * form actually submits — the country and region selects are only the path to
+ * them. A selection is an id picked from the list *or* a place typed by hand
+ * (SPEC §5, amended 06.09.2026); the swap moves either kind.
  *
  * **Jednosmerno** is a view over the same two columns, not a tenth one. A
  * booking with no return date is already a one-way (SPEC §8, "return leg
@@ -25,7 +27,10 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { ArrowUpDownIcon } from "lucide-react";
 import { Izbor } from "@/components/izbor";
-import { KaskadaDestinacija } from "@/components/kaskada-destinacija";
+import {
+  KaskadaDestinacija,
+  type Odabir,
+} from "@/components/kaskada-destinacija";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -102,8 +107,16 @@ export function FormaRezervacije({
   const [brojPutnika, postaviBrojPutnika] = useState(pocetna.brojPutnika);
   const [datumPolaska, postaviDatumPolaska] = useState(pocetna.datumPolaska);
   const [datumPovratka, postaviDatumPovratka] = useState(pocetna.datumPovratka);
-  const [odrediste, postaviOdrediste] = useState(pocetna.destinacijaId);
-  const [povratak, postaviPovratak] = useState(pocetna.destinacijaPovratkaId);
+  // The pages hand over plain ids; a typed place only ever comes from the
+  // cascade itself, so an opening value is always the picked half.
+  const [odrediste, postaviOdrediste] = useState<Odabir>(() => ({
+    id: pocetna.destinacijaId,
+    novo: null,
+  }));
+  const [povratak, postaviPovratak] = useState<Odabir>(() => ({
+    id: pocetna.destinacijaPovratkaId,
+    novo: null,
+  }));
   // `SAMO_ADMINI` rather than "" so the sentinel survives a round trip: an
   // empty string means "field not rendered" to the Server Action.
   const [tim, postaviTim] = useState(timPocetni ?? SAMO_ADMINI);
@@ -136,11 +149,12 @@ export function FormaRezervacije({
     >
       <KaskadaDestinacija
         idPolja="odlazak"
-        naziv="destinacijaId"
+        naziv="destinacija"
         katalog={katalog}
         vrednost={odrediste}
         onChange={postaviOdrediste}
-        greska={greske.destinacijaId}
+        greska={greske.destinacija}
+        disabled={uToku}
       />
       <Polje
         id="datumPolaska"
@@ -165,11 +179,16 @@ export function FormaRezervacije({
     <Odeljak key="poreklo" naslov={jednosmerno ? T.forma.odakle : T.forma.povratak}>
       <KaskadaDestinacija
         idPolja="povratak"
-        naziv="destinacijaPovratkaId"
+        naziv="destinacijaPovratka"
         katalog={katalog}
         vrednost={povratak}
         onChange={postaviPovratak}
-        greska={greske.destinacijaPovratkaId}
+        greska={greske.destinacijaPovratka}
+        disabled={uToku}
+        /* Država → Grad only. The owner asked for the region to go on this
+           leg (06.09.2026): the return end is Beograd on nearly every
+           booking, so naming its region is a tap that buys nothing. */
+        bezRegije
       />
       {/* No return date on a one-way — that absence is what makes it one. */}
       {jednosmerno ? null : (
@@ -213,7 +232,26 @@ export function FormaRezervacije({
   );
 
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form
+      action={action}
+      className="flex flex-col gap-5"
+      noValidate
+      /*
+        React resets the form once the action resolves, and this action resolves
+        WITHOUT navigating whenever validation fails. A DOM reset restores every
+        `<select>` to its first option — `Izaberi…` — while React's own state
+        still holds Grčka. The two then disagree: the screen shows an empty
+        cascade over hidden inputs that would still save Grčka.
+
+        Controlled `<input>`s survive it (React re-applies their value), which
+        is why this only ever showed up on the dropdowns, and only on the paths
+        where React had no reason to re-render them with a changed value.
+
+        Every field in this form is controlled, so a reset can only destroy
+        information here. Cancel it.
+      */
+      onReset={(e) => e.preventDefault()}
+    >
       <input type="hidden" name="nazad" value={nazad} />
 
       {timovi && timovi.length > 0 ? (

@@ -7,9 +7,15 @@
 import { describe, expect, it } from "vitest";
 import {
   drzaveZaFormu,
+  gradoviDrzaveZaFormu,
   gradoviZaFormu,
   katalogZaFormu,
+  kljucNaziva,
+  nadjiGradUDrzavi,
+  nadjiMesto,
   regijeZaFormu,
+  sledeciRedosled,
+  uskladiRegiju,
 } from "./kaskada";
 import {
   BEOGRAD,
@@ -99,5 +105,129 @@ describe("katalogZaFormu", () => {
   it("does not duplicate a destination that is both active and referenced", () => {
     const katalog = katalogZaFormu(KATALOG, [KOPAONIK.id, ZAGREB.id]);
     expect(katalog.filter((d) => d.id === ZAGREB.id)).toHaveLength(1);
+  });
+});
+
+/*
+ * SPEC §5, amended 06.09.2026: a place that is not in the list may be typed.
+ * Everything below is the defence against that filling the destination filter
+ * with near-duplicates of towns that are already there.
+ */
+describe("kljucNaziva", () => {
+  it("folds case, diacritics and repeated spaces", () => {
+    expect(kljucNaziva("  Novi   MARMARAS ")).toBe("novi marmaras");
+    expect(kljucNaziva("Šišići")).toBe(kljucNaziva("sisici"));
+    // Đ has no canonical decomposition — NFD alone would leave it standing.
+    expect(kljucNaziva("Đevđelija")).toBe("devdelija");
+  });
+});
+
+describe("nadjiMesto", () => {
+  it("finds a town already in the list, however it was typed", () => {
+    expect(
+      nadjiMesto(KATALOG, {
+        drzavaSifra: "grcka",
+        regija: "kasandra",
+        grad: " hanioti ",
+      }),
+    ).toBe(HANIOTI);
+  });
+
+  it("does not match a town of the same name in another region", () => {
+    expect(
+      nadjiMesto(KATALOG, {
+        drzavaSifra: "grcka",
+        regija: "Sitonija",
+        grad: "Hanioti",
+      }),
+    ).toBeNull();
+  });
+
+  it("matches an inactive row, because typing the name asks for it", () => {
+    expect(
+      nadjiMesto(KATALOG, {
+        drzavaSifra: LJUBLJANA.drzavaSifra,
+        regija: LJUBLJANA.regija,
+        grad: "ljubljana",
+      }),
+    ).toBe(LJUBLJANA);
+  });
+
+  it("returns null for a town that is genuinely new", () => {
+    expect(
+      nadjiMesto(KATALOG, {
+        drzavaSifra: "grcka",
+        regija: "Kasandra",
+        grad: "Nea Fokea",
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("uskladiRegiju", () => {
+  it("reuses the spelling the country already has", () => {
+    expect(uskladiRegiju(KATALOG, "grcka", "kasandra")).toBe("Kasandra");
+  });
+
+  it("keeps a genuinely new region as typed, trimmed", () => {
+    expect(uskladiRegiju(KATALOG, "grcka", "  Sitonija ")).toBe("Sitonija");
+  });
+
+  it("does not borrow a region name from another country", () => {
+    expect(uskladiRegiju(KATALOG, "srbija", "kasandra")).toBe("kasandra");
+  });
+});
+
+describe("sledeciRedosled", () => {
+  it("puts a typed place last within its country", () => {
+    const najveci = Math.max(
+      ...KATALOG.filter((d) => d.drzavaSifra === "grcka").map(
+        (d) => d.redosled,
+      ),
+    );
+    expect(sledeciRedosled(KATALOG, "grcka")).toBe(najveci + 1);
+  });
+
+  it("starts at zero for a country with nothing in it yet", () => {
+    expect(sledeciRedosled(KATALOG, "austrija")).toBe(0);
+  });
+});
+
+/*
+ * Povratak drops the region level entirely (owner's request, 06.09.2026), so
+ * both of these answer questions that leg cannot ask.
+ */
+describe("gradoviDrzaveZaFormu", () => {
+  it("lists every town of a country in the client's order, regions ignored", () => {
+    const srbija = gradoviDrzaveZaFormu(KATALOG, "srbija").map((g) => g.naziv);
+    expect(srbija[0]).toBe("Beograd");
+    expect(srbija).toContain("Kopaonik");
+  });
+
+  it("flattens towns that sit in different regions of one country", () => {
+    const grcka = gradoviDrzaveZaFormu(KATALOG, "grcka").map((g) => g.naziv);
+    expect(grcka).toContain(HANIOTI.grad);
+    expect(grcka).toContain(SOLUN.grad);
+    expect(new Set(grcka).size).toBe(grcka.length);
+  });
+
+  it("is empty for a country that is not in the catalogue", () => {
+    expect(gradoviDrzaveZaFormu(KATALOG, "austrija")).toEqual([]);
+  });
+});
+
+describe("nadjiGradUDrzavi", () => {
+  it("finds a town without being told its region", () => {
+    // The Povratak leg never asks for one, and matching Hanioti as if its
+    // region were "Hanioti" would miss Kasandra and add a second row.
+    expect(nadjiGradUDrzavi(KATALOG, "grcka", " hanioti ")).toBe(HANIOTI);
+  });
+
+  it("does not cross a border to find a name", () => {
+    expect(nadjiGradUDrzavi(KATALOG, "srbija", "Hanioti")).toBeNull();
+  });
+
+  it("returns null when the town really is new", () => {
+    expect(nadjiGradUDrzavi(KATALOG, "grcka", "Nea Fokea")).toBeNull();
   });
 });

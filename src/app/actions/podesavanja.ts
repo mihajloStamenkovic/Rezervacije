@@ -1,10 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { postaviPodrazumevanuDestinaciju } from "@/db/queries";
+import {
+  postaviPodrazumevanuDestinaciju,
+  sveDestinacije,
+} from "@/db/queries";
+import { razresiDestinaciju } from "@/db/rucne-destinacije";
 import { zahtevajAdmina } from "@/lib/auth";
 import { T } from "@/lib/tekst";
+import { DestinacijaSchema, mestoIzFormData } from "@/lib/validacija";
 
 /**
  * Podešavanja — one field, the default home destination (SPEC §6).
@@ -19,10 +23,6 @@ export type StanjePodesavanja =
   | { ok: false; greska: string }
   | undefined;
 
-const Schema = z.object({
-  destinacijaId: z.uuid({ message: T.greske.destinacijaObavezna }),
-});
-
 export async function sacuvajPodrazumevanuDestinaciju(
   _prethodno: StanjePodesavanja,
   formData: FormData,
@@ -34,15 +34,35 @@ export async function sacuvajPodrazumevanuDestinaciju(
   // even notice, let alone attribute.
   await zahtevajAdmina();
 
-  const polja = Schema.safeParse({
-    destinacijaId: formData.get("destinacijaId") ?? "",
-  });
-  if (!polja.success) {
-    return { ok: false, greska: T.greske.destinacijaObavezna };
+  const polje = DestinacijaSchema.safeParse(
+    mestoIzFormData(formData, "destinacija"),
+  );
+  if (!polje.success) {
+    return {
+      ok: false,
+      greska: polje.error.issues[0]?.message ?? T.greske.destinacijaObavezna,
+    };
+  }
+
+  /*
+   * The home town goes through the same cascade as a booking's, so it can be
+   * typed by hand too, and the same resolver turns it into a row. Every
+   * destination is allowed here rather than only the active ones: this is not
+   * a booking, and an owner whose crews sleep in a town the client no longer
+   * advertises is still entitled to set it as home.
+   */
+  const katalog = await sveDestinacije();
+  const razresena = await razresiDestinaciju(
+    polje.data,
+    katalog,
+    new Set(katalog.map((d) => d.id)),
+  );
+  if ("greska" in razresena) {
+    return { ok: false, greska: razresena.greska };
   }
 
   try {
-    await postaviPodrazumevanuDestinaciju(polja.data.destinacijaId);
+    await postaviPodrazumevanuDestinaciju(razresena.id);
   } catch {
     return { ok: false, greska: T.greske.neuspelo };
   }

@@ -53,15 +53,28 @@ component here — the phone renders its own wheel picker, which is better than
 anything you would build.
 
 - Changing country clears region and city
-- Where a region contains **exactly one city**, the third dropdown auto-selects and
-  is hidden. Implement the rule, not a hardcoded list of region names — the data
-  changes when the client edits their site
+- Where a region contains **exactly one city**, the third dropdown auto-selects
+  it. Implement the rule, not a hardcoded list of region names — the data
+  changes when the client edits their site. It is no longer *hidden* in that
+  case: since 06.09.2026 the list ends in *Drugo — upiši ručno*, and hiding the
+  dropdown would hide the only way to type a town that is missing from it
+- The region and city dropdowns each end in **Drugo — upiši ručno**, which
+  swaps that level for a text box. A typed region forces a typed city — a
+  region nobody has entered before has no towns to choose from. The **country
+  is never typed**. What is typed becomes a real `destinacije` row, created by
+  `razresiDestinaciju` in `src/db/rucne-destinacije.ts`, never by the component
+- **The two legs are not symmetrical.** *Odlazak* has all three levels;
+  *Povratak* is Država → Grad, one list per country, no region — the owner's
+  call, 06.09.2026, since the return end is Beograd on nearly every booking.
+  That is the `bezRegije` prop on `KaskadaDestinacija`. A leg in that mode must
+  never submit a region: `put.regija` still holds the previously selected
+  town's region, and sending it would file a newly typed town under it
 - `aktivna = false` destinations are absent from the dropdowns but must still
   render correctly on an existing reservation that references one
 - A **⇅ swap** button between the two legs, so a homecoming-first booking is one
   tap rather than re-navigating both sets of dropdowns
 
-**Detalji** — the full booking, with *Pozovi* (`tel:`) and *WhatsApp* (`wa.me`)
+**Detalji** — the full booking, with *Pozovi* (`tel:`) and *Viber* (`viber://chat`)
 straight off the number, plus edit and delete. Delete is permanent and sits behind
 a confirm Dialog.
 

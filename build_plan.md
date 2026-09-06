@@ -345,7 +345,7 @@ Prompt it with: *"Read SPEC.md §7. Build the date, phone and string modules."*
 
 **Deliverables**
 - `src/lib/datum.ts` — `danasBeograd()`, formatters, day headings
-- `src/lib/telefon.ts` — normalize to E.164, display, `tel:` and `wa.me` links
+- `src/lib/telefon.ts` — normalize to E.164, display, `tel:` and `viber://` links
 - `src/lib/tekst.ts` — every user-facing string, one file
 - One exported `sr-Latn` collation comparator
 
@@ -364,7 +364,7 @@ Prompt it with: *"Read SPEC.md §7. Build the date, phone and string modules."*
 
 `src/lib/telefon.ts` — `normalizujTelefon` (E.164, default country RS, returns
 `null` rather than throwing so it drops straight into a Zod refinement),
-`jeIspravanTelefon`, `formatTelefon`, `telLink`, `whatsAppLink`.
+`jeIspravanTelefon`, `formatTelefon`, `telLink`, `viberLink`.
 
 `src/lib/tekst.ts` — the `T` object holding every user-facing string, the
 three-form Serbian pluraliser (`putnika`, `rezervacija`, `filtera`), and the
@@ -692,7 +692,7 @@ password was involved at any point — the test sessions were minted via
   country** (collapsible), count badge
 - **Nova / Izmeni** — Server Action + `useActionState`, native date inputs,
   **three cascading dropdowns per leg** (Država → Regija → Grad), **⇅ swap button**
-- **Detalji** — *Pozovi* / *WhatsApp*, edit, delete behind a confirm Dialog
+- **Detalji** — *Pozovi* / *Viber*, edit, delete behind a confirm Dialog
 - **Podešavanja** — default home destination
 
 **Done when**
@@ -869,8 +869,8 @@ dialog was opened and cancelled. Counts before and after the whole pass:
 - **Podešavanja pre-fills the return leg.** A fresh `/nova` opens with the
   return already set to `Srbija › Beograd › Beograd` from the settings row,
   third dropdown hidden.
-- **Detalji.** `tel:+381667778899` and `https://wa.me/381667778899` — E.164 for
-  the dialler, digits-only for WhatsApp, both dialable from a foreign network.
+- **Detalji.** `tel:+381667778899` and `viber://chat?number=%2B381667778899` —
+  E.164 for the dialler, E.164 for Viber too, both usable from a foreign network.
   Long dates render as `7. septembar 2026.` and the full path as
   `Slovenija › Slovenija › Ljubljana`.
 - **Delete is guarded.** The button opens a dialog reading *"Obrisati
@@ -2122,3 +2122,44 @@ honest start state — no team exists yet for them to belong to.
       rows or to legs?**~~ — duplicate of the item closed above. **Settled by the
       owner 04.09.2026: the leg.** Removed as an open question 06.09.2026; it had
       been recorded twice in this list, once closed and once still open.
+- [x] ~~Owner request 06.09.2026: a city that is not in the list must be
+      typeable~~ — built. The region and city dropdowns end in *Drugo — upiši
+      ručno*, and what is typed becomes a real `destinacije` row. The typed name
+      is folded for case, diacritics and repeated spaces and matched against the
+      catalogue first (`kljucNaziva`, `nadjiMesto`, `uskladiRegiju` in
+      `src/domen/kaskada.ts`), so a town already there is reused rather than
+      duplicated; only `src/db/rucne-destinacije.ts` ever inserts. Two SPEC
+      deviations were reported and are now recorded in §5: destinations are no
+      longer strictly closed reference data, and the single-city third dropdown
+      is auto-selected but no longer hidden, because hiding it hid the only way
+      to reach *Drugo*. The default home town in Podešavanja goes through the
+      same cascade and the same resolver.
+- [x] ~~Owner request 06.09.2026: Viber instead of WhatsApp~~ — done. `viberLink`
+      replaces `whatsAppLink` in `src/lib/telefon.ts`, and *Detalji* now offers
+      *Pozovi* / *Viber*. `viber://chat?number=%2B381…` is a deep link with no
+      web fallback, which is the trade recorded in SPEC §8.
+- [x] ~~Rejected submit blanked the destination dropdowns~~ — found 06.09.2026
+      while walking the new manual-entry flow in the browser, fixed the same
+      day. React resets the form once a Server Action resolves, and
+      `sacuvajRezervaciju` resolves *without navigating* whenever validation
+      fails. The DOM reset put every `<select>` back to `Izaberi…` while React's
+      state still held Grčka, so the screen showed an empty cascade sitting over
+      hidden inputs that would still have saved Grčka. Controlled `<input>`s
+      survive it — React re-applies their value — which is why only the
+      dropdowns showed it. Every field in both forms is controlled, so the reset
+      can only destroy information: `onReset={(e) => e.preventDefault()}` on the
+      reservation and settings forms cancels it. Not covered by the suite —
+      there are no DOM tests in this project — so it is verified in the browser
+      only.
+- [x] ~~Owner request 06.09.2026: drop Regija from the Povratak leg~~ — done.
+      *Povratak* is now Država → Grad with every town of the country in one
+      list (`gradoviDrzaveZaFormu`), the `bezRegije` prop on
+      `KaskadaDestinacija`. Two things fell out of it and are the interesting
+      part: the region became **optional** everywhere, with a town entered
+      without one becoming its own region — the shape `Srbija › Beograd ›
+      Beograd` already has — and a town typed with no region is matched by
+      **country and name alone** (`nadjiGradUDrzavi`), because matching
+      `Hanioti` as though its region were `Hanioti` would miss Kasandra and
+      create a second row. Caught in the browser: the leg was initially sending
+      the previously selected town's region, which would have filed a typed
+      `Novi Sad` under `Srbija › Beograd`.

@@ -166,6 +166,25 @@ backup (§9) is the only net.
 Destinations are **not free text**. They come from a fixed reference table seeded
 from the client's own site, and the owner picks them from dropdowns.
 
+> **Amended 06.09.2026 at the owner's request: a place that is not in the list
+> may be typed in.** The rule above still holds where it counts — a reservation
+> points at a `destinacije` row and never at a name — but the region and city
+> dropdowns now end in *Drugo — upiši ručno*, and what is typed there **becomes
+> a row**. It is reference data a second later, so it appears on the card, in
+> the destination filter, and in the dropdown next time. The country is never
+> typed: all seven are already in the table, and a hand-spelled `Grcka` beside
+> `Grčka` would split the filter's one canonical list in two.
+>
+> What keeps the list from silting up is matching: a typed name is folded for
+> case, diacritics and repeated spaces and compared against the catalogue
+> before anything is created, so `hanioti`, `Hanioti` and `Hanioti ` all resolve
+> to the row that is already there, and a typed region reuses the country's
+> existing spelling. A match is accepted **even when the row is inactive** —
+> typing `Ljubljana` is an explicit request for Ljubljana, and refusing it would
+> be a dead end. The trade accepted: a genuine misspelling becomes a permanent
+> row, because destinations are never deleted. `aktivna = false` is the only
+> way to retire one.
+
 Source: `https://eurotravel.rs/destinacije`, captured 27.08.2026 into
 [`data/destinacije.json`](./data/destinacije.json).
 
@@ -177,18 +196,51 @@ Source: `https://eurotravel.rs/destinacije`, captured 27.08.2026 into
 | Regija | Kasandra |
 | Grad | Hanioti |
 
-**7 countries · 18 regions · 45 cities.** 44 captured from the client's site
-(Beograd among them, added by hand), plus Niš.
+**7 countries · 18 regions · 45 cities**, as seeded. 44 captured from the
+client's site (Beograd among them, added by hand), plus Niš. Since the
+06.09.2026 amendment the table also grows by whatever the owner types, so this
+count is the floor, not the total.
 
 The third level matters for dispatch. "Kasandra" is a peninsula with six towns —
 dropping a family at Hanioti versus Siviri is a forty-minute difference. The
 region alone does not tell the driver where to go.
 
 So the form has **three cascading dropdowns**: Država → Regija → Grad. Where a
-region contains **exactly one city**, the third dropdown auto-selects and is
-hidden. That set was ten regions when this was written and is **11** now — which
-is exactly why the instruction is **implement the rule, not the list**. Changing
-country clears region and city.
+region contains **exactly one city**, the third dropdown auto-selects it. That
+set was ten regions when this was written and is **11** now — which is exactly
+why the instruction is **implement the rule, not the list**. Changing country
+clears region and city.
+
+> The auto-selected dropdown used to be **hidden** as well, on the reasoning
+> that one option is not a choice. That stopped being true on 06.09.2026, when
+> every city list gained *Drugo — upiši ručno*: hiding the dropdown would hide
+> the only way to enter the town that is missing from it. The dropdown now
+> stays on screen with its single city already chosen, so it still costs no
+> taps.
+
+### Three levels on the way out, two on the way home
+
+**Amended 06.09.2026 at the owner's request: the *Povratak* leg has no region
+at all.** It is Država → Grad, with every town of the chosen country in one
+list. The return end of a trip is Beograd on about 99% of bookings, so naming
+the region Beograd sits in is a tap that buys nothing.
+
+The third level stays where it earns its keep — *Odlazak* — because Hanioti
+versus Siviri really is forty minutes of driving, and that is the leg where the
+owner is choosing between towns rather than confirming the obvious one.
+
+Two consequences follow, and both are load-bearing:
+
+- **The region is optional everywhere**, since a leg with no region field
+  cannot supply one. A town entered without a region **becomes its own region**
+  — which is not a fudge but the shape the seed already uses for exactly this
+  case: `Srbija › Beograd › Beograd`, `Srbija › Kopaonik › Kopaonik`,
+  `Srbija › Niš › Niš`.
+- **A town typed with no region is matched by country and name alone.** Typing
+  `Hanioti` on the return leg must find `Grčka › Kasandra › Hanioti`; matching
+  it as though its region were `Hanioti` would miss and create a second
+  Hanioti. "Which region" is the question this leg does not ask, so the match
+  must not depend on the answer.
 
 > It briefly read "33" here, which was true only during the few hours on
 > 01.09.2026 when the 23 withdrawn Serbian towns were in the file. Corrected
@@ -326,7 +378,7 @@ apart.
    pickers, three cascading destination dropdowns (Država → Regija → Grad) for
    each leg. ⇅ swap button between the two legs, and the *Jednosmerna vožnja*
    checkbox (§5).
-4. **Detalji** — full booking with *Pozovi* and *WhatsApp* straight off the phone
+4. **Detalji** — full booking with *Pozovi* and *Viber* straight off the phone
    number, plus edit and delete. A round trip reads *Polazak / Povratak*; a
    one-way reads **Odakle / Kuda / Povratak nije dogovoren**, so the origin is
    never invisible.
@@ -351,6 +403,8 @@ things make that actually true rather than nominally true.
 
 2. **Phone numbers stored international.** `064 123 4567` will not dial from a
    Greek network. `+381 64 123 4567` dials from anywhere — the form normalizes on save.
+   Viber matches contacts on that same international form, which is why the
+   *Viber* button passes the `+` along rather than stripping it.
 
 3. **Deploy to an EU region** (Frankfurt) to keep it quick across the Balkans and
    Western Europe.
@@ -369,8 +423,10 @@ Adding and editing need a connection.
 | Home destination | Default town in settings, pre-fills, editable | — |
 | Departed, no return date | **Drops off the list**; findable by search **or** by filtering its past departure date | Possible to forget someone who is abroad. **Reaffirmed 01.09.2026** after seeing it on real data: the owner searches the name and edits, or enters a new booking. Not changing it. |
 | Language | Serbian, **Latin script** | — |
+| Messenger on *Detalji* | **Viber** (`viber://chat?number=%2B381…`) | Changed 06.09.2026 at the owner's request; it was WhatsApp before. Viber has no `wa.me` equivalent, so the button is a deep link into the app: it does nothing at all on a device without Viber, where the old link at least opened a web chat. *Pozovi* is the fallback. |
 | Delete | **Permanent**, confirm dialog only | No undo, no recycle bin. The nightly backup (§9) is the only net — it is not optional, and it now exists. |
-| Destinations | **Reference data** from eurotravel.rs, three cascading dropdowns | Cannot book a destination the client does not serve without re-seeding. |
+| Destinations | **Reference data** from eurotravel.rs, plus *Drugo — upiši ručno* (§5, amended 06.09.2026) | A typed place becomes a permanent row. Misspellings cannot be deleted, only deactivated — the case- and diacritic-insensitive match against the existing list is what keeps that rare. |
+| Cascade depth | **Odlazak** Država → Regija → Grad; **Povratak** Država → Grad (§5, amended 06.09.2026) | The two legs no longer look alike. A town entered on the return leg carries no region and becomes its own, so the same place can enter the table by two routes — matching by country and name is what keeps them one row. |
 | Destination filter | **One canonical list**, grouped by country only | — |
 | Accounts | Created in the Supabase dashboard; `profiles` is the access list (§9) | Adding a person is two steps, and skipping the second locks them out rather than letting them in |
 | Pickup towns | **Beograd** (default) and **Niš** only (§5) | Not from the client's site; maintained by hand in `data/destinacije.json`. More are one edit plus a re-seed away |

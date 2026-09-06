@@ -9,6 +9,7 @@ import {
   sveDestinacije,
   upisiRezervaciju,
 } from "@/db/queries";
+import { razresiDestinaciju } from "@/db/rucne-destinacije";
 import { katalogZaFormu } from "@/domen/kaskada";
 import {
   SAMO_ADMINI,
@@ -76,41 +77,29 @@ export async function sacuvajRezervaciju(
   const podaci = razultat.data;
 
   /*
-   * The schema can only say "that is a uuid". It cannot say "that destination
-   * is still offered", because it has no database and must not grow one.
+   * The schema can only say "that is a uuid, or that is a well-formed name".
+   * It cannot say "that destination is still offered" or "that town already
+   * exists under another spelling", because it has no database and must not
+   * grow one. Both of those are settled by `razresiDestinaciju` below.
    *
-   * SPEC §5 settled that Slovenija and BiH are not bookable, and the dropdowns
-   * honour it — but a Server Action is a public endpoint, so a hand-built POST
-   * reached straight past them until now. The foreign key still blocked an id
-   * that is in no row at all; an id belonging to an INACTIVE row sailed through.
-   *
-   * The allowed set comes from `katalogZaFormu`, the same function the form's
-   * dropdowns are built from, so the check and the UI cannot drift apart. Its
-   * second argument is what keeps an existing booking editable: a reservation
-   * already pointing at Ljubljana may be saved again with Ljubljana, because
-   * inactive means "not offered for new bookings", never "unresolvable"
-   * (SPEC §5).
+   * What is loaded here is the set the dropdowns themselves were built from.
+   * `katalogZaFormu`'s second argument is what keeps an existing booking
+   * editable: a reservation already pointing at Ljubljana may be saved again
+   * with Ljubljana, because inactive means "not offered for new bookings",
+   * never "unresolvable" (SPEC §5).
    */
   const postojeca = id === null ? null : await rezervacijaZa(korisnik, id);
   if (id !== null && postojeca === null) {
     return { ok: false, greske: {}, opsta: T.greske.nijeNadjeno };
   }
 
+  const katalog = await sveDestinacije();
   const dozvoljene = new Set(
-    katalogZaFormu(await sveDestinacije(), [
+    katalogZaFormu(katalog, [
       postojeca?.destinacija.id,
       postojeca?.destinacijaPovratka.id,
     ]).map((d) => d.id),
   );
-
-  const greske: GreskePolja = {};
-  if (!dozvoljene.has(podaci.destinacijaId)) {
-    greske.destinacijaId = T.greske.destinacijaNijeUPonudi;
-  }
-  if (!dozvoljene.has(podaci.destinacijaPovratkaId)) {
-    greske.destinacijaPovratkaId = T.greske.destinacijaNijeUPonudi;
-  }
-  if (Object.keys(greske).length > 0) return { ok: false, greske };
 
   /*
    * Which team may see this booking.
@@ -138,12 +127,43 @@ export async function sacuvajRezervaciju(
     return { ok: false, greske: {}, opsta: T.greske.timNijeDozvoljen };
   }
 
+  /*
+   * Last, because this is the step that can WRITE. A typed place that turns
+   * out to be new becomes a destination row here, and doing it after every
+   * other check means a submission rejected for its team or its dates does not
+   * leave a town behind in the reference list that no booking points at.
+   * Destinations are never deleted, so a stray one would be permanent.
+   */
+  const odlazak = await razresiDestinaciju(podaci.destinacija, katalog, dozvoljene);
+  const povratak = await razresiDestinaciju(
+    podaci.destinacijaPovratka,
+    katalog,
+    dozvoljene,
+  );
+
+  if ("greska" in odlazak || "greska" in povratak) {
+    const greske: GreskePolja = {};
+    if ("greska" in odlazak) greske.destinacija = odlazak.greska;
+    if ("greska" in povratak) greske.destinacijaPovratka = povratak.greska;
+    return { ok: false, greske };
+  }
+
   try {
+    const zaUpis = {
+      ime: podaci.ime,
+      telefon: podaci.telefon,
+      destinacijaId: odlazak.id,
+      datumPolaska: podaci.datumPolaska,
+      destinacijaPovratkaId: povratak.id,
+      datumPovratka: podaci.datumPovratka,
+      brojPutnika: podaci.brojPutnika,
+    };
+
     if (id === null) {
-      await upisiRezervaciju({ ...podaci, kreirao: korisnik.id, timId });
+      await upisiRezervaciju({ ...zaUpis, kreirao: korisnik.id, timId });
     } else {
       const izmenjena = await izmeniRezervaciju(korisnik, id, {
-        ...podaci,
+        ...zaUpis,
         timId,
       });
       if (!izmenjena) {

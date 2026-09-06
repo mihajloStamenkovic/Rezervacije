@@ -4,7 +4,7 @@ import {
   jeIspravanTelefon,
   normalizujTelefon,
   telLink,
-  whatsAppLink,
+  viberLink,
 } from "./telefon";
 
 describe("normalizujTelefon", () => {
@@ -38,12 +38,14 @@ describe("links", () => {
     expect(telLink("+381641234567")).toBe("tel:+381641234567");
   });
 
-  it("gives wa.me digits only", () => {
-    expect(whatsAppLink("+381641234567")).toBe("https://wa.me/381641234567");
+  it("opens Viber on the international form, plus and all", () => {
+    expect(viberLink("+381641234567")).toBe("viber://chat?number=%2B381641234567");
   });
 
   it("survives being handed an unnormalised number", () => {
-    expect(whatsAppLink("+381 64 123 4567")).toBe("https://wa.me/381641234567");
+    expect(viberLink("+381 64 123 4567")).toBe(
+      "viber://chat?number=%2B381641234567",
+    );
   });
 });
 

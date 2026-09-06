@@ -188,6 +188,32 @@ export async function sveDestinacije(): Promise<Destinacija[]> {
 }
 
 /**
+ * Add a destination the owner typed by hand, or hand back the row that is
+ * already there — SPEC §5, amended 06.09.2026.
+ *
+ * The caller has already matched the typed name against the catalogue folded
+ * for case and diacritics, so reaching the conflict clause means two people
+ * typed the same new town at the same moment. `DO UPDATE` with a self-assign
+ * rather than `DO NOTHING` because `DO NOTHING` returns no row on conflict,
+ * and the caller needs an id either way. The existing row is not touched: it
+ * may be an inactive one the seed manages, and this must not quietly
+ * reactivate it.
+ */
+export async function dodajDestinaciju(
+  vrednosti: typeof destinacije.$inferInsert,
+): Promise<Destinacija> {
+  const [red] = await db
+    .insert(destinacije)
+    .values(vrednosti)
+    .onConflictDoUpdate({
+      target: [destinacije.drzavaSifra, destinacije.regija, destinacije.grad],
+      set: { drzava: sql`${destinacije.drzava}` },
+    })
+    .returning();
+  return red;
+}
+
+/**
  * One profile, or `null` when the account is not on the access list.
  *
  * `null` is the whole point of this query: since migration 0003 a `profiles`

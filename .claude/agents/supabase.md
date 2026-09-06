@@ -76,6 +76,10 @@ region denormalized onto it — 44 rows do not justify a three-table join.
 - `Srbija › Beograd › Beograd` is added by hand (`"izvor": "rucno"`) — it is the
   company's origin and not on the client's site
 - Running the seed twice must report `0 ubačeno, 0 izmenjeno, 44 nepromenjeno`
+- Since 06.09.2026 the table also grows at runtime: *Drugo — upiši ručno* in
+  the form creates a row through `dodajDestinaciju`, so the seed's `siroce`
+  warning will list places the JSON has never heard of. That is expected, and
+  they must not be deleted — a reservation points at them
 
 ## Indexes
 
