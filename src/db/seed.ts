@@ -56,15 +56,23 @@ async function destinacijaId(db: Db, drzavaSifra: string, grad: string) {
  * and the email must never be a literal in this file (see module comment).
  */
 async function upisiProfil(db: Db, id: string, ime: string, boja: string) {
+  // `uloga` is written explicitly rather than left to the column default.
+  // Since migration 0004 that default is 'korisnik', and a korisnik must have
+  // a team — so the insert would fail the `profiles_tim_prema_ulozi` check.
+  // The two accounts this seed writes are the owners', which is what an admin
+  // is. Drivers are created from the app, never from here.
   const [red] = await db.execute(sql`
-    insert into profiles (id, ime, email, boja)
-    select id, ${ime}, email, ${boja}
+    insert into profiles (id, ime, email, boja, uloga, tim_id, aktivan)
+    select id, ${ime}, email, ${boja}, 'admin', null, true
     from auth.users
     where id = ${id}
     on conflict (id) do update set
       ime = excluded.ime,
       email = excluded.email,
-      boja = excluded.boja
+      boja = excluded.boja,
+      uloga = excluded.uloga,
+      tim_id = excluded.tim_id,
+      aktivan = excluded.aktivan
     returning id
   `);
   if (!red) {

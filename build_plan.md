@@ -1914,6 +1914,85 @@ Two bugs were fixed before it went green, both mine:
 
 ---
 
+## Phase 10 — Timovi i uloge — built 06.09.2026, NOT YET APPLIED
+
+**Agent:** none — main session. Branch `timovi-i-uloge`, five commits.
+
+The app stops being a two-person book. Two owners keep the wide view and gain
+account management; drivers are grouped into **teams** and see their own team's
+bookings and nothing else.
+
+### The fact that shaped the whole change
+
+`src/db/index.ts` connects as the `postgres` table owner, so **every screen
+bypasses RLS**. Writing RLS policies alone would have changed nothing anyone
+could see. The enforcement is the `WHERE` clause in `src/db/vidljivost.ts`; the
+policies in `0004` are a second, independent boundary for PostgREST. They cannot
+be one shared Postgres function — such a function reads `auth.uid()`, which is
+NULL over the app's connection — so `npm run provera:vidljivost` reconciles them
+against real data.
+
+Standing rule 7 said "RLS is the security boundary" and was already misleading
+before this change. It has been corrected.
+
+### The design was reversed once, before anything shipped
+
+Visibility was first derived from a booking's author, which keeps `reservations`
+at nine columns and is wrong here. **The owners are the dispatchers.** Every
+booking they entered would have been invisible to the driver who had to drive
+it — silently, since an absent booking is indistinguishable from a quiet day.
+That is the same failure mode SPEC §1 already accepts once for the no-main-leg
+booking, and once is enough.
+
+So `reservations` carries `tim_id`, the tenth column, and **standing rule 2 was
+amended** to say what it always meant: the nine columns *describing the trip* are
+fixed. The forbidden list is untouched — no `status`, no `napomena`, no
+timestamps. `tim_id` is nullable; null means administrators only, and it is a
+deliberate choice on the form with a permanent warning beside it.
+
+### What was built
+
+| File | What it does |
+|---|---|
+| `drizzle/0004_timovi_i_uloge.sql` | `timovi`, three `profiles` columns, `reservations.tim_id`, two CHECKs, `je_admin()`, `moj_tim()`, rewritten policies |
+| `src/domen/pristup.ts` | the rule as pure functions — the mirror of the SQL, not the enforcement |
+| `src/db/vidljivost.ts` | the `WHERE` fragment. No `server-only`, so the exact SQL is assertable in vitest |
+| `src/db/queries.ts` | `sveRezervacije` and `rezervacijaPoId` **deleted**, not deprecated; scoping travels in the UPDATE/DELETE `WHERE` |
+| `src/app/nalozi/` | teams and accounts, admin-only, `notFound()` for a driver |
+| `src/db/provera-vidljivosti.ts` | read-only reconciliation of SQL against the pure rule |
+
+### Three things fixed on the way past
+
+- **`joinedSelect` shipped the whole author profile to the browser** — every
+  card carried its author's email address, and after `0004` would have carried
+  their role and team. Narrowed to `{id, ime, boja}`.
+- **`obrisiRezervaciju` read then deleted by id alone.** The scope now travels
+  in the DELETE's own `WHERE`, which closes the window and makes "not yours" and
+  "not found" the same answer.
+- **`RUNBOOK.md` §3's removal procedure did not work** and never had, for anyone
+  who had entered a booking: `kreirao` is `ON DELETE RESTRICT` from one side and
+  `profiles.id → auth.users.id` is `ON DELETE CASCADE` from the other, so the
+  delete fails from both ends. `aktivan` is the only revocation there is.
+
+### The migration is written and NOT applied
+
+Hand-written, and it has to be: `drizzle-kit generate` adds `uloga` with its
+final default of `'korisnik'` and then adds the check requiring a korisnik to
+have a team, which both existing rows violate the instant it is created. The
+generated file fails on the only database there is. Its snapshot is kept and is
+correct; only the DDL is ours.
+
+Before it is applied: verify a backup, rehearse it inside `BEGIN … ROLLBACK`,
+then `npm run db:migrate`, then `npm run provera:vidljivost`. The migration is a
+behavioural no-op by construction — both existing accounts become admins, and
+the deployed code shows admins everything, exactly as today.
+
+**Also outstanding:** the eight seed reservations are still in production. After
+`0004` they are all `tim_id = null`, i.e. administrators only, which is the
+honest start state — no team exists yet for them to belong to.
+
+---
+
 ## Standing rules for every phase
 
 1. **`SPEC.md` is the source of truth.** If an agent wants to deviate, it reports

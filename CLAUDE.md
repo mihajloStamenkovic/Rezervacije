@@ -2,8 +2,9 @@
 
 # Kombi Rezervacije
 
-A shared reservation book for a two-person van transport business. Mobile-first,
-Serbian (Latin script), Europe/Belgrade.
+A shared reservation book for a van transport business — two owners who
+dispatch, and drivers grouped into teams who each see only their own team's
+bookings. Mobile-first, Serbian (Latin script), Europe/Belgrade.
 
 - [`SPEC.md`](./SPEC.md) is the **source of truth**. Read it before changing behaviour.
 - [`build_plan.md`](./build_plan.md) is the order of operations and current status.
@@ -13,8 +14,13 @@ Serbian (Latin script), Europe/Belgrade.
 
 1. **`SPEC.md` is the source of truth.** If you want to deviate, report the
    conflict rather than resolving it silently.
-2. **The nine reservation columns are fixed.** No `status`, no `note`, no
-   timestamps. They were removed deliberately.
+2. **The nine reservation columns describing the trip are fixed.** No `status`,
+   no `note`, no timestamps. They were removed deliberately. Amended
+   06.09.2026 to say "describing the trip", because `tim_id` was added as a
+   tenth: it is not trip data, it is who may see the row. The owners are the
+   dispatchers, so a booking has to be able to belong to a crew other than the
+   one that entered it — see `src/domen/pristup.ts` for why deriving it from
+   `kreirao` was tried and discarded.
 3. **Destinations are reference data, never free text.** Seeded from
    `data/destinacije.json`, chosen from cascading dropdowns. The filter is **one
    canonical list** — a place appears once and matches from **either**
@@ -26,9 +32,15 @@ Serbian (Latin script), Europe/Belgrade.
 5. **"Today" is always Belgrade**, always injected, never read from the device
    clock. Call `danasBeograd()` once at the edge and pass it down.
 6. **Deletion is permanent.** Confirm dialog required; backups verified.
-7. **RLS is the security boundary, not the middleware.** Every table in `public`
-   has RLS enabled, policies live in migrations, and the secret key never reaches
-   the browser.
+7. **RLS is the boundary for the publishable key; the query layer is the
+   boundary for the app.** Every table in `public` has RLS enabled, policies
+   live in migrations, and the secret key never reaches the browser — but the
+   screens read through Drizzle as the table owner, which *bypasses RLS
+   entirely*. What stops one team seeing another's bookings in the app is the
+   `WHERE` clause built in `src/db/vidljivost.ts`. Under a flat book that
+   distinction cost nothing. Since teams it is the whole thing, and a policy
+   written without a matching change to the query layer changes nothing a user
+   can see.
 8. **Report what you actually ran and observed.** "Looks fine" is not a result.
 9. **There is one database and it is the real one.** Dev and production are the
    same hosted Supabase project. No Docker, no local Supabase stack. Destructive
@@ -40,7 +52,7 @@ Serbian (Latin script), Europe/Belgrade.
 | Path | What lives there |
 |---|---|
 | `src/db/` | Drizzle schema, migrations, seeds, raw-row query layer |
-| `src/domen/` | Main leg rule, list modes, filters, sort. **No database imports** |
+| `src/domen/` | Main leg rule, list modes, filters, sort, access rule (`pristup.ts`). **No database imports** |
 | `src/lib/` | `datum.ts`, `telefon.ts`, `tekst.ts` — dates, phones, every Serbian string |
 | `src/app/` | Routes, layouts, Server Actions |
 | `src/components/ui/` | shadcn primitives — Sheet, Dialog, Input, Button, Checkbox only |

@@ -191,6 +191,62 @@ export const T = {
     brojPutnikaPrevelik: "Najviše 100 putnika po rezervaciji.",
     nijeNadjeno: "Rezervacija nije pronađena.",
     neuspelo: "Čuvanje nije uspelo. Pokušaj ponovo.",
+    /**
+     * A hand-built POST naming a team the signed-in person may not file under.
+     * The dropdown never offers one, so nobody reaches this by tapping.
+     */
+    timNijeDozvoljen: "Nemaš pravo da rezervaciju dodeliš tom timu.",
+  },
+
+  /** Teams and roles — the admin's own screens. */
+  timovi: {
+    naslov: "Nalozi",
+    tim: "Tim",
+    timovi: "Timovi",
+    korisnici: "Nalozi",
+    noviTim: "Novi tim",
+    naziv: "Naziv tima",
+    dodaj: "Dodaj",
+    noviNalog: "Novi nalog",
+    ime: "Ime",
+    email: "E-mail",
+    lozinka: "Lozinka",
+    lozinkaPomoc: "Najmanje 12 znakova. Reci je vozacu licno.",
+    boja: "Boja bedza",
+    napravi: "Napravi nalog",
+    administrator: "Administrator",
+    vozac: "Vozač",
+    aktivan: "Ima pristup",
+    neaktivan: "Nema pristup",
+    zakljucaj: "Oduzmi pristup",
+    otkljucaj: "Vrati pristup",
+    bezTima: "Bez tima",
+    nemaNaloga: "Još nema naloga.",
+    nemaTimova: "Napravi prvo tim, pa onda nalog.",
+    /**
+     * Deletion is impossible here and saying so is kinder than a button that
+     * fails: `reservations.kreirao` is ON DELETE RESTRICT.
+     */
+    zastoNemaBrisanja:
+      "Nalog se ne briše — rezervacije koje je uneo moraju da ostanu. Oduzmi mu pristup.",
+    nazivObavezan: "Unesi naziv tima.",
+    imeObavezno: "Unesi ime.",
+    emailNeispravan: "E-mail nije ispravan.",
+    lozinkaKratka: "Lozinka mora imati najmanje 12 znakova.",
+    bojaNeispravna: "Izaberi boju.",
+    timObavezan: "Izaberi tim.",
+    timPostoji: "Tim sa tim nazivom već postoji.",
+    nalogNeuspeo: "Nalog nije napravljen. Proveri e-mail i pokušaj ponovo.",
+    /** The dropdown option that files a booking away from every driver. */
+    samoAdmini: "Samo administratori",
+    /**
+     * Shown on the form whenever the chosen team is "administrators only".
+     * The owners chose to keep that option; this is what stops it becoming a
+     * trip nobody driving can see.
+     */
+    samoAdminiUpozorenje:
+      "Ovu rezervaciju neće videti nijedan vozač — samo administratori.",
+    zaKoga: "Ko vidi rezervaciju",
   },
 } as const;
 

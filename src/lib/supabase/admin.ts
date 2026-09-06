@@ -1,12 +1,19 @@
 /**
  * The admin Supabase client — secret key, BYPASSES ROW LEVEL SECURITY.
  *
- * Server-only, and not for request handling: nothing in this app's request
- * path needs to bypass RLS (Server Actions run as the signed-in user, which
- * is the correct, RLS-checked identity). This client exists for one-off
- * admin scripts — e.g. looking up an `auth.users` id from the dashboard, or
- * calling `auth.admin.*` endpoints — run manually, never imported by a
- * route, Server Action or Server Component.
+ * Server-only. This file used to say it was never to be imported by a route,
+ * Server Action or Server Component, and while there was no way to create an
+ * account from inside the app that was the right rule. Migration `0004` made
+ * account creation the owners' job, from their phone, and
+ * `auth.admin.createUser` is the only API that can do it — so the rule is
+ * narrowed rather than dropped:
+ *
+ * **Exactly one module may import this: `src/app/actions/nalozi.ts`**, whose
+ * every exported action begins with `zahtevajAdmina()`. Nothing else in the
+ * request path needs to bypass RLS, because everything else already reads
+ * through Drizzle as the table owner and is scoped by
+ * `src/db/vidljivost.ts` instead. If a second importer ever appears, the
+ * question to ask is what it is doing that the query layer cannot.
  *
  * No cookies, no session: `supabase-js`'s plain `createClient`, not
  * `@supabase/ssr` (there is no browser/user session to reconcile with).

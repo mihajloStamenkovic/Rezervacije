@@ -11,7 +11,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { FormaRezervacije } from "@/components/forma-rezervacije";
-import { rezervacijaPoId, sveDestinacije } from "@/db/queries";
+import { rezervacijaZa, sveDestinacije, timoviZa } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { zaInput } from "@/lib/datum";
@@ -22,7 +22,7 @@ export default async function Izmeni({
   params,
   searchParams,
 }: PageProps<"/rezervacija/[id]/izmeni">) {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
 
   const { id } = await params;
   const nazad = putanjaNazad(
@@ -30,9 +30,10 @@ export default async function Izmeni({
     `/rezervacija/${id}`,
   );
 
-  const [red, sve] = await Promise.all([
-    rezervacijaPoId(id),
+  const [red, sve, timovi] = await Promise.all([
+    rezervacijaZa(korisnik, id),
     sveDestinacije(),
+    timoviZa(korisnik),
   ]);
   if (!red) notFound();
 
@@ -58,6 +59,10 @@ export default async function Izmeni({
             rezervacija.destinacijaId,
             rezervacija.destinacijaPovratkaId,
           ])}
+          timovi={timovi}
+          // The booking's own team, not the editor's: this is how an admin
+          // hands a trip over to a crew, and how they see which crew has it.
+          timPocetni={rezervacija.timId}
           nazad={`/rezervacija/${id}?nazad=${encodeURIComponent(nazad)}`}
           jednosmernoPocetno={rezervacija.datumPovratka === null}
           pocetna={{

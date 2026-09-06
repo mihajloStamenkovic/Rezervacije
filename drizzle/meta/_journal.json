@@ -29,6 +29,13 @@
       "when": 1788262310195,
       "tag": "0003_profili_kao_lista_pristupa",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788709328192,
+      "tag": "0004_timovi_i_uloge",
+      "breakpoints": true
     }
   ]
 }

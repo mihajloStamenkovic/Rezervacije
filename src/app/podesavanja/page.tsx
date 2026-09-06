@@ -14,11 +14,13 @@ import { PozivInstalacije } from "@/components/poziv-instalacije";
 import { Button } from "@/components/ui/button";
 import { podesavanja, sveDestinacije } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
+import { jeAdmin } from "@/domen/pristup";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { T } from "@/lib/tekst";
 
 export default async function Podesavanja() {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
+  const admin = jeAdmin(korisnik);
 
   const [sve, postavke] = await Promise.all([sveDestinacije(), podesavanja()]);
 
@@ -36,10 +38,25 @@ export default async function Podesavanja() {
       </header>
 
       <main className="flex flex-1 flex-col gap-8 px-4 py-4">
-        <FormaPodesavanja
-          katalog={katalogZaFormu(sve)}
-          pocetna={postavke?.podrazumevanaDestinacijaId ?? null}
-        />
+        {/*
+          `settings` is one shared row, so the default home town is the same
+          for every crew. A driver changing it would change it for everybody,
+          which nobody asked for — the action refuses it too, this just stops
+          offering a control that would fail.
+        */}
+        {admin ? (
+          <FormaPodesavanja
+            katalog={katalogZaFormu(sve)}
+            pocetna={postavke?.podrazumevanaDestinacijaId ?? null}
+          />
+        ) : null}
+
+        {/* A driver is never shown that this screen exists. */}
+        {admin ? (
+          <Button asChild variant="outline" className="h-12 w-full text-base">
+            <Link href="/nalozi">{T.timovi.naslov}</Link>
+          </Button>
+        ) : null}
 
         {/* Renders nothing once the app is installed, or once dismissed. */}
         <PozivInstalacije />

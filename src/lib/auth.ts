@@ -1,8 +1,9 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { profilPoId } from "@/db/queries";
 import type { Profile } from "@/db/schema";
+import { jeAdmin } from "@/domen/pristup";
 import { supabaseServer } from "@/lib/supabase/server";
 
 /**
@@ -42,8 +43,24 @@ export async function zahtevajKorisnika(): Promise<Profile> {
 
   if (error || !id) redirect("/prijava");
 
+  // `profilPoId` also requires `aktivan` since migration 0004, so a revoked
+  // account is refused here as well as at the proxy.
   const profil = await profilPoId(id);
   if (!profil) redirect("/prijava");
 
+  return profil;
+}
+
+/**
+ * The same check, for a screen or action only an owner may reach.
+ *
+ * `notFound()` rather than a redirect or a 403, deliberately: the owners asked
+ * that a driver not learn which accounts or screens exist beyond their own
+ * team, and a 403 confirms that `/nalozi` is a real page. A 404 is what a typo
+ * would have produced.
+ */
+export async function zahtevajAdmina(): Promise<Profile> {
+  const profil = await zahtevajKorisnika();
+  if (!jeAdmin(profil)) notFound();
   return profil;
 }
