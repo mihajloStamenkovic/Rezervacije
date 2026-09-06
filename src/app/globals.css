@@ -143,4 +143,27 @@
   html {
     @apply font-sans;
   }
+
+  /*
+   * The open list of a native `<select>`.
+   *
+   * It is painted by the platform, not laid out by this stylesheet, and on
+   * Windows Chrome it takes its background from the control — which is
+   * `bg-transparent` in `izbor.tsx`, because the closed control has to sit on
+   * whatever is behind it. Transparent resolves to white in the popup, while
+   * each `<option>` inherits `--foreground`; in dark mode that is near-white
+   * text on a white list. Every destination is there and invisible until the
+   * mouse lands on one and the platform paints its own highlight behind it.
+   *
+   * Reported on desktop 06.09.2026. It could not show up on the phones this
+   * app was built for: iOS and Android render a select as a wheel or a dialog
+   * with their own colours, and never as an inline popup.
+   *
+   * `--popover` is the right pair to use rather than `--background`: this *is*
+   * a popover, and the tokens already differ in dark mode.
+   */
+  option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
 }
