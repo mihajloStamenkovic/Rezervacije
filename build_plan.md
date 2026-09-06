@@ -583,7 +583,7 @@ their passwords there. I never handle them.
 |---|---|
 | `drizzle/0002_profili_i_rls_politike.sql` | real profiles, the `auth.users` FK, 9 RLS policies |
 | `drizzle/meta/0002_snapshot.json`, `_journal.json` | hand-written migration, journal kept consistent |
-| `src/lib/supabase/client.ts` | browser client (publishable key) |
+| `src/lib/supabase/client.ts` | browser client (publishable key) — **deleted 06.09.2026**, never used; see Phase 7 polish |
 | `src/lib/supabase/server.ts` | per-request server client, publishable key + cookie session |
 | `src/lib/supabase/admin.ts` | secret key, server-only, bypasses RLS |
 | `src/lib/supabase/middleware.ts` | session refresh + redirect logic |
@@ -670,6 +670,9 @@ password was involved at any point — the test sessions were minted via
   Action and nothing client-side has needed the browser client yet. It is correct
   code, but it is untested in a real bundle — the first client component to use
   it is the first real exercise of that path.
+  **Resolved 06.09.2026 by deleting the file** — it stayed unused through Phases
+  5–8, and a never-exercised auth path is worse than none. The pattern to
+  recreate it is the `createBrowserClient` call in the table above.
 - **Deleting an account in the dashboard will fail while it has reservations.**
   `profiles.id → auth.users(id)` is `ON DELETE CASCADE`, but
   `reservations.kreirao → profiles.id` is `ON DELETE RESTRICT`, so the cascade is
@@ -1246,7 +1249,9 @@ identical order.
 - **No secret in the built bundle.** Zero files under `.next/static` contain the
   secret key value, `sb_secret_`, `SUPABASE_SECRET_KEY`, the database password or
   `postgresql://`. The publishable key is absent too — which confirms the Phase 4
-  note that `src/lib/supabase/client.ts` is still unused.
+  note that `src/lib/supabase/client.ts` is still unused. (That file was deleted
+  on 06.09.2026; this gate's result stands unchanged, since it was measuring the
+  absence of a key the file never got to emit.)
 
 **The anonymous-INSERT probe was deliberately NOT re-run.** Phase 4 recorded it
 as 401. Repeating it aims a write at the one real production database, and if RLS
@@ -1431,8 +1436,15 @@ commit and not automatically thereafter.
 - **The count line above the list counts legs, not bookings**
   (`src/app/page.tsx:97`). In Dan mode a same-day round trip is two rows, so one
   booking reads *"2 rezervacije"*.
-- Three pieces of dead code: `supabaseBrowser()`, `aktivneDestinacije()` in
-  `src/db/queries.ts`, and `T.filter.zatvori`.
+- ~~Three pieces of dead code: `supabaseBrowser()`, `aktivneDestinacije()` in
+  `src/db/queries.ts`, and `T.filter.zatvori`.~~ **Cleared 06.09.2026** on branch
+  `mrtav-kod`: `src/lib/supabase/client.ts` deleted whole, `aktivneDestinacije()`
+  and `sviProfili()` removed from `src/db/queries.ts`, and the unused
+  `PodaciRezervacije` type removed from `src/lib/validacija.ts` — 28 lines, all
+  deletions, `npm run typecheck` clean. The third item as written was wrong:
+  there is no `T.filter.zatvori`. The string had already moved to `T.nav.zatvori`
+  when the English-announced "Close" was fixed on 04.09.2026, and it is used in
+  `src/components/ui/dialog.tsx` and `src/components/ui/sheet.tsx`.
 - **`settings` has no INSERT policy** — migration `0003` grants select and update
   only, while `postaviPodrazumevanuDestinaciju` is an
   `insert … onConflictDoUpdate`. Harmless today because that path runs through

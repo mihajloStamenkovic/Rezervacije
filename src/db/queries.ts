@@ -76,15 +76,6 @@ export async function sveDestinacije(): Promise<Destinacija[]> {
     .orderBy(asc(destinacije.drzava), asc(destinacije.redosled));
 }
 
-/** Only what may be offered for a new booking (SPEC §5). */
-export async function aktivneDestinacije(): Promise<Destinacija[]> {
-  return db
-    .select()
-    .from(destinacije)
-    .where(eq(destinacije.aktivna, true))
-    .orderBy(asc(destinacije.drzava), asc(destinacije.redosled));
-}
-
 /**
  * One profile, or `null` when the account is not on the access list.
  *
@@ -98,10 +89,6 @@ export async function aktivneDestinacije(): Promise<Destinacija[]> {
 export async function profilPoId(id: string): Promise<Profile | null> {
   const [red] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
   return red ?? null;
-}
-
-export async function sviProfili(): Promise<Profile[]> {
-  return db.select().from(profiles).orderBy(asc(profiles.ime));
 }
 
 /** The single settings row, or `null` before it has been written. */
