@@ -57,6 +57,40 @@ export function normalizujOpseg(opseg: OpsegDatuma): OpsegDatuma {
     : { od: opseg.do, do: opseg.od };
 }
 
+/**
+ * Sets **one end** of the custom range while the user is still editing it.
+ *
+ * The edited end always keeps the date that was typed. Where that would leave
+ * `od` after `do`, the *other* end collapses onto it instead of the two
+ * swapping places.
+ *
+ * That difference from `normalizujOpseg` is the whole point. Swapping is right
+ * for a range that arrives complete and unattributed — the URL, a picker
+ * handing back both ends at once — because there is no way to tell which end
+ * was meant. Mid-edit there is: the user just touched one field, and swapping
+ * moves their date into the *other* one. Entering `Od = 20.10.` against a `Do`
+ * of today used to read back as `Od = today, Do = 20.10.` — the date landing
+ * in the box the user was not typing in.
+ *
+ * Clearing one end leaves the other standing as a single day; clearing both
+ * returns `null`, which is "no date filter" everywhere else in the app.
+ */
+export function postaviKrajOpsega(
+  opseg: OpsegDatuma | null,
+  kraj: "od" | "do",
+  vrednost: string,
+): OpsegDatuma | null {
+  const drugi = kraj === "od" ? opseg?.do : opseg?.od;
+  const ovaj = jeDatum(vrednost) ? vrednost : null;
+
+  if (!ovaj) return drugi ? { od: drugi, do: drugi } : null;
+  if (!drugi) return { od: ovaj, do: ovaj };
+
+  return kraj === "od"
+    ? { od: ovaj, do: drugi >= ovaj ? drugi : ovaj }
+    : { od: drugi <= ovaj ? drugi : ovaj, do: ovaj };
+}
+
 /** Inclusive at both ends. ISO date strings compare correctly as strings. */
 export function uOpsegu(datum: Datum, opseg: OpsegDatuma): boolean {
   return datum >= opseg.od && datum <= opseg.do;

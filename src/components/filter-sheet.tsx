@@ -37,6 +37,7 @@ import type { CvorDrzave, CvorRegije } from "@/domen/destinacije";
 import {
   brojAktivnihFiltera,
   opsegZaCip,
+  postaviKrajOpsega,
   type CipDatuma,
 } from "@/domen/filteri";
 import {
@@ -50,7 +51,7 @@ import type {
   PoljeSortiranja,
   SmerSortiranja,
 } from "@/domen/tipovi";
-import { jeDatum, type Datum } from "@/lib/datum";
+import type { Datum } from "@/lib/datum";
 import { T, filtera } from "@/lib/tekst";
 import {
   PRAZNO_STANJE,
@@ -110,22 +111,11 @@ export function FilterSheet({
   /**
    * The custom range. Either end may be cleared, and an incomplete range is
    * read as the single day still filled in — the same rule the URL parser
-   * uses, so typing a date and reloading the page agree.
+   * uses, so typing a date and reloading the page agree. The rule itself lives
+   * in `postaviKrajOpsega` so it can be tested without rendering the sheet.
    */
   function postaviKraj(kraj: "od" | "do", vrednost: string) {
-    const drugi = kraj === "od" ? nacrt.opseg?.do : nacrt.opseg?.od;
-    const ovaj = jeDatum(vrednost) ? vrednost : null;
-
-    if (!ovaj) {
-      postaviOpseg(drugi ? { od: drugi, do: drugi } : null);
-      return;
-    }
-    if (!drugi) {
-      postaviOpseg({ od: ovaj, do: ovaj });
-      return;
-    }
-    const [od, doD] = kraj === "od" ? [ovaj, drugi] : [drugi, ovaj];
-    postaviOpseg(od <= doD ? { od, do: doD } : { od: doD, do: od });
+    postaviOpseg(postaviKrajOpsega(nacrt.opseg, kraj, vrednost));
   }
 
   function prebaciDestinaciju(kljuc: string) {
