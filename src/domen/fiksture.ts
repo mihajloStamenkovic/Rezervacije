@@ -69,11 +69,25 @@ export const KATALOG: Destinacija[] = [
   LJUBLJANA,
 ];
 
+/**
+ * Two teams and four people, which is the smallest cast that can tell the
+ * access rule apart from "everyone sees everything":
+ *
+ *   TIM_A — NIKOLA, MARIJA   (they must see each other)
+ *   TIM_B — STEFAN           (must see neither of them)
+ *   admin — ADMIN            (sees all three; his own bookings only he sees)
+ */
+export const TIM_A = "00000000-0000-4000-8000-300000000001";
+export const TIM_B = "00000000-0000-4000-8000-300000000002";
+
 export const NIKOLA: Profile = {
   id: "00000000-0000-4000-8000-000000000001",
   ime: "Nikola",
   email: "nikola@example.test",
   boja: "#2563eb",
+  uloga: "korisnik",
+  timId: TIM_A,
+  aktivan: true,
 };
 
 export const MARIJA: Profile = {
@@ -81,6 +95,40 @@ export const MARIJA: Profile = {
   ime: "Marija",
   email: "marija@example.test",
   boja: "#d97706",
+  uloga: "korisnik",
+  timId: TIM_A,
+  aktivan: true,
+};
+
+/** The other team. Shares no booking with Nikola or Marija, ever. */
+export const STEFAN: Profile = {
+  id: "00000000-0000-4000-8000-000000000003",
+  ime: "Stefan",
+  email: "stefan@example.test",
+  boja: "#059669",
+  uloga: "korisnik",
+  timId: TIM_B,
+  aktivan: true,
+};
+
+/** An owner. No team — `uloga = 'admin'` is what grants the wide view. */
+export const ADMIN: Profile = {
+  id: "00000000-0000-4000-8000-000000000004",
+  ime: "Petar",
+  email: "petar@example.test",
+  boja: "#7c3aed",
+  uloga: "admin",
+  timId: null,
+  aktivan: true,
+};
+
+/** Deactivated, but still the author of past bookings his team must keep. */
+export const BIVSI: Profile = {
+  ...MARIJA,
+  id: "00000000-0000-4000-8000-000000000005",
+  ime: "Bivši",
+  email: "bivsi@example.test",
+  aktivan: false,
 };
 
 type Ulaz = {
@@ -93,11 +141,19 @@ type Ulaz = {
   datumPovratka?: Datum | null;
   brojPutnika: number;
   autor?: Profile;
+  /**
+   * Which team may see it. Defaults to the author's, which is what the form
+   * fills in for a driver. Pass `null` explicitly for an administrators-only
+   * booking — every existing fixture stays on TIM_A so that the date and sort
+   * suites keep seeing all eight rows.
+   */
+  tim?: string | null;
 };
 
 export function red(u: Ulaz): RezervacijaRed {
   const destinacijaPovratka = u.destinacijaPovratka ?? BEOGRAD;
   const autor = u.autor ?? NIKOLA;
+  const timId = u.tim === undefined ? autor.timId : u.tim;
   return {
     rezervacija: {
       id: `00000000-0000-4000-8000-1000000000${String(u.n).padStart(2, "0")}`,
@@ -109,6 +165,7 @@ export function red(u: Ulaz): RezervacijaRed {
       datumPovratka: u.datumPovratka ?? null,
       brojPutnika: u.brojPutnika,
       kreirao: autor.id,
+      timId,
     },
     destinacija: u.destinacija,
     destinacijaPovratka,

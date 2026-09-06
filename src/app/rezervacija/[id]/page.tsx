@@ -22,7 +22,7 @@ import { BedzAutora } from "@/components/bedz-autora";
 import { CipSmera } from "@/components/cip-smera";
 import { DugmeBrisanja } from "@/components/dugme-brisanja";
 import { Button } from "@/components/ui/button";
-import { rezervacijaPoId } from "@/db/queries";
+import { rezervacijaZa } from "@/db/queries";
 import { punoImeDestinacije } from "@/domen/destinacije";
 import { jeJednosmerna, resolveMainLeg } from "@/domen/glavna-etapa";
 import { zahtevajKorisnika } from "@/lib/auth";
@@ -35,12 +35,14 @@ export default async function Detalji({
   params,
   searchParams,
 }: PageProps<"/rezervacija/[id]">) {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
 
   const { id } = await params;
   const nazad = putanjaNazad((await searchParams).nazad);
 
-  const red = await rezervacijaPoId(id);
+  // A booking belonging to another team comes back `null` and renders as 404,
+  // identical to an id that never existed.
+  const red = await rezervacijaZa(korisnik, id);
   if (!red) notFound();
 
   const danas = danasBeograd();

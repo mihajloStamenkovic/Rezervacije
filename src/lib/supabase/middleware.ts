@@ -72,10 +72,15 @@ export async function azurirajSesiju(request: NextRequest) {
   // request through because a check failed, is not recoverable.
   let prijavljen = false;
   if (korisnikId) {
+    // `aktivan` is checked here as well as in `profilPoId`, and the two must
+    // agree. If the proxy let a deactivated account through and the page then
+    // refused it, the browser would bounce between `/` and `/prijava` forever
+    // — the exact loop this file's redirect rules exist to prevent.
     const { data: profil } = await supabase
       .from("profiles")
       .select("id")
       .eq("id", korisnikId)
+      .eq("aktivan", true)
       .maybeSingle();
     prijavljen = profil != null;
   }

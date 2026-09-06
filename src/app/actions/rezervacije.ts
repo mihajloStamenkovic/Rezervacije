@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import {
   izmeniRezervaciju,
   obrisiRezervaciju as obrisiRed,
-  rezervacijaPoId,
+  rezervacijaZa,
   sveDestinacije,
   upisiRezervaciju,
 } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
+import { podrazumevaniTim, smeDaDodeli } from "@/domen/pristup";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { putanjaNazad } from "@/lib/navigacija";
 import { T } from "@/lib/tekst";
@@ -42,6 +43,24 @@ function odrediste(formData: FormData): string {
   return putanjaNazad(typeof nazad === "string" ? nazad : undefined);
 }
 
+/** The sentinel the team dropdown submits for "administrators only". */
+const SAMO_ADMINI = "samo-admini";
+
+/**
+ * The team the form asked for: a uuid, `null` for administrators-only, or
+ * `undefined` when the field was not rendered at all.
+ *
+ * Three states rather than two, because "the driver's form has no team field"
+ * and "the admin chose administrators-only" must not collapse into the same
+ * value — one means *keep the sensible default*, the other means *hide this
+ * from every driver*.
+ */
+function trazeniTim(formData: FormData): string | null | undefined {
+  const vrednost = formData.get("tim");
+  if (typeof vrednost !== "string" || vrednost === "") return undefined;
+  return vrednost === SAMO_ADMINI ? null : vrednost;
+}
+
 export async function sacuvajRezervaciju(
   id: string | null,
   _prethodno: StanjeForme,
@@ -71,7 +90,7 @@ export async function sacuvajRezervaciju(
    * inactive means "not offered for new bookings", never "unresolvable"
    * (SPEC §5).
    */
-  const postojeca = id === null ? null : await rezervacijaPoId(id);
+  const postojeca = id === null ? null : await rezervacijaZa(korisnik, id);
   if (id !== null && postojeca === null) {
     return { ok: false, greske: {}, opsta: T.greske.nijeNadjeno };
   }
@@ -92,11 +111,40 @@ export async function sacuvajRezervaciju(
   }
   if (Object.keys(greske).length > 0) return { ok: false, greske };
 
+  /*
+   * Which team may see this booking.
+   *
+   * The form only renders the field for an admin — a driver can file under
+   * their own team and nowhere else, so asking them would be a question with
+   * one answer. That makes the *absence* of the field meaningful, and it is
+   * read here as "leave it as it was" on an edit and "my own team" on a new
+   * booking, never as "administrators only".
+   *
+   * `smeDaDodeli` is then applied to whatever we arrived at, because a Server
+   * Action is a public endpoint and a hand-built POST can carry any `tim` it
+   * likes. Without this check the field would be a way to write into another
+   * crew's schedule, or to hide a booking from your own.
+   */
+  const trazeni = trazeniTim(formData);
+  const timId =
+    trazeni !== undefined
+      ? trazeni
+      : id === null
+        ? podrazumevaniTim(korisnik)
+        : (postojeca?.rezervacija.timId ?? null);
+
+  if (!smeDaDodeli(korisnik, timId)) {
+    return { ok: false, greske: {}, opsta: T.greske.timNijeDozvoljen };
+  }
+
   try {
     if (id === null) {
-      await upisiRezervaciju({ ...podaci, kreirao: korisnik.id });
+      await upisiRezervaciju({ ...podaci, kreirao: korisnik.id, timId });
     } else {
-      const izmenjena = await izmeniRezervaciju(id, podaci);
+      const izmenjena = await izmeniRezervaciju(korisnik, id, {
+        ...podaci,
+        timId,
+      });
       if (!izmenjena) {
         return { ok: false, greske: {}, opsta: T.greske.nijeNadjeno };
       }
@@ -123,10 +171,13 @@ export async function obrisiRezervaciju(
   id: string,
   formData: FormData,
 ): Promise<void> {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
 
-  const postoji = await rezervacijaPoId(id);
-  if (postoji) await obrisiRed(id);
+  // One statement, not a read followed by a delete: the visibility condition
+  // travels in the DELETE's own WHERE, so there is no window between deciding
+  // this row may be removed and removing it, and a row belonging to another
+  // team simply matches nothing.
+  await obrisiRed(korisnik, id);
 
   revalidatePath("/");
   redirect(odrediste(formData));

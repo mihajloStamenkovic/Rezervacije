@@ -11,7 +11,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { FormaRezervacije } from "@/components/forma-rezervacije";
-import { rezervacijaPoId, sveDestinacije } from "@/db/queries";
+import { rezervacijaZa, sveDestinacije } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { zaInput } from "@/lib/datum";
@@ -22,7 +22,7 @@ export default async function Izmeni({
   params,
   searchParams,
 }: PageProps<"/rezervacija/[id]/izmeni">) {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
 
   const { id } = await params;
   const nazad = putanjaNazad(
@@ -31,7 +31,7 @@ export default async function Izmeni({
   );
 
   const [red, sve] = await Promise.all([
-    rezervacijaPoId(id),
+    rezervacijaZa(korisnik, id),
     sveDestinacije(),
   ]);
   if (!red) notFound();

@@ -16,7 +16,7 @@ import { FilterSheet } from "@/components/filter-sheet";
 import { ListaRezervacija } from "@/components/lista-rezervacija";
 import { PoljePretrage } from "@/components/polje-pretrage";
 import { Button } from "@/components/ui/button";
-import { sveDestinacije, sveRezervacije } from "@/db/queries";
+import { sveDestinacije, rezervacijeZa } from "@/db/queries";
 import { destinacijeZaFilter, stabloDestinacija } from "@/domen/destinacije";
 import { prikaziListu } from "@/domen/liste";
 import { zahtevajKorisnika } from "@/lib/auth";
@@ -31,13 +31,15 @@ const NASLOV = {
 } as const;
 
 export default async function Lista({ searchParams }: PageProps<"/">) {
-  await zahtevajKorisnika();
+  const korisnik = await zahtevajKorisnika();
 
   const danas = danasBeograd();
   const stanje = procitajStanjeUrl(await searchParams);
 
+  // Scoped to what this person may see before the domain core ever sees a row:
+  // the list modes decide *which* of your bookings show, never *whose*.
   const [redovi, katalog] = await Promise.all([
-    sveRezervacije(),
+    rezervacijeZa(korisnik),
     sveDestinacije(),
   ]);
 

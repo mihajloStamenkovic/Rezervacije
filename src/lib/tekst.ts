@@ -191,6 +191,27 @@ export const T = {
     brojPutnikaPrevelik: "Najviše 100 putnika po rezervaciji.",
     nijeNadjeno: "Rezervacija nije pronađena.",
     neuspelo: "Čuvanje nije uspelo. Pokušaj ponovo.",
+    /**
+     * A hand-built POST naming a team the signed-in person may not file under.
+     * The dropdown never offers one, so nobody reaches this by tapping.
+     */
+    timNijeDozvoljen: "Nemaš pravo da rezervaciju dodeliš tom timu.",
+  },
+
+  /** Teams and roles — the admin's own screens. */
+  timovi: {
+    naslov: "Nalozi",
+    tim: "Tim",
+    /** The dropdown option that files a booking away from every driver. */
+    samoAdmini: "Samo administratori",
+    /**
+     * Shown on the form whenever the chosen team is "administrators only".
+     * The owners chose to keep that option; this is what stops it becoming a
+     * trip nobody driving can see.
+     */
+    samoAdminiUpozorenje:
+      "Ovu rezervaciju neće videti nijedan vozač — samo administratori.",
+    zaKoga: "Ko vidi rezervaciju",
   },
 } as const;
 

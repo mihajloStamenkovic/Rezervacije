@@ -12,8 +12,9 @@
  */
 import "server-only";
 import { alias } from "drizzle-orm/pg-core";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "./index";
+import { uslovZa } from "./vidljivost";
 import {
   destinacije,
   profiles,
@@ -25,12 +26,15 @@ import {
   type Reservation,
 } from "./schema";
 
+/** Just enough of the author to draw a badge. See `joinedSelect`. */
+export type AutorBedza = Pick<Profile, "id" | "ime" | "boja">;
+
 /** A reservation with both destination rows and its author already resolved. */
 export type RezervacijaRed = {
   rezervacija: Reservation;
   destinacija: Destinacija;
   destinacijaPovratka: Destinacija;
-  autor: Profile;
+  autor: AutorBedza;
 };
 
 const odrediste = alias(destinacije, "odrediste");
@@ -42,7 +46,15 @@ function joinedSelect() {
       rezervacija: reservations,
       destinacija: odrediste,
       destinacijaPovratka: povratak,
-      autor: profiles,
+      // Only what a badge needs. `profiles` wholesale used to be selected
+      // here, which put every author's email address into the RSC payload of
+      // every card, and since migration 0004 would have shipped their role and
+      // team as well. Nothing renders those.
+      autor: {
+        id: profiles.id,
+        ime: profiles.ime,
+        boja: profiles.boja,
+      },
     })
     .from(reservations)
     .innerJoin(odrediste, eq(reservations.destinacijaId, odrediste.id))
@@ -51,20 +63,39 @@ function joinedSelect() {
 }
 
 /**
- * Every reservation, unfiltered and in no meaningful order.
+ * Every reservation **this person may see**, in no meaningful order.
  *
- * Deliberately unfiltered: which rows belong on the list depends on today's
- * date in Belgrade and on the main leg rule, and that decision is the domain
- * core's, not this file's.
+ * Unordered and unfiltered by date on purpose: which rows belong on the list
+ * depends on today's date in Belgrade and on the main leg rule, and that
+ * decision is the domain core's, not this file's. Who may see them is not the
+ * domain core's, and is decided here.
+ *
+ * There is no unscoped variant of this function, and adding one back would
+ * undo the entire access model — the app bypasses RLS (see
+ * `src/db/vidljivost.ts`), so this `WHERE` clause is the boundary.
  */
-export async function sveRezervacije(): Promise<RezervacijaRed[]> {
-  return joinedSelect();
+export async function rezervacijeZa(
+  vidilac: Pick<Profile, "uloga" | "timId">,
+): Promise<RezervacijaRed[]> {
+  return joinedSelect().where(uslovZa(vidilac));
 }
 
-export async function rezervacijaPoId(
+/**
+ * One reservation, or `null` when it does not exist **or is not this person's
+ * to see**.
+ *
+ * Collapsing those two into one answer is deliberate: every caller already
+ * renders `null` as `notFound()`, so a guessed id from another team is
+ * indistinguishable from a typo, and the app never confirms that a booking
+ * exists to somebody who may not read it.
+ */
+export async function rezervacijaZa(
+  vidilac: Pick<Profile, "uloga" | "timId">,
   id: string,
 ): Promise<RezervacijaRed | null> {
-  const [red] = await joinedSelect().where(eq(reservations.id, id)).limit(1);
+  const [red] = await joinedSelect()
+    .where(and(eq(reservations.id, id), uslovZa(vidilac)))
+    .limit(1);
   return red ?? null;
 }
 
@@ -85,9 +116,21 @@ export async function sveDestinacije(): Promise<Destinacija[]> {
  * bypasses RLS — deliberately, because this is the query that decides whether
  * RLS would have let them in, and it must not be subject to the rule it is
  * checking.
+ *
+ * Since migration `0004` it also requires `aktivan`. Deactivating somebody is
+ * the only way to revoke access — their `profiles` row cannot be deleted while
+ * they have entered a booking — so this is where that revocation takes effect.
+ * The three places that ask "may this person be here" must agree: this one,
+ * the proxy's own check in `src/lib/supabase/middleware.ts`, and `prijaviSe`.
+ * If they disagree, a deactivated account ping-pongs between `/` and
+ * `/prijava` instead of being turned away.
  */
 export async function profilPoId(id: string): Promise<Profile | null> {
-  const [red] = await db.select().from(profiles).where(eq(profiles.id, id)).limit(1);
+  const [red] = await db
+    .select()
+    .from(profiles)
+    .where(and(eq(profiles.id, id), eq(profiles.aktivan, true)))
+    .limit(1);
   return red ?? null;
 }
 
@@ -102,23 +145,42 @@ export async function upisiRezervaciju(vrednosti: NewReservation) {
   return red;
 }
 
+/**
+ * Edit, scoped. Returns `null` when the row is not this person's to change.
+ *
+ * The visibility condition is part of the `WHERE`, not an `if` in the Server
+ * Action ahead of the call. That is not a style preference: read-then-write
+ * leaves a window between the check and the change, and putting both in one
+ * statement closes it. It also means "not yours" and "not found" come back as
+ * the same answer from the same query.
+ */
 export async function izmeniRezervaciju(
+  vidilac: Pick<Profile, "uloga" | "timId">,
   id: string,
   vrednosti: Partial<NewReservation>,
 ) {
   const [red] = await db
     .update(reservations)
     .set(vrednosti)
-    .where(eq(reservations.id, id))
+    .where(and(eq(reservations.id, id), uslovZa(vidilac)))
     .returning();
   return red ?? null;
 }
 
-/** Permanent. There is no status column and no undo (SPEC §8). */
-export async function obrisiRezervaciju(id: string): Promise<boolean> {
+/**
+ * Permanent. There is no status column and no undo (SPEC §8).
+ *
+ * Scoped in the same statement as the delete, for the same reason as the edit
+ * above — and here the window mattered more, because the old code read the row
+ * first and then deleted by id alone.
+ */
+export async function obrisiRezervaciju(
+  vidilac: Pick<Profile, "uloga" | "timId">,
+  id: string,
+): Promise<boolean> {
   const obrisano = await db
     .delete(reservations)
-    .where(eq(reservations.id, id))
+    .where(and(eq(reservations.id, id), uslovZa(vidilac)))
     .returning({ id: reservations.id });
   return obrisano.length > 0;
 }

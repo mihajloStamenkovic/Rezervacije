@@ -22,7 +22,12 @@ export type RezervacijaRed = {
   rezervacija: Reservation;
   destinacija: Destinacija;
   destinacijaPovratka: Destinacija;
-  autor: Profile;
+  /**
+   * Only what a badge draws. The query layer narrows the select to these three
+   * columns so an author's email, role and team never reach the browser — see
+   * `joinedSelect` in `src/db/queries.ts`.
+   */
+  autor: Pick<Profile, "id" | "ime" | "boja">;
 };
 
 /** Which of the two legs a row is about. */

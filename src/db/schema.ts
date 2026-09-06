@@ -42,20 +42,79 @@ export const authUsers = authSchema.table("users", {
 });
 
 /**
- * The two accounts. `id` mirrors, and since migration `0002` is a real
- * foreign key to, `auth.users.id` — Supabase Auth owns the credentials, so
- * there is no password column here (SPEC §4 predates the Supabase decision
- * in §9; see the build report).
+ * A team — the unit of visibility (migration `0004`).
+ *
+ * Called `tim` rather than `grupa` because `grupa` already means the
+ * *Polasci / Povratci* day grouping throughout `src/domen/liste.ts` and
+ * `src/lib/tekst.ts`. Two meanings for one word in a codebase this small is a
+ * bug waiting to be written.
+ *
+ * Rows are not deleted: a team is referenced by every profile in it, and a
+ * profile cannot be deleted either (see `profiles.aktivan`). An unused team is
+ * simply left standing.
  */
-export const profiles = pgTable("profiles", {
-  id: uuid("id")
-    .primaryKey()
-    .references(() => authUsers.id, { onDelete: "cascade" }),
-  ime: text("ime").notNull(),
-  email: text("email").notNull().unique(),
-  /** Badge colour, stored as a hex string like `#2563eb`. */
-  boja: text("boja").notNull(),
+export const timovi = pgTable("timovi", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Display name, e.g. `Prevoz A`. Unique so two teams cannot be confused. */
+  naziv: text("naziv").notNull().unique(),
 }).enableRLS();
+
+/**
+ * Who may enter, what they may do, and whose bookings they may see.
+ *
+ * `id` mirrors, and since migration `0002` is a real foreign key to,
+ * `auth.users.id` — Supabase Auth owns the credentials, so there is no
+ * password column here (SPEC §4 predates the Supabase decision in §9).
+ *
+ * Migration `0004` turned this from a flat access list into the whole
+ * authorisation model:
+ *
+ *   - `uloga` — `admin` sees and manages everything; `korisnik` is a driver.
+ *   - `timId` — which team a driver belongs to. `null` for admins, required
+ *     for drivers, enforced by a CHECK rather than by convention.
+ *   - `aktivan` — soft revocation. It has to be soft: `reservations.kreirao`
+ *     is `ON DELETE RESTRICT` and `profiles.id → auth.users.id` is
+ *     `ON DELETE CASCADE`, so once someone has entered a booking they cannot
+ *     be deleted from either end. Flipping this to false is the only way to
+ *     take access away.
+ *
+ * **A reservation has no team column.** Visibility is a property of people and
+ * a booking inherits its author's, through `reservations.kreirao`. That keeps
+ * the nine reservation columns fixed (standing rule 2) and means there is one
+ * place to change who sees what.
+ */
+export const profiles = pgTable(
+  "profiles",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    ime: text("ime").notNull(),
+    email: text("email").notNull().unique(),
+    /** Badge colour, stored as a hex string like `#2563eb`. */
+    boja: text("boja").notNull(),
+    /** `admin` or `korisnik`. Constrained below, not by a Postgres enum —
+     *  adding a third role should be a migration, not a type change. */
+    uloga: text("uloga").notNull().default("korisnik"),
+    /** The team whose bookings this person shares. Null only for admins. */
+    timId: uuid("tim_id").references(() => timovi.id, {
+      onDelete: "restrict",
+    }),
+    /** False locks the account out on its next request. */
+    aktivan: boolean("aktivan").notNull().default(true),
+  },
+  (t) => [
+    check("profiles_uloga_dozvoljena", sql`${t.uloga} in ('admin', 'korisnik')`),
+    // An admin belongs to no team and sees everything; a driver must belong to
+    // exactly one. Neither half is optional, so neither is left to the app.
+    check(
+      "profiles_tim_prema_ulozi",
+      sql`(${t.uloga} = 'admin' and ${t.timId} is null)
+          or (${t.uloga} = 'korisnik' and ${t.timId} is not null)`,
+    ),
+    index("profiles_tim_id_idx").on(t.timId),
+  ],
+).enableRLS();
 
 /**
  * One row per city. Country and region are denormalised onto it — 44 rows do
@@ -91,8 +150,25 @@ export const destinacije = pgTable(
 ).enableRLS();
 
 /**
- * The nine columns. No status, no notes, no timestamps — removed deliberately
- * (build_plan standing rule 2).
+ * Ten columns: the nine that describe the trip, plus `tim_id`, which decides
+ * who may see it.
+ *
+ * Standing rule 2 fixed this table at nine and was amended on 06.09.2026 to
+ * say what it always meant — *the nine columns describing the trip* are fixed.
+ * The forbidden list it was written against is still forbidden: no `status`,
+ * no `napomena`, no timestamps. `tim_id` is not trip data creeping in, it is
+ * the access model, and it is here rather than derived from `kreirao` for one
+ * concrete reason:
+ *
+ * The owners are the dispatchers. They take the phone calls and enter the
+ * bookings that the drivers then drive. With visibility derived from the
+ * author, every booking an owner entered would be invisible to the driver who
+ * has to make the trip — silently, because an absent booking is
+ * indistinguishable from a quiet day. Storing the team on the booking is what
+ * lets an owner enter a trip *for* a crew.
+ *
+ * `null` means the booking is visible to administrators only. That is a real
+ * choice on the form, not an accident.
  */
 export const reservations = pgTable(
   "reservations",
@@ -114,10 +190,24 @@ export const reservations = pgTable(
     /** Optional — filled in later when the return is confirmed. */
     datumPovratka: date("datum_povratka", { mode: "string" }),
     brojPutnika: integer("broj_putnika").notNull(),
-    /** Which of the two accounts entered it. */
+    /**
+     * Who entered it. A badge, never a permission — everyone on the team may
+     * edit and delete everyone else's bookings, which is what makes it a
+     * shared book (reaffirmed 06.09.2026).
+     */
     kreirao: uuid("kreirao")
       .notNull()
       .references(() => profiles.id, { onDelete: "restrict" }),
+    /**
+     * Which team may see this booking. `null` = administrators only.
+     *
+     * `ON DELETE RESTRICT` for the same reason as the destination columns: a
+     * team that still has bookings against it cannot be deleted out from
+     * under them.
+     */
+    timId: uuid("tim_id").references(() => timovi.id, {
+      onDelete: "restrict",
+    }),
   },
   (t) => [
     check("reservations_broj_putnika_pozitivan", sql`${t.brojPutnika} > 0`),
@@ -129,6 +219,8 @@ export const reservations = pgTable(
     // The two list modes scan on these two columns and nothing else.
     index("reservations_datum_polaska_idx").on(t.datumPolaska),
     index("reservations_datum_povratka_idx").on(t.datumPovratka),
+    // Every list read now filters on this first.
+    index("reservations_tim_id_idx").on(t.timId),
   ],
 ).enableRLS();
 
@@ -149,6 +241,7 @@ export const settings = pgTable(
 ).enableRLS();
 
 export type Profile = typeof profiles.$inferSelect;
+export type Tim = typeof timovi.$inferSelect;
 export type Destinacija = typeof destinacije.$inferSelect;
 export type Reservation = typeof reservations.$inferSelect;
 export type NewReservation = typeof reservations.$inferInsert;

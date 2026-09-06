@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { postaviPodrazumevanuDestinaciju } from "@/db/queries";
-import { zahtevajKorisnika } from "@/lib/auth";
+import { zahtevajAdmina } from "@/lib/auth";
 import { T } from "@/lib/tekst";
 
 /**
@@ -27,7 +27,12 @@ export async function sacuvajPodrazumevanuDestinaciju(
   _prethodno: StanjePodesavanja,
   formData: FormData,
 ): Promise<StanjePodesavanja> {
-  await zahtevajKorisnika();
+  // Admins only, since migration 0004. `settings` is a single shared row —
+  // there is a `check (id = 1)` guaranteeing it — so a driver changing the
+  // default home town would change it for every other crew as well. Nobody
+  // asked for that, and it is the kind of cross-team effect that is hard to
+  // even notice, let alone attribute.
+  await zahtevajAdmina();
 
   const polja = Schema.safeParse({
     destinacijaId: formData.get("destinacijaId") ?? "",
