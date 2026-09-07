@@ -111,6 +111,36 @@ export const DestinacijaSchema = z
  */
 export const MAX_PUTNIKA = 100;
 
+/**
+ * Longest pickup address accepted.
+ *
+ * Same kind of guardrail as `MAX_NAZIVA`: the column is `text`, so this is
+ * about what a person plausibly dictates over the phone — a street, a number,
+ * a floor — rather than a pasted paragraph.
+ */
+export const MAX_ADRESE = 200;
+
+/**
+ * Highest price accepted, in whole euros.
+ *
+ * The reason `MAX_PUTNIKA` exists applies here word for word: without a
+ * ceiling, a mistyped `999999999999` passes the digits check and dies at
+ * Postgres on int4 overflow, which reaches the owner as the generic "Čuvanje
+ * nije uspelo". A van charter is a four-figure job at the very top, so this is
+ * far above any real fare and far below what breaks the column.
+ */
+export const MAX_CENE = 100_000;
+
+/**
+ * Longest note accepted.
+ *
+ * The note is the one free-text field with no shape at all, so the bound is
+ * generous — a paragraph of context is exactly what it is for — but finite,
+ * because an unbounded paste is how a `text` column becomes a performance
+ * problem on a list that reads whole rows.
+ */
+export const MAX_NAPOMENE = 1000;
+
 export const RezervacijaSchema = z
   .object({
     ime: z.string().trim().min(1, { message: T.greske.imeObavezno }),
@@ -132,6 +162,21 @@ export const RezervacijaSchema = z
         }
         return e164;
       }),
+
+    /*
+     * Where the van collects them (SPEC §4, amended 07.09.2026).
+     *
+     * Required, at the owner's choice: a booking without a doorstep is a
+     * booking the driver cannot complete. It is required *here* rather than in
+     * the column, so the bookings entered before the field existed stay
+     * readable and deletable; what they are not is editable without filling
+     * this in, which is the trade the owner accepted.
+     */
+    adresa: z
+      .string()
+      .trim()
+      .min(1, { message: T.greske.adresaObavezna })
+      .max(MAX_ADRESE, { message: T.greske.adresaPredugacka }),
 
     destinacija: DestinacijaSchema,
     datumPolaska,
@@ -173,6 +218,41 @@ export const RezervacijaSchema = z
         }
         return n;
       }),
+
+    /*
+     * The fare, in whole euros. Digits only, for the same reason the passenger
+     * count is: `Number` accepts `1e3` and `0x10`, and neither is a price
+     * anyone typed. A comma or a full stop is rejected rather than rounded —
+     * the owner chose whole euros, and silently turning 120,50 into 120 or 121
+     * is the kind of help that loses money.
+     */
+    cena: z
+      .string()
+      .trim()
+      .min(1, { message: T.greske.cenaObavezna })
+      .transform((v, ctx) => {
+        if (!/^\d+$/.test(v)) {
+          ctx.addIssue({ code: "custom", message: T.greske.cenaNeispravna });
+          return z.NEVER;
+        }
+        const n = Number(v);
+        if (n > MAX_CENE) {
+          ctx.addIssue({ code: "custom", message: T.greske.cenaPrevelika });
+          return z.NEVER;
+        }
+        return n;
+      }),
+
+    /*
+     * The note. Optional, and empty means `null` rather than `''` — the same
+     * rule the return date follows, so "no note" has exactly one shape in the
+     * database and every reader can test it the same way.
+     */
+    napomena: z
+      .string()
+      .trim()
+      .max(MAX_NAPOMENE, { message: T.greske.napomenaPredugacka })
+      .transform((v) => (v === "" ? null : v)),
   })
   .refine(
     (v) => v.datumPovratka === null || v.datumPovratka >= v.datumPolaska,
@@ -231,11 +311,14 @@ export function izFormData(formData: FormData): UlazRezervacije {
   return {
     ime: uzmi("ime"),
     telefon: uzmi("telefon"),
+    adresa: uzmi("adresa"),
     destinacija: mesto("destinacija"),
     datumPolaska: uzmi("datumPolaska"),
     destinacijaPovratka: mesto("destinacijaPovratka"),
     datumPovratka: uzmi("datumPovratka"),
     brojPutnika: uzmi("brojPutnika"),
+    cena: uzmi("cena"),
+    napomena: uzmi("napomena"),
   };
 }
 

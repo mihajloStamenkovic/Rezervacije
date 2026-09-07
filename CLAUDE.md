@@ -14,13 +14,17 @@ bookings. Mobile-first, Serbian (Latin script), Europe/Belgrade.
 
 1. **`SPEC.md` is the source of truth.** If you want to deviate, report the
    conflict rather than resolving it silently.
-2. **The nine reservation columns describing the trip are fixed.** No `status`,
-   no `note`, no timestamps. They were removed deliberately. Amended
-   06.09.2026 to say "describing the trip", because `tim_id` was added as a
-   tenth: it is not trip data, it is who may see the row. The owners are the
-   dispatchers, so a booking has to be able to belong to a crew other than the
-   one that entered it — see `src/domen/pristup.ts` for why deriving it from
-   `kreirao` was tried and discarded.
+2. **The reservation columns are fixed, and `src/db/kolone.test.ts` is the
+   guard.** No `status`, no timestamps. Amended twice, both times at the
+   owner's request and both times written into `SPEC.md` rather than resolved
+   silently. 06.09.2026: `tim_id` — not trip data, but who may see the row;
+   the owners are the dispatchers, so a booking has to be able to belong to a
+   crew other than the one that entered it, and `src/domen/pristup.ts` says
+   why deriving it from `kreirao` was tried and discarded. 07.09.2026:
+   `adresa`, `cena` and `napomena` — the last of which **reverses** the old
+   "no notes"; the note is read on Detalji and reaches no list, filter, sort
+   or search, which is what the original decision was protecting. The column
+   list in that test is exhaustive, so the next addition fails there first.
 3. **Destinations are reference data, never free text.** Seeded from
    `data/destinacije.json`, chosen from cascading dropdowns. The filter is
    **one canonical list** — a place appears once and matches from **either**
@@ -59,9 +63,9 @@ bookings. Mobile-first, Serbian (Latin script), Europe/Belgrade.
 |---|---|
 | `src/db/` | Drizzle schema, migrations, seeds, raw-row query layer, and `rucne-destinacije.ts` — the one place a typed place becomes a row |
 | `src/domen/` | Main leg rule, list modes, filters, sort, access rule (`pristup.ts`). **No database imports** |
-| `src/lib/` | `datum.ts`, `telefon.ts`, `tekst.ts` — dates, phones, every Serbian string |
+| `src/lib/` | `datum.ts`, `telefon.ts`, `novac.ts`, `tekst.ts` — dates, phones, prices, every Serbian string |
 | `src/app/` | Routes, layouts, Server Actions |
-| `src/components/ui/` | shadcn primitives — Sheet, Dialog, Input, Button, Checkbox only |
+| `src/components/ui/` | shadcn primitives — Sheet, Dialog, Input, Button, Checkbox, Textarea only (Textarea added 07.09.2026 for the reservation note, which is a paragraph and not a line) |
 
 ## Commands
 

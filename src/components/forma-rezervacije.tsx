@@ -34,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { sacuvajRezervaciju } from "@/app/actions/rezervacije";
 import { SAMO_ADMINI } from "@/domen/pristup";
 import type { Destinacija } from "@/domen/tipovi";
@@ -44,11 +45,16 @@ import type { GreskePolja, StanjeForme } from "@/lib/validacija";
 export type PocetnaRezervacija = {
   ime: string;
   telefon: string;
+  /** Empty on every booking entered before 07.09.2026 — see the field below. */
+  adresa: string;
   destinacijaId: string | null;
   datumPolaska: string;
   destinacijaPovratkaId: string | null;
   datumPovratka: string;
   brojPutnika: string;
+  /** Whole euros, as typed. Empty on bookings that predate the column. */
+  cena: string;
+  napomena: string;
 };
 
 export function FormaRezervacije({
@@ -104,7 +110,10 @@ export function FormaRezervacije({
 
   const [ime, postaviIme] = useState(pocetna.ime);
   const [telefon, postaviTelefon] = useState(pocetna.telefon);
+  const [adresa, postaviAdresa] = useState(pocetna.adresa);
   const [brojPutnika, postaviBrojPutnika] = useState(pocetna.brojPutnika);
+  const [cena, postaviCena] = useState(pocetna.cena);
+  const [napomena, postaviNapomena] = useState(pocetna.napomena);
   const [datumPolaska, postaviDatumPolaska] = useState(pocetna.datumPolaska);
   const [datumPovratka, postaviDatumPovratka] = useState(pocetna.datumPovratka);
   // The pages hand over plain ids; a typed place only ever comes from the
@@ -320,6 +329,31 @@ export function FormaRezervacije({
         />
       </Polje>
 
+      {/*
+        The doorstep, between the phone and the head count because that is the
+        order the call goes in: who, on what number, from which address, how
+        many of them (SPEC §4, amended 07.09.2026).
+      */}
+      <Polje
+        id="adresa"
+        oznaka={T.forma.adresa}
+        pomoc={T.forma.adresaPomoc}
+        greska={greske.adresa}
+      >
+        <Input
+          id="adresa"
+          name="adresa"
+          value={adresa}
+          onChange={(e) => postaviAdresa(e.target.value)}
+          placeholder={T.forma.adresaPlaceholder}
+          autoComplete="street-address"
+          enterKeyHint="next"
+          disabled={uToku}
+          aria-invalid={greske.adresa ? true : undefined}
+          className="h-11 text-base md:text-base"
+        />
+      </Polje>
+
       <Polje
         id="brojPutnika"
         oznaka={T.forma.brojPutnika}
@@ -381,6 +415,52 @@ export function FormaRezervacije({
         </>
       )}
 
+
+      {/*
+        Price and note come after the legs, because both are things you can
+        only say once the trip itself is settled. The note is last of all: it
+        is the only field with no shape, and it is read on Detalji rather than
+        in any list.
+      */}
+      <Polje
+        id="cena"
+        oznaka={T.forma.cena}
+        pomoc={T.forma.cenaPomoc}
+        greska={greske.cena}
+      >
+        <Input
+          id="cena"
+          name="cena"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          step={1}
+          value={cena}
+          onChange={(e) => postaviCena(e.target.value)}
+          disabled={uToku}
+          aria-invalid={greske.cena ? true : undefined}
+          className="h-11 text-base md:text-base"
+        />
+      </Polje>
+
+      <Polje
+        id="napomena"
+        oznaka={T.forma.napomena}
+        pomoc={T.forma.napomenaPomoc}
+        greska={greske.napomena}
+      >
+        <Textarea
+          id="napomena"
+          name="napomena"
+          rows={3}
+          value={napomena}
+          onChange={(e) => postaviNapomena(e.target.value)}
+          placeholder={T.forma.napomenaPlaceholder}
+          disabled={uToku}
+          aria-invalid={greske.napomena ? true : undefined}
+          className="text-base md:text-base"
+        />
+      </Polje>
 
       {stanje && !stanje.ok && stanje.opsta ? (
         <p role="alert" className="text-sm text-destructive">

@@ -7,6 +7,9 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  MAX_ADRESE,
+  MAX_CENE,
+  MAX_NAPOMENE,
   MAX_NAZIVA,
   MAX_PUTNIKA,
   RezervacijaSchema,
@@ -38,11 +41,14 @@ const upisana = (regija: string, grad: string) => ({
 const ispravan: UlazRezervacije = {
   ime: "Marko Petrović",
   telefon: "064 123 4567",
+  adresa: "Bulevar kralja Aleksandra 73",
   destinacija: izabrana(HANIOTI),
   datumPolaska: "2026-01-01",
   destinacijaPovratka: izabrana(BEOGRAD),
   datumPovratka: "2026-01-15",
   brojPutnika: "4",
+  cena: "480",
+  napomena: "",
 };
 
 const parsiraj = (izmene: Partial<UlazRezervacije> = {}) =>
@@ -240,10 +246,14 @@ describe("izFormData", () => {
     fd.set("datumPolaska", "2026-01-01");
     fd.set("destinacijaPovratka", BEOGRAD);
     fd.set("brojPutnika", "2");
-    // datumPovratka deliberately absent — the return is not agreed yet.
+    fd.set("adresa", "Njegoševa 12");
+    fd.set("cena", "300");
+    // datumPovratka deliberately absent — the return is not agreed yet, and
+    // napomena deliberately absent — it is optional.
 
     const ulaz = izFormData(fd);
     expect(ulaz.datumPovratka).toBe("");
+    expect(ulaz.napomena).toBe("");
     // The cascade's other three inputs are absent here, and must read as empty
     // rather than as a half-typed place.
     expect(ulaz.destinacija).toEqual({
@@ -257,5 +267,75 @@ describe("izFormData", () => {
     expect(r.success).toBe(true);
     expect(r.data?.datumPovratka).toBeNull();
     expect(r.data?.telefon).toBe("+381641234567");
+    // An absent note is `null`, the same shape as an absent return date.
+    expect(r.data?.napomena).toBeNull();
+  });
+});
+
+/**
+ * Address, price and note — SPEC §4, amended 07.09.2026.
+ *
+ * The address and the price are required *by the form* while their columns
+ * stay nullable, because every booking entered before that date has neither
+ * and none can be invented. These cases are what enforces the owner's choice
+ * of "obavezne za nove"; the nullable column is what keeps the old bookings
+ * readable.
+ */
+describe("adresa, cena i napomena", () => {
+  it("requires a pickup address", () => {
+    expect(greskaZa({ adresa: "" }).adresa).toBe(T.greske.adresaObavezna);
+    expect(greskaZa({ adresa: "   " }).adresa).toBe(T.greske.adresaObavezna);
+  });
+
+  it("trims the address rather than storing the spaces around it", () => {
+    expect(parsiraj({ adresa: "  Njegoševa 12  " }).data?.adresa).toBe(
+      "Njegoševa 12",
+    );
+  });
+
+  it("refuses an address longer than the guardrail", () => {
+    expect(greskaZa({ adresa: "a".repeat(MAX_ADRESE + 1) }).adresa).toBe(
+      T.greske.adresaPredugacka,
+    );
+  });
+
+  it("requires a price and keeps it a whole number of euros", () => {
+    expect(greskaZa({ cena: "" }).cena).toBe(T.greske.cenaObavezna);
+    expect(parsiraj({ cena: "480" }).data?.cena).toBe(480);
+    // Free is a price; the column allows zero and only forbids negatives.
+    expect(parsiraj({ cena: "0" }).data?.cena).toBe(0);
+  });
+
+  /**
+   * The owner chose whole euros. Rounding 120,50 to 120 or 121 without saying
+   * so would be a quiet change to the amount he charges, so both spellings of
+   * a decimal are refused outright — as are the notations `Number()` accepts
+   * and nobody types, exactly as for the passenger count.
+   */
+  it("refuses decimals and clever notations instead of rounding them", () => {
+    for (const zapis of ["120,50", "120.50", "1e3", "0x10", "-5", "480 €"]) {
+      expect(greskaZa({ cena: zapis }).cena).toBe(T.greske.cenaNeispravna);
+    }
+  });
+
+  it("refuses a price that would overflow the column", () => {
+    expect(greskaZa({ cena: String(MAX_CENE + 1) }).cena).toBe(
+      T.greske.cenaPrevelika,
+    );
+    expect(parsiraj({ cena: String(MAX_CENE) }).success).toBe(true);
+  });
+
+  it("treats a blank note as null, and keeps a written one", () => {
+    expect(parsiraj({ napomena: "" }).data?.napomena).toBeNull();
+    expect(parsiraj({ napomena: "   " }).data?.napomena).toBeNull();
+    expect(parsiraj({ napomena: " dva kofera " }).data?.napomena).toBe(
+      "dva kofera",
+    );
+  });
+
+  it("refuses a note longer than the guardrail", () => {
+    expect(greskaZa({ napomena: "a".repeat(MAX_NAPOMENE + 1) }).napomena).toBe(
+      T.greske.napomenaPredugacka,
+    );
   });
 });

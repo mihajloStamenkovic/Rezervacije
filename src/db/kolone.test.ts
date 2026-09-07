@@ -1,10 +1,17 @@
 /**
- * The nine columns are fixed — SPEC §4, standing rule 2.
+ * The reservation columns are fixed — SPEC §4, standing rule 2.
  *
- * A guard rather than a description: adding `status`, `napomena` or a
- * `created_at` to `reservations` is a one-line change that reads as harmless
- * and is not, and the same is true of switching a `date` column to
- * `timestamp`. Both fail here.
+ * A guard rather than a description: adding a column to `reservations` is a
+ * one-line change that reads as harmless and is not, and the same is true of
+ * switching a `date` column to `timestamp`. Both fail here.
+ *
+ * **Amended 07.09.2026.** The owner asked for three more: `adresa` (the
+ * doorstep in Belgrade), `cena` (whole euros) and `napomena` (a free-text
+ * description). That last one reverses SPEC §4's "no notes" outright, so the
+ * reversal is written down here and in SPEC rather than being absorbed
+ * silently — which is what this file is for. What has *not* moved:
+ * `reservations` still carries no `status` and no timestamps, and the column
+ * list below is still exhaustive, so the next addition fails here too.
  *
  * Reads the Drizzle table objects directly, so it needs no connection and no
  * environment.
@@ -27,32 +34,43 @@ const kolone = (t: unknown) =>
 describe("reservations — SPEC §4", () => {
   const c = kolone(reservations);
 
-  it("has the nine trip columns, in the order SPEC lists them, plus tim_id", () => {
-    // Standing rule 2 was amended 06.09.2026: the nine columns *describing the
-    // trip* are fixed. `tim_id` is not trip data — it is who may see the row —
-    // and it is stored rather than derived from `kreirao` because the owners
-    // are the dispatchers: a booking an owner enters for a crew has to reach
-    // that crew. See src/domen/pristup.ts for the reasoning in full.
+  it("has exactly the columns SPEC §4 lists, in that order", () => {
+    // Two amendments are folded into this list, both at the owner's request
+    // and both written into SPEC rather than resolved here:
+    //
+    //   06.09.2026 — `tim_id`. Not trip data: it is who may see the row, and
+    //   it is stored rather than derived from `kreirao` because the owners are
+    //   the dispatchers, so a booking an owner enters for a crew has to reach
+    //   that crew. See src/domen/pristup.ts for the reasoning in full.
+    //
+    //   07.09.2026 — `adresa`, `cena` and `napomena`. The first two are trip
+    //   data in the plainest sense: where the van stops and what the trip
+    //   costs. `napomena` is the one that reverses a decision rather than
+    //   extending it; see this file's header.
     expect(Object.values(c).map((k) => k.name)).toEqual([
       "id",
       "ime",
       "telefon",
+      "adresa",
       "destinacija_id",
       "datum_polaska",
       "destinacija_povratka_id",
       "datum_povratka",
       "broj_putnika",
+      "cena",
+      "napomena",
       "kreirao",
       "tim_id",
     ]);
   });
 
-  it("has no status, no note and no timestamps", () => {
+  it("still has no status and no timestamps", () => {
+    // `napomena` left this list on 07.09.2026 and nothing else did. A status
+    // column would put a booking in a state the list could hide it in, and
+    // timestamps were refused because nobody was going to read them.
     const imena = Object.values(c).map((k) => k.name);
     for (const zabranjeno of [
       "status",
-      "napomena",
-      "note",
       "created_at",
       "updated_at",
       "kreirano",
@@ -62,6 +80,12 @@ describe("reservations — SPEC §4", () => {
     }
   });
 
+  it("keeps the price an integer of euros, never a float", () => {
+    // The owner chose whole euros (SPEC §4, amended). `integer` is what makes
+    // "no cents to lose" a property of the column rather than of the form.
+    expect(c.cena?.columnType).toBe("PgInteger");
+  });
+
   it("stores both dates as calendar dates in string mode, never a timestamp", () => {
     // PgDateString is `date(..., { mode: 'string' })`. PgTimestamp* would mean
     // a JS Date crossed the boundary and a timezone could shift it.
@@ -69,13 +93,24 @@ describe("reservations — SPEC §4", () => {
     expect(c.datumPovratka?.columnType).toBe("PgDateString");
   });
 
-  it("leaves only the return date and the team optional", () => {
-    // `tim_id` is nullable because null is meaningful: administrators only.
-    // Every trip column except the return date stays required.
+  it("leaves nullable only what has a meaning when absent", () => {
+    // `datum_povratka` — the return is not agreed yet (SPEC §8).
+    // `tim_id` — null is meaningful: administrators only.
+    // `adresa`, `cena`, `napomena` — nullable in the column although the form
+    //   requires the first two, because every booking entered before
+    //   07.09.2026 has none of them and none can be invented. Required-for-new
+    //   lives in `RezervacijaSchema`, the only place that can tell a new
+    //   booking from an old one; see src/lib/validacija.ts.
     const opcione = Object.values(c)
       .filter((k) => !k.notNull)
       .map((k) => k.name);
-    expect(opcione).toEqual(["datum_povratka", "tim_id"]);
+    expect(opcione).toEqual([
+      "adresa",
+      "datum_povratka",
+      "cena",
+      "napomena",
+      "tim_id",
+    ]);
   });
 });
 

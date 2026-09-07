@@ -8,7 +8,7 @@ that team's bookings and nobody else's. Mobile-first — it lives on a phone.
 |---|---|
 | Accounts | Created by an owner in the app. No self-registration. |
 | Roles | `admin` (owner) and `korisnik` (driver) |
-| Table columns | 9 for the trip, plus `tim_id` — who may see it |
+| Table columns | 12 for the trip, plus `tim_id` — who may see it |
 | Screens | 5 + settings |
 | UI language | Serbian, Latin script |
 | Timezone | Europe/Belgrade (fixed, not device) |
@@ -109,20 +109,47 @@ grouping by day there would produce a column of one-row groups.
 
 ## 4. Model podataka
 
-Nine columns. No status, no notes, no timestamps.
+Twelve columns describing the trip, plus `tim_id`. No status, no timestamps.
 
 | Kolona | Tip | Napomena |
 |---|---|---|
 | `id` | uuid | primary key |
 | `ime` | text | Booking name — one name covers the whole group |
 | `telefon` | text | Normalized to `+381…` on save so it dials from abroad |
+| `adresa` | text, nullable | Pickup address in Belgrade. Required by the form, nullable in the column |
 | `destinacija_id` | → destinacije | Trip destination, chosen from dropdowns (§5) |
 | `datum_polaska` | date | Required |
 | `destinacija_povratka_id` | → destinacije | Pre-filled from default home destination, editable |
 | `datum_povratka` | date | Optional — filled in later when confirmed |
 | `broj_putnika` | int | Displays as *"4 putnika"* |
+| `cena` | int, nullable | Whole euros. Required by the form, nullable in the column |
+| `napomena` | text, nullable | Free-text description. Optional; `null` when blank |
 | `kreirao` | → profiles | Who entered it. A badge, never a permission. |
 | `tim_id` | → timovi, nullable | **Who may see it.** `null` = administrators only. |
+
+**Amended 07.09.2026, at the owner's request.** Three columns were added:
+`adresa`, `cena` and `napomena`. The first two are trip data in the plainest
+sense — where the van stops and what the trip costs — and the address is here
+rather than in `destinacije` because standing rule 3 governs *destinations*,
+which the list filters and groups on; a doorstep is dictated over the phone,
+is never filtered on, and would turn the destination table into an address
+book.
+
+`napomena` is different in kind: it **reverses** this section's own "no notes",
+which was a deliberate decision reaffirmed 01.09.2026. It is recorded as a
+reversal rather than absorbed quietly. The note stays out of every list, filter,
+sort and search — it is read on Detalji, by someone who has already found the
+booking — so what the original decision was protecting (a list that cannot be
+made unreadable, and a search that cannot start matching on prose) still holds.
+
+All three columns are **nullable, while the form requires the address and the
+price**. Every booking entered before that date has none of them and none can
+be invented, so the requirement lives in `RezervacijaSchema`, which is the only
+place that can tell a new booking from an old one. The accepted consequence:
+an old booking asks for an address and a price the first time it is edited.
+The price is `integer` euros, not a decimal — the owner quotes round figures,
+and a decimal typed into the box is refused rather than rounded, because
+silently turning 120,50 into 120 changes what he charges.
 
 `tim_id` is the tenth column and the only one that is not trip data. It is
 stored rather than derived from `kreirao` because the owners are the
@@ -646,6 +673,24 @@ All of it drops onto this schema later without a rewrite.
 ---
 
 ## 12. Changelog
+
+**07.09.2026** — address, price and note.
+
+- **§4 gains three columns** at the owner's request: `adresa` (the pickup
+  address in Belgrade), `cena` (whole euros) and `napomena` (a free-text
+  description). Migration `0005`.
+- **`napomena` reverses "no notes"**, which §4 had stated and 01.09.2026 had
+  reaffirmed. Recorded as a reversal, with what the original decision was
+  protecting and why that still holds — see §4.
+- **Standing rule 2's forbidden list shortens by one.** No `status` and no
+  timestamps, still. `src/db/kolone.test.ts` remains the guard and its column
+  list is still exhaustive.
+- **Also fixed, from the same day:** the *Viber* button did nothing when
+  tapped. The link was correct all along; iOS drops a custom-scheme
+  navigation that comes from an anchor when the app runs from the home screen
+  (`display: "standalone"`), so it is now performed by script in a click
+  handler. `tel:` is exempt from that rule, which is why *Pozovi* never
+  broke. See `src/components/dugmad-kontakta.tsx`.
 
 **06.09.2026** — teams and roles. The app stops being a two-person book.
 

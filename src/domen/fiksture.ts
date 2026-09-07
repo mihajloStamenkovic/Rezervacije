@@ -166,6 +166,16 @@ export function red(u: Ulaz): RezervacijaRed {
       brojPutnika: u.brojPutnika,
       kreirao: autor.id,
       timId,
+      /*
+       * Address, price and note (SPEC §4, amended 07.09.2026). Null by
+       * default and not settable from `Ulaz`: no domain rule reads them —
+       * they are not filtered, sorted, grouped or searched on — so a fixture
+       * that could set them would only invite a test to assert on something
+       * the domain does not decide. They exist here to satisfy the row type.
+       */
+      adresa: null,
+      cena: null,
+      napomena: null,
     },
     destinacija: u.destinacija,
     destinacijaPovratka,

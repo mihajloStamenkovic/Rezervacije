@@ -178,6 +178,21 @@ export const reservations = pgTable(
     ime: text("ime").notNull(),
     /** Normalised to E.164 (`+381…`) on save so it dials from abroad. */
     telefon: text("telefon").notNull(),
+    /**
+     * Where the van picks them up — a street address in Belgrade (migration
+     * `0005`, at the owner's request 07.09.2026).
+     *
+     * Free text, not reference data. Standing rule 3 governs *destinations*,
+     * which are what the list filters and groups on; a doorstep is dictated
+     * over the phone, is never filtered on, and would turn the destination
+     * table into an address book if it were seeded there.
+     *
+     * Nullable although the form requires it, because every booking entered
+     * before this column existed has no address and none can be invented for
+     * it. Required-for-new lives in `RezervacijaSchema`, which is the only
+     * place that can tell a new booking from an old one.
+     */
+    adresa: text("adresa"),
     /** Trip destination. */
     destinacijaId: uuid("destinacija_id")
       .notNull()
@@ -190,6 +205,30 @@ export const reservations = pgTable(
     /** Optional — filled in later when the return is confirmed. */
     datumPovratka: date("datum_povratka", { mode: "string" }),
     brojPutnika: integer("broj_putnika").notNull(),
+    /**
+     * What the trip costs, in **whole euros** (migration `0005`).
+     *
+     * `integer` rather than `numeric`, at the owner's choice 07.09.2026: the
+     * business quotes round figures. That also keeps money off floating point
+     * for free — there are no cents to lose — so nothing here ever needs
+     * rounding, and the column stores exactly what was typed.
+     *
+     * Nullable for the same reason as `adresa`: bookings predating the column.
+     */
+    cena: integer("cena"),
+    /**
+     * A free-text description of the booking — anything the nine columns have
+     * no room for (migration `0005`).
+     *
+     * SPEC §4 said "no notes" and meant it; this reverses that at the owner's
+     * request, and §4 records the reversal rather than being quietly
+     * contradicted. It stays outside every list, filter and sort: a note is
+     * read on Detalji, by someone who already found the booking.
+     *
+     * `null` is the absence of a note, never `''`. One empty state, so
+     * "has a note" is a null check everywhere.
+     */
+    napomena: text("napomena"),
     /**
      * Who entered it. A badge, never a permission — everyone on the team may
      * edit and delete everyone else's bookings, which is what makes it a
@@ -211,6 +250,8 @@ export const reservations = pgTable(
   },
   (t) => [
     check("reservations_broj_putnika_pozitivan", sql`${t.brojPutnika} > 0`),
+    // A price may be absent or free, never negative.
+    check("reservations_cena_nenegativna", sql`${t.cena} is null or ${t.cena} >= 0`),
     // A return cannot precede its departure.
     check(
       "reservations_povratak_posle_polaska",

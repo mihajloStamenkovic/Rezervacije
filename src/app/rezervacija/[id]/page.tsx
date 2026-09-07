@@ -23,6 +23,7 @@ import { punoImeDestinacije } from "@/domen/destinacije";
 import { jeJednosmerna, resolveMainLeg } from "@/domen/glavna-etapa";
 import { zahtevajKorisnika } from "@/lib/auth";
 import { danasBeograd, formatDug } from "@/lib/datum";
+import { formatCena } from "@/lib/novac";
 import { putanjaNazad } from "@/lib/navigacija";
 import { T, putnika } from "@/lib/tekst";
 import { formatTelefon, telLink, viberLink } from "@/lib/telefon";
@@ -93,6 +94,20 @@ export default async function Detalji({
           </Red>
 
           {/*
+            Address, price and note read in the same order they are entered.
+            All three are absent on every booking made before 07.09.2026, and
+            an absent one shows a dash rather than an empty row — a blank cell
+            on a phone reads as a bug, not as "nothing was entered".
+          */}
+          <Red oznaka={T.detalji.adresa}>
+            {rezervacija.adresa ?? (
+              <span className="text-muted-foreground">
+                {T.detalji.nemaPodatka}
+              </span>
+            )}
+          </Red>
+
+          {/*
             A one-way is shown as origin → destination, because on a booking
             with no return date the second column is where they set out from
             and there is nothing else on this screen that would say so. Left
@@ -140,6 +155,31 @@ export default async function Detalji({
               </Red>
             </>
           )}
+
+          <Red oznaka={T.detalji.cena}>
+            {rezervacija.cena === null ? (
+              <span className="text-muted-foreground">
+                {T.detalji.nemaPodatka}
+              </span>
+            ) : (
+              <span className="font-medium tabular-nums">
+                {formatCena(rezervacija.cena)}
+              </span>
+            )}
+          </Red>
+
+          {/* Whitespace is kept: a note is often a short list, one per line. */}
+          <Red oznaka={T.detalji.napomena}>
+            {rezervacija.napomena === null ? (
+              <span className="text-muted-foreground">
+                {T.detalji.nemaPodatka}
+              </span>
+            ) : (
+              <span className="block whitespace-pre-wrap">
+                {rezervacija.napomena}
+              </span>
+            )}
+          </Red>
 
           <Red oznaka={T.detalji.uneo}>
             <BedzAutora autor={autor} saImenom />

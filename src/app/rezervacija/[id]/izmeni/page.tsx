@@ -68,11 +68,18 @@ export default async function Izmeni({
           pocetna={{
             ime: rezervacija.ime,
             telefon: rezervacija.telefon,
+            // Empty on every booking entered before these columns existed.
+            // The form requires them, so an old booking asks for both the
+            // first time it is edited — the trade the owner accepted when he
+            // chose "obavezne za nove" on 07.09.2026.
+            adresa: rezervacija.adresa ?? "",
             destinacijaId: rezervacija.destinacijaId,
             datumPolaska: zaInput(rezervacija.datumPolaska),
             destinacijaPovratkaId: rezervacija.destinacijaPovratkaId,
             datumPovratka: zaInput(rezervacija.datumPovratka),
             brojPutnika: String(rezervacija.brojPutnika),
+            cena: rezervacija.cena === null ? "" : String(rezervacija.cena),
+            napomena: rezervacija.napomena ?? "",
           }}
         />
       </main>

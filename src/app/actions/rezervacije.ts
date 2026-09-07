@@ -152,11 +152,14 @@ export async function sacuvajRezervaciju(
     const zaUpis = {
       ime: podaci.ime,
       telefon: podaci.telefon,
+      adresa: podaci.adresa,
       destinacijaId: odlazak.id,
       datumPolaska: podaci.datumPolaska,
       destinacijaPovratkaId: povratak.id,
       datumPovratka: podaci.datumPovratka,
       brojPutnika: podaci.brojPutnika,
+      cena: podaci.cena,
+      napomena: podaci.napomena,
     };
 
     if (id === null) {

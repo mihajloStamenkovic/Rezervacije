@@ -97,7 +97,16 @@ export const T = {
     telefon: "Telefon",
     telefonPlaceholder: "064 123 4567",
     telefonPomoc: "Čuva se kao +381… da bi radilo i iz inostranstva.",
+    /** The doorstep in Belgrade — SPEC §4, amended 07.09.2026. */
+    adresa: "Adresa preuzimanja",
+    adresaPlaceholder: "npr. Bulevar kralja Aleksandra 73, ulaz 2",
+    adresaPomoc: "Odakle se putnici pokupe u Beogradu.",
     brojPutnika: "Broj putnika",
+    cena: "Cena (€)",
+    cenaPomoc: "Ceo iznos u evrima, bez para.",
+    napomena: "Napomena",
+    napomenaPomoc: "Nije obavezno — sve što treba da se zna o vožnji.",
+    napomenaPlaceholder: "npr. dva velika kofera, plaćeno unapred",
     odlazak: "Odlazak",
     povratak: "Povratak",
     drzava: "Država",
@@ -137,6 +146,16 @@ export const T = {
     izmeni: "Izmeni",
     obrisi: "Obriši",
     uneo: "Uneo",
+    adresa: "Adresa preuzimanja",
+    cena: "Cena",
+    napomena: "Napomena",
+    /**
+     * Shown in place of a value on the bookings entered before these three
+     * fields existed, and wherever a note was left blank. A dash rather than
+     * a blank cell, so the row reads as "nothing here" instead of looking
+     * like a rendering fault.
+     */
+    nemaPodatka: "—",
     polazak: "Polazak",
     povratak: "Povratak",
     bezPovratka: "Povratak nije dogovoren",
@@ -205,6 +224,14 @@ export const T = {
      */
     brojPutnikaNeispravan: "Broj putnika mora biti ceo broj veći od nule.",
     brojPutnikaPrevelik: "Najviše 100 putnika po rezervaciji.",
+    adresaObavezna: "Unesi adresu preuzimanja.",
+    adresaPredugacka: "Adresa je predugačka.",
+    cenaObavezna: "Unesi cenu.",
+    /** Covers decimals too: the owner chose whole euros, so 120,50 is refused
+        rather than rounded. */
+    cenaNeispravna: "Cena mora biti ceo broj evra, bez para.",
+    cenaPrevelika: "Cena je prevelika.",
+    napomenaPredugacka: "Napomena je predugačka.",
     nijeNadjeno: "Rezervacija nije pronađena.",
     neuspelo: "Čuvanje nije uspelo. Pokušaj ponovo.",
     /**

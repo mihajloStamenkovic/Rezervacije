@@ -60,11 +60,14 @@ export default async function Nova({ searchParams }: PageProps<"/nova">) {
           pocetna={{
             ime: "",
             telefon: "",
+            adresa: "",
             destinacijaId: null,
             datumPolaska: "",
             destinacijaPovratkaId: postavke?.podrazumevanaDestinacijaId ?? null,
             datumPovratka: "",
             brojPutnika: "",
+            cena: "",
+            napomena: "",
           }}
         />
       </main>
