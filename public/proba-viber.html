@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Provera Viber veze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --paper: #f7f7fb;
+    --surface: #ffffff;
+    --ink: #1a1726;
+    --muted: #6b6880;
+    --line: #e2e0ea;
+    --line-strong: #cfccdc;
+    --accent: #5b3fa8;
+    --accent-soft: #efebf9;
+    --ok: #1c7a4a;
+    --ok-soft: #e4f3ea;
+    --fail: #ab2f26;
+    --fail-soft: #fbe9e7;
+
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #131220;
+      --surface: #1c1a2b;
+      --ink: #ecebf5;
+      --muted: #9a96b0;
+      --line: #2e2b41;
+      --line-strong: #423d5c;
+      --accent: #ab8df0;
+      --accent-soft: #241f3a;
+      --ok: #58d68d;
+      --ok-soft: #17301f;
+      --fail: #f0857c;
+      --fail-soft: #331917;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #131220;
+    --surface: #1c1a2b;
+    --ink: #ecebf5;
+    --muted: #9a96b0;
+    --line: #2e2b41;
+    --line-strong: #423d5c;
+    --accent: #ab8df0;
+    --accent-soft: #241f3a;
+    --ok: #58d68d;
+    --ok-soft: #17301f;
+    --fail: #f0857c;
+    --fail-soft: #331917;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .stranica {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2rem 1.125rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+  }
+
+  .zaglavlje { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .nadnaslov {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 5vw, 2.1rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .uvod { margin: 0; color: var(--muted); }
+  .uvod strong { color: var(--ink); font-weight: 600; }
+  .uvod code { font-family: var(--mono); font-size: 0.9em; }
+
+  /* Okruženje — gde se stranica gleda */
+  .okruzenje {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 0.875rem;
+  }
+  .okruzenje[data-valjano="ne"] {
+    border-color: var(--fail);
+    background: var(--fail-soft);
+  }
+  .okruzenje[data-valjano="da"] {
+    border-color: var(--ok);
+    background: var(--ok-soft);
+  }
+  .okruzenje b { font-weight: 600; }
+  .okruzenje .gde {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .okruzenje p { margin: 0; }
+  .okruzenje a { color: inherit; }
+
+  /* Način otvaranja */
+  .nacin {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+  }
+  .nacin > span { font-size: 0.875rem; font-weight: 600; }
+  .prekidac { display: flex; gap: 0.5rem; }
+  .prekidac .dugme { flex: 1 1 0; }
+  .prekidac .dugme[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Stanje veze sa mnom */
+  .veza-stanje {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.875rem;
+    color: var(--muted);
+    padding: 0.7rem 0.85rem;
+    border: 1px dashed var(--line-strong);
+    border-radius: 0.6rem;
+  }
+  .veza-stanje[data-stanje="radi"] {
+    border-style: solid;
+    border-color: var(--ok);
+    background: var(--ok-soft);
+    color: var(--ink);
+  }
+  .tacka {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--line-strong);
+    flex: 0 0 auto;
+    margin-top: 0.45rem;
+  }
+  .veza-stanje[data-stanje="radi"] .tacka { background: var(--ok); }
+
+  /* Broj */
+  .broj {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+  }
+
+  .broj label { font-size: 0.875rem; font-weight: 600; }
+
+  .broj input, .beleska textarea {
+    font-family: var(--mono);
+    font-size: 1.0625rem;
+    padding: 0.7rem 0.8rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--line-strong);
+    border-radius: 0.5rem;
+    width: 100%;
+  }
+
+  .broj input:focus-visible, .beleska textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .pomoc { font-size: 0.8125rem; color: var(--muted); margin: 0; }
+  .pomoc code { font-family: var(--mono); }
+
+  /* Ishod */
+  .ishod {
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    font-size: 0.9375rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .ishod[data-stanje="resen"] {
+    border-color: var(--ok);
+    background: var(--ok-soft);
+  }
+  .ishod[data-stanje="pao"] {
+    border-color: var(--fail);
+    background: var(--fail-soft);
+  }
+  .ishod b { font-weight: 600; }
+
+  /* Kandidati */
+  .lista { display: flex; flex-direction: column; gap: 0.875rem; }
+
+  .kandidat {
+    display: grid;
+    grid-template-columns: 2.25rem 1fr;
+    gap: 0 0.75rem;
+    padding: 0.9rem 1rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line-strong);
+    border-radius: 0.6rem;
+  }
+  .kandidat[data-sud="radi"] { border-left-color: var(--ok); }
+  .kandidat[data-sud="ne"] { border-left-color: var(--fail); }
+  .kandidat[data-uloga="kontrola"] { border-color: var(--accent); }
+
+  .redni {
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--muted);
+    padding-top: 0.1rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .telo { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
+
+  .naslov-reda {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.55rem;
+  }
+  .naslov-reda h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+
+  .znacka {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.42rem;
+    border-radius: 0.28rem;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+
+  .opis { margin: 0; font-size: 0.875rem; color: var(--muted); }
+
+  .veza-tekst {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 0.4rem;
+    padding: 0.5rem 0.6rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+
+  .radnje { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  .dugme {
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    padding: 0.62rem 0.95rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dugme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .otvori {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    flex: 1 1 8rem;
+  }
+  :root[data-theme="dark"] .otvori { color: #16121f; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .otvori { color: #16121f; }
+  }
+
+  .sud { flex: 0 0 auto; }
+  .sud[aria-pressed="true"][data-sud="radi"] {
+    background: var(--ok-soft); border-color: var(--ok); color: var(--ok);
+  }
+  .sud[aria-pressed="true"][data-sud="ne"] {
+    background: var(--fail-soft); border-color: var(--fail); color: var(--fail);
+  }
+
+  .merenje {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0;
+  }
+  .merenje[data-ishod="prebacio"] { color: var(--ok); }
+  .merenje[data-ishod="ostao"] { color: var(--fail); }
+
+  .beleska {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+  }
+  .beleska label { font-size: 0.875rem; font-weight: 600; }
+  .beleska textarea {
+    font-family: var(--sans);
+    font-size: 1rem;
+    min-height: 5rem;
+    resize: vertical;
+  }
+
+  .napomena {
+    font-size: 0.8125rem;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 1rem;
+    margin: 0;
+  }
+  .napomena + .napomena { border-top: 0; padding-top: 0; }
+  .napomena code { font-family: var(--mono); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .dugme, .kandidat { transition: border-color 120ms ease, background 120ms ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stranica">
+  <header class="zaglavlje">
+    <span class="nadnaslov">Kombi Rezervacije</span>
+    <h1>Provera Viber veze</h1>
+    <p class="uvod">
+      Dugme <strong>Viber</strong> na ekranu Detalji otvara vezu oblika
+      <code>viber://&hellip;</code>, i ta veza kod tebe ne radi. Ispod je šest
+      oblika: prvi je <strong>kontrola bez broja</strong>, ostalih pet su isti
+      broj napisan na pet načina. <strong>Tapni ih redom</strong> i obeleži šta
+      se desilo &mdash; stranica uz to sama meri da li je telefon prešao u drugu
+      aplikaciju.
+    </p>
+  </header>
+
+  <div class="okruzenje" id="okruzenje" data-valjano="nepoznato">
+    <span class="gde" id="okruzenje-gde">proverava se gde si</span>
+    <p id="okruzenje-tekst"></p>
+  </div>
+
+  <div class="nacin">
+    <span id="nacin-naslov">Kako se veza otvara</span>
+    <div class="prekidac" role="group" aria-labelledby="nacin-naslov">
+      <button class="dugme" type="button" data-nacin="link" aria-pressed="true">Kao link</button>
+      <button class="dugme" type="button" data-nacin="skripta" aria-pressed="false">Skriptom</button>
+    </div>
+    <p class="pomoc" id="nacin-opis"></p>
+  </div>
+
+  <div class="veza-stanje" id="veza-stanje" data-stanje="nema">
+    <span class="tacka" aria-hidden="true"></span>
+    <span id="veza-tekst">Rezultati se za sada čuvaju samo na ovom telefonu. Ako ostane ovako, pritisni <strong>Kopiraj rezultat</strong> i pošalji mi tekst.</span>
+  </div>
+
+  <div class="broj">
+    <label for="unos">Broj za probu</label>
+    <input id="unos" type="tel" inputmode="tel" autocomplete="tel"
+           placeholder="064 123 4567" value="064 123 4567">
+    <p class="pomoc" id="normalizovan"></p>
+    <p class="pomoc"><b>Ne svoj broj.</b> Viber ne otvara čet sa samim sobom i
+    na to kaže &bdquo;request unavailable&ldquo; &mdash; što liči na kvar a nije.
+    Uzmi broj nekog iz firme <b>ko koristi Viber</b>, najbolje nekog ko ti je već
+    u kontaktima.</p>
+  </div>
+
+  <div class="ishod" id="ishod" data-stanje="prazno">
+    <span id="ishod-tekst">Još nijedan oblik nije obeležen.</span>
+    <div class="radnje">
+      <button class="dugme" type="button" id="kopiraj-ishod">Kopiraj rezultat</button>
+      <button class="dugme" type="button" id="ponisti">Poništi obeleženo</button>
+    </div>
+  </div>
+
+  <div class="lista" id="lista"></div>
+
+  <div class="beleska">
+    <label for="beleska">Šta se tačno videlo (ako želiš da dopišeš)</label>
+    <textarea id="beleska" placeholder="npr. Viber se otvori ali kaže da broj nije Viber korisnik"></textarea>
+  </div>
+
+  <p class="napomena">
+    <strong>Prvi red je najvažniji.</strong> Ako se ni na golo <code>viber://</code>
+    Viber ne otvori, greška nije u obliku broja nego u tome što ovo okruženje
+    uopšte ne pušta prelazak na aplikaciju &mdash; a to je druga popravka.
+  </p>
+  <p class="napomena">
+    Ceo krug ima tri prolaza i vredi ih uraditi tim redom: <strong>Safari
+    kartica</strong>, pa <strong>ikona sa početnog ekrana</strong>, pa isto to sa
+    prekidačem na <strong>Skriptom</strong>. Obeleženo se pamti odvojeno po
+    prolazu, pa se ništa ne gubi kad se prebaciš.
+  </p>
+</div>
+
+<script>
+  var VARIJANTE = [
+    {
+      kljuc: "kontrola",
+      uloga: "kontrola",
+      naslov: "samo viber://",
+      znacka: "kontrola",
+      opis: "Bez broja i bez ičega drugog: otvara Viber tamo gde je stao. Ovim se proverava da li telefon uopšte dozvoljava prelazak na aplikaciju.",
+      veza: function () { return "viber://"; }
+    },
+    {
+      kljuc: "chat-plus-kodiran",
+      znacka: "sada u aplikaciji",
+      naslov: "chat, plus kodiran kao %2B",
+      opis: "Ono što aplikacija sada šalje. Ako Viber ne dekodira %2B, vidi ga kao deo broja i ne nalazi kontakt.",
+      veza: function (c) { return "viber://chat?number=" + encodeURIComponent("+" + c); }
+    },
+    {
+      kljuc: "chat-plus-doslovno",
+      naslov: "chat, plus doslovno",
+      opis: "Isto, ali plus ide nekodiran. Razlikuje se od prethodnog samo po tri znaka.",
+      veza: function (c) { return "viber://chat?number=+" + c; }
+    },
+    {
+      kljuc: "chat-bez-plusa",
+      naslov: "chat, bez plusa",
+      opis: "Samo cifre sa pozivnim brojem države. Neki rukovaoci očekuju baš ovo.",
+      veza: function (c) { return "viber://chat?number=" + c; }
+    },
+    {
+      kljuc: "contact",
+      naslov: "contact, kartica kontakta",
+      opis: "Otvara karticu osobe umesto četa. Sa nje se ide na poruku ili poziv u jednom dodiru.",
+      veza: function (c) { return "viber://contact?number=" + encodeURIComponent("+" + c); }
+    },
+    {
+      kljuc: "add",
+      naslov: "add, dodavanje broja",
+      opis: "Ruta za broj koji nije u kontaktima — često prolazi tamo gde chat ne prolazi.",
+      veza: function (c) { return "viber://add?number=" + c; }
+    }
+  ];
+
+  var KLJUC_SUDOVI = "provera-viber-sudovi";
+  var KLJUC_MERENJA = "provera-viber-merenja";
+  var KLJUC_UREDJAJ = "provera-viber-uredjaj";
+  var KLJUC_BELESKA = "provera-viber-beleska";
+
+  function procitaj(kljuc, podrazumevano) {
+    try {
+      var sirovo = localStorage.getItem(kljuc);
+      return sirovo ? JSON.parse(sirovo) : podrazumevano;
+    } catch (e) { return podrazumevano; }
+  }
+
+  function upisi(kljuc, vrednost) {
+    try { localStorage.setItem(kljuc, JSON.stringify(vrednost)); } catch (e) {}
+  }
+
+  /* Sud je ono što je čovek obeležio; merenje je ono što je stranica sama
+     videla — da li je telefon posle tapa otišao u drugu aplikaciju. To dvoje
+     ume da se raziđe, i baš razilaženje nešto znači: Viber se otvorio, ali na
+     pogrešnom mestu. */
+  var sudovi = procitaj(KLJUC_SUDOVI, {});
+  var merenja = procitaj(KLJUC_MERENJA, {});
+
+  var idUredjaja = procitaj(KLJUC_UREDJAJ, null);
+  if (!idUredjaja) {
+    idUredjaja = "u" + String(Date.now()).slice(-8) + "-" +
+      Math.random().toString(36).slice(2, 8);
+    upisi(KLJUC_UREDJAJ, idUredjaja);
+  }
+
+  /* Iste vodilje kao normalizujTelefon u aplikaciji: podrazumevana država je
+     Srbija, sve ostalo mora da nosi svoj pozivni broj. */
+  function ucifre(unos) {
+    var c = String(unos).replace(/\D/g, "");
+    if (c.indexOf("00") === 0) c = c.slice(2);
+    else if (c.indexOf("0") === 0) c = "381" + c.slice(1);
+    else if (c.indexOf("381") !== 0 && c.length <= 9) c = "381" + c;
+    return c;
+  }
+
+  var unos = document.getElementById("unos");
+  var normalizovan = document.getElementById("normalizovan");
+  var lista = document.getElementById("lista");
+  var ishod = document.getElementById("ishod");
+  var ishodTekst = document.getElementById("ishod-tekst");
+  var beleska = document.getElementById("beleska");
+  var vezaStanje = document.getElementById("veza-stanje");
+  var vezaTekst = document.getElementById("veza-tekst");
+
+  beleska.value = procitaj(KLJUC_BELESKA, "") || "";
+
+  /* ---- Gde se ovo gleda -------------------------------------------------
+     Prva proba je pala na svih šest redova, kontrolu uključujući, zato što je
+     stranica bila u okviru unutar Claude aplikacije — okvir ne pušta prelazak
+     ni na jednu aplikaciju. Zato stranica sada sama kaže da li je uopšte na
+     mestu gde proba nešto znači, pre nego što se bilo šta tapne. */
+  var uOkviru = window.top !== window.self;
+  var saPocetnog = navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+
+  var okruzenje = uOkviru ? "okvir" : (saPocetnog ? "pocetni-ekran" : "kartica");
+
+  (function opisiOkruzenje() {
+    var kutija = document.getElementById("okruzenje");
+    var gde = document.getElementById("okruzenje-gde");
+    var tekst = document.getElementById("okruzenje-tekst");
+
+    if (okruzenje === "okvir") {
+      kutija.setAttribute("data-valjano", "ne");
+      gde.textContent = "u okviru — proba ovde ne vredi";
+      tekst.innerHTML = "Stranica je unutar druge aplikacije, a okvir blokira prelazak na <b>bilo koju</b> aplikaciju — pašće i kontrolni red, bez obzira na Viber (07.09.2026. je tako i bilo). Ovde koristi samo <b>Kopiraj vezu</b> i nalepi je u adresnu liniju Safarija; tamo prelazak prolazi.";
+    } else if (okruzenje === "pocetni-ekran") {
+      kutija.setAttribute("data-valjano", "da");
+      gde.textContent = "sa početnog ekrana — isto kao aplikacija";
+      tekst.innerHTML = "Ovo je tačno ono okruženje u kome dugme Viber ne radi. Ako ovde padne i kontrolni red, a u Safari kartici prođe, uzrok je režim bez adresne linije, a ne oblik broja.";
+    } else {
+      kutija.setAttribute("data-valjano", "da");
+      gde.textContent = "safari kartica";
+      tekst.innerHTML = "Ovde prelazak na aplikaciju nije blokiran. Kad završiš, isto probaj i preko ikone sa početnog ekrana — <b>razlika između to dvoje je pola odgovora</b>.";
+    }
+  })();
+
+  /* Link i dodela location.href nisu isto na iOS-u u režimu bez adresne
+     linije: jedno ume tiho da propadne tamo gde drugo prođe. */
+  var nacin = procitaj("provera-viber-nacin", "link");
+  var nacinOpis = document.getElementById("nacin-opis");
+
+  function osveziNacin() {
+    Array.prototype.forEach.call(
+      document.querySelectorAll(".prekidac .dugme"),
+      function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-nacin") === nacin ? "true" : "false");
+      }
+    );
+    nacinOpis.textContent = nacin === "link"
+      ? "Obično <a href=\"viber://…\">, isto što aplikacija sada radi."
+      : "window.location.href = \"viber://…\" — drugi put do istog, koji sa početnog ekrana ume da prođe tamo gde link ne prođe.";
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll(".prekidac .dugme"),
+    function (b) {
+      b.addEventListener("click", function () {
+        nacin = b.getAttribute("data-nacin");
+        upisi("provera-viber-nacin", nacin);
+        osveziNacin();
+        nacrtaj();
+      });
+    }
+  );
+
+  /* Sud i merenje se pamte po načinu otvaranja, jer je razlika između ta dva
+     upravo ono što se meri — inače bi druga proba pregazila prvu. */
+  function kljucReda(i) { return nacin + "#" + i; }
+
+  /* ---- Merenje prelaska u aplikaciju ------------------------------------
+     Kad se tapne veza, pamti se koja je i kada. Ako telefon u naredne dve i po
+     sekunde sakrije stranicu, prelazak je uspeo — tako se ponašaju i tel: i
+     mailto:. Ako stranica ostane vidljiva, nije se desilo ništa. Nije dokaz,
+     ali je jedino što stranica može sama da vidi. */
+  var cekanje = null;
+
+  function zapocniMerenje(i) {
+    if (cekanje) clearTimeout(cekanje.tajmer);
+    var stavka = { indeks: i, pocetak: Date.now() };
+    stavka.tajmer = setTimeout(function () { zavrsiMerenje(i, "ostao"); }, 2500);
+    cekanje = stavka;
+  }
+
+  function zavrsiMerenje(i, kako) {
+    if (!cekanje || cekanje.indeks !== i) return;
+    clearTimeout(cekanje.tajmer);
+    merenja[kljucReda(i)] = { ishod: kako, posle: Date.now() - cekanje.pocetak };
+    cekanje = null;
+    upisi(KLJUC_MERENJA, merenja);
+    nacrtaj();
+    posalji();
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden" && cekanje) {
+      zavrsiMerenje(cekanje.indeks, "prebacio");
+    }
+  });
+  window.addEventListener("pagehide", function () {
+    if (cekanje) zavrsiMerenje(cekanje.indeks, "prebacio");
+  });
+
+  /* ---- Slanje rezultata -------------------------------------------------
+     Bez ovoga sve ostaje u localStorage ovog telefona, gde ja ne vidim ništa.
+     Kad baza nije dostupna — stranica otvorena van claude.ai — ostaje
+     kopiranje, pa se to i kaže na vrhu umesto da dugmad tiho ne rade ništa. */
+  var baza = null;
+  var odlozeno = null;
+
+  function nalaz() {
+    var cifre = ucifre(unos.value);
+    var redovi = {};
+    VARIJANTE.forEach(function (v, i) {
+      var k = kljucReda(i);
+      redovi[v.kljuc] = {
+        naslov: v.naslov,
+        veza: v.uloga === "kontrola" ? v.veza("") : v.veza(cifre),
+        sud: sudovi[k] || "nije probano",
+        merenje: merenja[k] ? merenja[k].ishod : "nije mereno",
+        posleMs: merenja[k] ? merenja[k].posle : null
+      };
+    });
+    return {
+      uredjaj: idUredjaja,
+      pregledac: navigator.userAgent,
+      jezik: navigator.language || "",
+      okruzenje: okruzenje,
+      nacin: nacin,
+      uOkviru: uOkviru,
+      broj: cifre ? "+" + cifre : "",
+      vreme: new Date().toISOString(),
+      beleska: beleska.value.slice(0, 2000),
+      redovi: redovi
+    };
+  }
+
+  function posalji() {
+    if (!baza) return;
+    if (odlozeno) clearTimeout(odlozeno);
+    odlozeno = setTimeout(function () {
+      baza.doc("nalazi/" + idUredjaja + "-" + okruzenje + "-" + nacin).set(nalaz()).then(function () {
+        vezaStanje.setAttribute("data-stanje", "radi");
+        vezaTekst.textContent = "Poslato. Sve što obeležiš stiže do mene samo — ne moraš ništa da kopiraš.";
+      }, function (e) {
+        vezaStanje.setAttribute("data-stanje", "nema");
+        vezaTekst.textContent = "Slanje nije prošlo (" + (e && e.code ? e.code : "nepoznato") +
+          "). Pritisni Kopiraj rezultat i pošalji mi tekst.";
+      });
+    }, 500);
+  }
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("db").then(function (db) {
+      if (!db) return;
+      baza = db;
+      vezaStanje.setAttribute("data-stanje", "radi");
+      vezaTekst.textContent = "Povezano — rezultati stižu do mene sami.";
+      posalji();
+    }, function () {});
+  }
+
+  /* ---- Crtanje ---------------------------------------------------------- */
+  function tekstZaKopiranje(cifre) {
+    var redovi = [
+      "Provera Viber veze — broj +" + cifre,
+      "gde: " + okruzenje + " / otvaranje: " + nacin,
+      navigator.userAgent
+    ];
+    VARIJANTE.forEach(function (v, i) {
+      var k = kljucReda(i);
+      var sud = sudovi[k] === "radi" ? "RADI" : sudovi[k] === "ne" ? "ne radi" : "nije probano";
+      var m = merenja[k]
+        ? (merenja[k].ishod === "prebacio" ? "presao u aplikaciju" : "ostao na stranici")
+        : "nije mereno";
+      redovi.push((i + 1) + ". " + v.naslov + " — " + sud + " / " + m);
+      redovi.push("   " + (v.uloga === "kontrola" ? v.veza("") : v.veza(cifre)));
+    });
+    if (beleska.value.trim()) redovi.push("Beleska: " + beleska.value.trim());
+    return redovi.join("\n");
+  }
+
+  function osveziIshod() {
+    var radi = [];
+    var probano = 0;
+    VARIJANTE.forEach(function (v, i) {
+      if (sudovi[kljucReda(i)]) probano++;
+      if (sudovi[kljucReda(i)] === "radi") radi.push(i);
+    });
+
+    var sBrojem = radi.filter(function (i) { return VARIJANTE[i].uloga !== "kontrola"; });
+
+    if (sBrojem.length > 0) {
+      ishod.setAttribute("data-stanje", "resen");
+      ishodTekst.innerHTML = "Radi: <b>" + sBrojem.map(function (i) {
+        return "br. " + (i + 1) + " — " + VARIJANTE[i].naslov;
+      }).join("; ") + "</b>. To je oblik koji ide u aplikaciju.";
+    } else if (probano === 0) {
+      ishod.setAttribute("data-stanje", "prazno");
+      ishodTekst.textContent = "Još nijedan oblik nije obeležen.";
+    } else if (sudovi[kljucReda(0)] === "ne") {
+      ishod.setAttribute("data-stanje", "pao");
+      ishodTekst.innerHTML = "Ni gola veza <b>viber://</b> ne otvara Viber. Greška nije u obliku broja — ovo okruženje ne pušta prelazak na aplikaciju.";
+    } else {
+      ishod.setAttribute("data-stanje", "pao");
+      ishodTekst.textContent = "Obeleženo " + probano + " od " + VARIJANTE.length +
+        ", nijedan ne otvara čet.";
+    }
+  }
+
+  function nacrtaj() {
+    var cifre = ucifre(unos.value);
+    normalizovan.innerHTML = cifre
+      ? "Šalje se kao <code>+" + cifre + "</code>."
+      : "Upiši broj koji sme da se pozove — svoj ili nekog iz firme.";
+
+    lista.textContent = "";
+
+    VARIJANTE.forEach(function (v, i) {
+      var url = v.uloga === "kontrola" ? v.veza("") : (cifre ? v.veza(cifre) : "");
+      var k = kljucReda(i);
+
+      var red = document.createElement("div");
+      red.className = "kandidat";
+      if (v.uloga) red.setAttribute("data-uloga", v.uloga);
+      if (sudovi[k]) red.setAttribute("data-sud", sudovi[k]);
+
+      var redni = document.createElement("div");
+      redni.className = "redni";
+      redni.textContent = (i + 1) + ".";
+
+      var telo = document.createElement("div");
+      telo.className = "telo";
+
+      var naslovRed = document.createElement("div");
+      naslovRed.className = "naslov-reda";
+      var h2 = document.createElement("h2");
+      h2.textContent = v.naslov;
+      naslovRed.appendChild(h2);
+      if (v.znacka) {
+        var zn = document.createElement("span");
+        zn.className = "znacka";
+        zn.textContent = v.znacka;
+        naslovRed.appendChild(zn);
+      }
+
+      var opis = document.createElement("p");
+      opis.className = "opis";
+      opis.textContent = v.opis;
+
+      var kod = document.createElement("div");
+      kod.className = "veza-tekst";
+      kod.textContent = url || "—";
+
+      var radnje = document.createElement("div");
+      radnje.className = "radnje";
+
+      var otvori;
+      if (nacin === "link") {
+        otvori = document.createElement("a");
+        if (url) otvori.setAttribute("href", url);
+        otvori.addEventListener("click", function () {
+          if (url) zapocniMerenje(i);
+        });
+      } else {
+        otvori = document.createElement("button");
+        otvori.type = "button";
+        otvori.addEventListener("click", function () {
+          if (!url) return;
+          zapocniMerenje(i);
+          window.location.href = url;
+        });
+      }
+      otvori.className = "dugme otvori";
+      otvori.textContent = "Otvori Viber";
+
+      var kopiraj = document.createElement("button");
+      kopiraj.className = "dugme";
+      kopiraj.type = "button";
+      kopiraj.textContent = "Kopiraj vezu";
+      kopiraj.addEventListener("click", function () {
+        prepisi(url, kopiraj, "Kopiraj vezu");
+      });
+
+      radnje.appendChild(otvori);
+      radnje.appendChild(kopiraj);
+
+      var merenjeRed = document.createElement("p");
+      merenjeRed.className = "merenje";
+      if (merenja[k]) {
+        merenjeRed.setAttribute("data-ishod", merenja[k].ishod);
+        merenjeRed.textContent = merenja[k].ishod === "prebacio"
+          ? "izmereno: telefon je prešao u drugu aplikaciju"
+          : "izmereno: ništa se nije otvorilo";
+      } else {
+        merenjeRed.textContent = "izmereno: još nije tapnuto";
+      }
+
+      var sudRadnje = document.createElement("div");
+      sudRadnje.className = "radnje";
+      var oznake = v.uloga === "kontrola"
+        ? [["radi", "Viber se otvorio"], ["ne", "Ništa"]]
+        : [["radi", "Otvorio čet"], ["ne", "Ne radi"]];
+      oznake.forEach(function (par) {
+        var b = document.createElement("button");
+        b.className = "dugme sud";
+        b.type = "button";
+        b.setAttribute("data-sud", par[0]);
+        b.setAttribute("aria-pressed", sudovi[k] === par[0] ? "true" : "false");
+        b.textContent = par[1];
+        b.addEventListener("click", function () {
+          sudovi[k] = sudovi[k] === par[0] ? undefined : par[0];
+          if (!sudovi[k]) delete sudovi[k];
+          upisi(KLJUC_SUDOVI, sudovi);
+          nacrtaj();
+          posalji();
+        });
+        sudRadnje.appendChild(b);
+      });
+
+      telo.appendChild(naslovRed);
+      telo.appendChild(opis);
+      telo.appendChild(kod);
+      telo.appendChild(radnje);
+      telo.appendChild(merenjeRed);
+      telo.appendChild(sudRadnje);
+
+      red.appendChild(redni);
+      red.appendChild(telo);
+      lista.appendChild(red);
+    });
+
+    osveziIshod();
+  }
+
+  function prepisi(tekst, dugme, prvobitno) {
+    if (!tekst) return;
+    var uspeh = function () {
+      dugme.textContent = "Kopirano";
+      setTimeout(function () { dugme.textContent = prvobitno; }, 1400);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tekst).then(uspeh, function () { rezerva(tekst, uspeh); });
+        return;
+      }
+    } catch (e) {}
+    rezerva(tekst, uspeh);
+  }
+
+  function rezerva(tekst, uspeh) {
+    try {
+      var polje = document.createElement("textarea");
+      polje.value = tekst;
+      polje.setAttribute("readonly", "readonly");
+      polje.style.position = "fixed";
+      polje.style.opacity = "0";
+      document.body.appendChild(polje);
+      polje.select();
+      document.execCommand("copy");
+      document.body.removeChild(polje);
+      uspeh();
+    } catch (e) {}
+  }
+
+  unos.addEventListener("input", function () { nacrtaj(); posalji(); });
+
+  beleska.addEventListener("input", function () {
+    upisi(KLJUC_BELESKA, beleska.value);
+    posalji();
+  });
+
+  document.getElementById("kopiraj-ishod").addEventListener("click", function () {
+    prepisi(tekstZaKopiranje(ucifre(unos.value)), this, "Kopiraj rezultat");
+  });
+
+  document.getElementById("ponisti").addEventListener("click", function () {
+    sudovi = {};
+    merenja = {};
+    upisi(KLJUC_SUDOVI, sudovi);
+    upisi(KLJUC_MERENJA, merenja);
+    nacrtaj();
+    posalji();
+  });
+
+  osveziNacin();
+  nacrtaj();
+</script>
+
+</body>
+</html>

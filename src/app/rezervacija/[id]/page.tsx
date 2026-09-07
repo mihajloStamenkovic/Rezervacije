@@ -12,14 +12,10 @@
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeftIcon,
-  MessageCircleIcon,
-  PencilIcon,
-  PhoneIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, PencilIcon } from "lucide-react";
 import { BedzAutora } from "@/components/bedz-autora";
 import { CipSmera } from "@/components/cip-smera";
+import { DugmadKontakta } from "@/components/dugmad-kontakta";
 import { DugmeBrisanja } from "@/components/dugme-brisanja";
 import { Button } from "@/components/ui/button";
 import { rezervacijaZa } from "@/db/queries";
@@ -77,28 +73,14 @@ export default async function Detalji({
         </div>
 
         {/* The two call buttons sit above the fold — this is the screen the
-            owner opens while the phone is already at his ear. */}
-        <div className="mb-6 flex gap-3">
-          <Button asChild className="h-12 flex-1 gap-2 text-base">
-            <a href={telLink(rezervacija.telefon)}>
-              <PhoneIcon className="size-4" />
-              {T.detalji.pozovi}
-            </a>
-          </Button>
-          {/* `viber://` hands off to the app the way `tel:` hands off to the
-              dialler — no `target="_blank"`, which would leave an empty tab
-              behind on the phone. */}
-          <Button
-            asChild
-            variant="outline"
-            className="h-12 flex-1 gap-2 text-base"
-          >
-            <a href={viberLink(rezervacija.telefon)}>
-              <MessageCircleIcon className="size-4" />
-              {T.detalji.viber}
-            </a>
-          </Button>
-        </div>
+            owner opens while the phone is already at his ear. Both links are
+            built here, on the server, so `libphonenumber-js` stays out of the
+            phone's bundle; the client component only navigates. */}
+        <DugmadKontakta
+          tel={telLink(rezervacija.telefon)}
+          viber={viberLink(rezervacija.telefon)}
+          broj={formatTelefon(rezervacija.telefon)}
+        />
 
         <dl className="flex flex-col divide-y divide-border rounded-xl border border-border">
           <Red oznaka={T.forma.telefon}>

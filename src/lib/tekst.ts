@@ -129,6 +129,11 @@ export const T = {
     naslov: "Rezervacija",
     pozovi: "Pozovi",
     viber: "Viber",
+    /* Shown only when the hand-off to Viber produced nothing — see
+       `src/components/dugmad-kontakta.tsx` for why that can happen. */
+    viberNijeOtvoren: "Viber se nije otvorio.",
+    kopirajBroj: "Kopiraj broj",
+    brojKopiran: "Kopirano",
     izmeni: "Izmeni",
     obrisi: "Obriši",
     uneo: "Uneo",
