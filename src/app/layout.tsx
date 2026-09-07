@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PovuciZaOsvezavanje } from "@/components/povuci-za-osvezavanje";
 import { RegistracijaSw } from "@/components/registracija-sw";
 import { TrakaMreze } from "@/components/traka-mreze";
 import { T } from "@/lib/tekst";
@@ -70,6 +71,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {/* Above the screens, so it pushes their sticky headers down rather
             than covering the search field. */}
         <TrakaMreze />
+        {/* Installed to the home screen there is no address bar, so this is
+            the only reload the app has. It overlays rather than pushing:
+            nothing on screen may move while a finger is on it. */}
+        <PovuciZaOsvezavanje />
         {children}
       </body>
     </html>

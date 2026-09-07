@@ -412,6 +412,15 @@ apart.
 
 Plus **Podešavanja** — one field: the default home town.
 
+**Povuci da osvežiš** — on every screen, added 07.09.2026 at the owner's
+request. Installed to the home screen there is no address bar and so no reload
+button, and the only way to see a booking a colleague had just entered was to
+close the app and open it again. Pulling down from the top of any screen
+re-fetches it. It is `router.refresh()` rather than a full reload, so a
+half-typed booking survives an accidental pull; and with no connection it says
+so rather than spinning, because a refresh that appears to work is how a stale
+list gets trusted. See `src/components/povuci-za-osvezavanje.tsx`.
+
 ---
 
 ## 7. Working from another country
@@ -685,6 +694,10 @@ All of it drops onto this schema later without a rewrite.
 - **Standing rule 2's forbidden list shortens by one.** No `status` and no
   timestamps, still. `src/db/kolone.test.ts` remains the guard and its column
   list is still exhaustive.
+- **§6 gains "Povuci da osvežiš"** on every screen, so one crew member sees
+  another's booking without closing the app. Same root cause as the Viber bug
+  below: standalone mode has no browser chrome, so anything the browser would
+  normally provide has to be built.
 - **Also fixed, from the same day:** the *Viber* button did nothing when
   tapped. The link was correct all along; iOS drops a custom-scheme
   navigation that comes from an anchor when the app runs from the home screen

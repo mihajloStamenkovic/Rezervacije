@@ -203,6 +203,18 @@ export const T = {
     odbaci: "Ne sada",
   },
 
+  /**
+   * Pull-to-refresh. Four states, because the gesture answers four different
+   * questions: is it armed, has it fired, did it work, and is there even a
+   * connection to work with.
+   */
+  osvezavanje: {
+    povuci: "Povuci da osvežiš",
+    pusti: "Pusti da osvežiš",
+    uToku: "Osvežavam…",
+    bezMreze: "Nema mreže — nije osveženo",
+  },
+
   greske: {
     imeObavezno: "Unesi ime.",
     telefonObavezan: "Unesi broj telefona.",

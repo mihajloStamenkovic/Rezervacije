@@ -139,6 +139,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    /*
+     * Keep the platform's overscroll from chaining out of the page.
+     *
+     * `povuci-za-osvezavanje.tsx` owns what happens when you pull down from
+     * the top, and it suppresses the bounce itself with `preventDefault`
+     * while the gesture is live. This is the belt to that braces: without it,
+     * a pull that starts a fraction before the handler decides can still hand
+     * the movement to the browser underneath, and the indicator and the
+     * rubber band both move at once.
+     */
+    overscroll-behavior-y: contain;
   }
   html {
     @apply font-sans;
