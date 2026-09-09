@@ -2320,3 +2320,26 @@ honest start state — no team exists yet for them to belong to.
       typing; the filter's chevron opens Kasandra, ticking Siviri turns Kasandra
       soft, and *Primeni* lands on `?d=grad:…`. Plus 375 tests, `test:tz`,
       `lint`, `typecheck`, `build`.
+- [x] ~~Owner correction 09.09.2026: the leg sheet revealed itself one dropdown
+      at a time, and asked for the date separately~~ — fixed. Two complaints,
+      one cause: the destination sheet was built as a cascade that unfolds, and
+      the date was left behind on the form as its own field, so filling in one
+      leg meant answering four questions in three places.
+
+      Now the sheet holds the whole leg at once — Država, Regija, Grad and the
+      date — and *Potvrdi* commits all of it together. A level whose turn has
+      not come is **disabled rather than hidden**: "not yet" and "not part of
+      this" are different statements, and the greyed box is what tells them
+      apart. Regija still disappears entirely where the country does not need
+      one, which is the 09.09.2026 rule and not a reveal.
+
+      The date's field inside the sheet carries no `name` — it is a draft, and
+      it is portalled outside the form anyway. What the Server Action reads is
+      a hidden input in the form, the same shape `SkrivenaPolja` already uses
+      for the destination. The row reads the date rather than asking for it,
+      which is what the canvas drew all along.
+
+      Verified in the browser: opening Odlazak shows all four fields, with
+      Regija and Grad greyed until their turn; picking Srbija drops Regija;
+      filling Grčka › Kasandra › Hanioti and 29.01.2026 in one pass leaves the
+      row reading both, and the form carrying `destinacija` and `datumPolaska`.

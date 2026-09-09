@@ -166,16 +166,13 @@ export function FormaRezervacije({
       onChange={postaviOdrediste}
       greska={greske.destinacija}
       disabled={uToku}
-      datum={
-        <DatumEtape
-          id="datumPolaska"
-          oznaka={T.forma.datumPolaska}
-          vrednost={datumPolaska}
-          onChange={postaviDatumPolaska}
-          disabled={uToku}
-          greska={greske.datumPolaska}
-        />
-      }
+      onChangeDatuma={postaviDatumPolaska}
+      imeDatuma="datumPolaska"
+      datum={{
+        vrednost: datumPolaska,
+        oznaka: T.forma.datumPolaska,
+        greska: greske.datumPolaska,
+      }}
     />
   );
 
@@ -195,21 +192,20 @@ export function FormaRezervacije({
          (06.09.2026): the return end is Beograd on nearly every booking, so
          naming its region is a tap that buys nothing. */
       bezRegije
+      onChangeDatuma={postaviDatumPovratka}
+      imeDatuma="datumPovratka"
+      /* No return date on a one-way — that absence is what makes it one. */
       datum={
-        /* No return date on a one-way — that absence is what makes it one. */
-        jednosmerno ? null : (
-          <DatumEtape
-            id="datumPovratka"
-            oznaka={T.forma.datumPovratka}
-            vrednost={datumPovratka}
-            onChange={postaviDatumPovratka}
-            disabled={uToku}
-            greska={greske.datumPovratka}
-            // A departure is the earliest a return can be; the same rule is
-            // enforced again in the schema and by a check constraint.
-            min={datumPolaska || undefined}
-          />
-        )
+        jednosmerno
+          ? null
+          : {
+              vrednost: datumPovratka,
+              oznaka: T.forma.datumPovratka,
+              greska: greske.datumPovratka,
+              // A departure is the earliest a return can be; the same rule is
+              // enforced again in the schema and by a check constraint.
+              min: datumPolaska || undefined,
+            }
       }
     />
   );
@@ -569,50 +565,11 @@ function RedForme({
   );
 }
 
-/** The date of one leg, sitting under its destination inside the route block. */
-function DatumEtape({
-  id,
-  oznaka,
-  vrednost,
-  onChange,
-  disabled,
-  greska,
-  min,
-}: {
-  id: string;
-  oznaka: string;
-  vrednost: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  greska?: string;
-  min?: string;
-}) {
-  return (
-    <>
-      <label htmlFor={id} className="sr-only">
-        {oznaka}
-      </label>
-      {/* Native, so the phone's own picker opens and the value is already the
-          `YYYY-MM-DD` the rest of the app speaks (standing rule 4). */}
-      <Input
-        id={id}
-        name={id}
-        type="date"
-        value={vrednost}
-        min={min}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        aria-invalid={greska ? true : undefined}
-        className={cn(POLJE, "text-base text-muted-foreground md:text-base")}
-      />
-      {greska ? (
-        <p role="alert" className="text-sm text-destructive">
-          {greska}
-        </p>
-      ) : null}
-    </>
-  );
-}
+/*
+ * `DatumEtape` stood here — the leg date as a field on the form. It moved
+ * into the destination sheet on 09.09.2026 at the owner's request: the date is
+ * settled in the same breath as the place, so it is asked in the same place.
+ */
 
 /**
  * The *Jednosmerna vožnja* switch.

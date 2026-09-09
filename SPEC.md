@@ -491,10 +491,18 @@ apart.
 3. **Nova / Izmeni rezervaciju** — the **route block first**: two rows, each
    reading `Grčka › Kasandra › Hanioti` with its date under it, the ⇅ swap on
    the hairline between them and the *Jednosmerna vožnja* switch beneath (§5).
-   Tapping a row opens the cascade (Država → Regija → Grad) in a sheet;
-   *Potvrdi* writes it back. Then one card of Ime / Telefon / Adresa, the head
-   count and price side by side, and the note last. Native date pickers, big
-   touch targets.
+   Tapping a row opens **one sheet holding that whole leg** — Država, Regija,
+   Grad *and* the date, all on screen at once; *Potvrdi* writes them back
+   together. A level whose turn has not come is greyed out rather than absent,
+   because "not yet" and "not part of this" are different things to say. Then
+   one card of Ime / Telefon / Adresa, the head count and price side by side,
+   and the note last. Native date pickers, big touch targets.
+
+   > **Amended 09.09.2026, hours after the first cut, at the owner's request.**
+   > The sheet revealed one dropdown at a time and asked for the date back on
+   > the form. Both were wrong for the same reason: a leg is settled in one
+   > breath — country, region, town and day are one answer — so the screen has
+   > to ask for it in one place, all at once.
 4. **Detalji** — full booking with *Pozovi* and *Viber* straight off the phone
    number, plus edit and delete. A round trip reads *Polazak / Povratak*; a
    one-way reads **Odakle / Kuda / Povratak nije dogovoren**, so the origin is

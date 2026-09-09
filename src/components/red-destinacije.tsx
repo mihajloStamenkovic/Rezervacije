@@ -23,7 +23,7 @@
  * This is the kind of thing that fails silently and only on save, which is why
  * it is written down.
  */
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import {
   KaskadaDestinacija,
@@ -31,6 +31,7 @@ import {
   type Odabir,
 } from "@/components/kaskada-destinacija";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -41,6 +42,7 @@ import {
 } from "@/components/ui/sheet";
 import { punoImeDestinacije } from "@/domen/destinacije";
 import type { Destinacija, Smer } from "@/domen/tipovi";
+import { formatDatum, type Datum } from "@/lib/datum";
 import { T } from "@/lib/tekst";
 import { cn } from "@/lib/utils";
 
@@ -68,10 +70,12 @@ export function RedDestinacije({
   katalog,
   vrednost,
   onChange,
+  onChangeDatuma,
   greska,
   disabled,
   bezRegije,
   datum,
+  imeDatuma,
 }: {
   idPolja: string;
   naziv: string;
@@ -82,27 +86,51 @@ export function RedDestinacije({
   katalog: Destinacija[];
   vrednost: Odabir;
   onChange: (odabir: Odabir) => void;
+  onChangeDatuma: (datum: string) => void;
   greska?: string;
   disabled?: boolean;
   bezRegije?: boolean;
-  /** The date field for this leg, rendered under the destination line. */
-  datum?: ReactNode;
+  /**
+   * This leg's date — asked **in the same sheet**, not on the form.
+   *
+   * The owner's correction, 09.09.2026: "I want the date to be entered at the
+   * same time as the country, region, city." He is right, and the canvas
+   * agrees — it draws the date as plain text under the route, which only makes
+   * sense if it is filled in wherever the destination is. So the row *reads*
+   * the date and the sheet *asks* for it.
+   *
+   * `null` when there is no date to ask for: the return leg of a one-way.
+   */
+  datum: {
+    vrednost: string;
+    oznaka: string;
+    /** A return can be no earlier than its departure. */
+    min?: string;
+    greska?: string;
+  } | null;
+  /** The field name the date is submitted under — `datumPolaska` and friend. */
+  imeDatuma: string;
 }) {
   const [otvoren, postaviOtvoren] = useState(false);
   const [nacrt, postaviNacrt] = useState<Odabir>(vrednost);
+  const [nacrtDatuma, postaviNacrtDatuma] = useState(datum?.vrednost ?? "");
 
   function otvori() {
+    // Both drafts seeded together, because Potvrdi commits them together.
     postaviNacrt(vrednost);
+    postaviNacrtDatuma(datum?.vrednost ?? "");
     postaviOtvoren(true);
   }
 
   function potvrdi() {
     onChange(nacrt);
+    if (datum) onChangeDatuma(nacrtDatuma);
     postaviOtvoren(false);
   }
 
   const opis = opisOdabira(vrednost, katalog);
   const idGreske = `${idPolja}-greska`;
+  const idDatuma = `${idPolja}-datum`;
 
   return (
     <div className="flex items-start gap-3 px-4 py-3">
@@ -146,11 +174,32 @@ export function RedDestinacije({
           />
         </button>
 
-        {datum}
+        {/* Read here, asked in the sheet. The hidden input is what the form
+            actually submits — the sheet's own field is portalled outside it. */}
+        {datum ? (
+          <>
+            <input type="hidden" name={imeDatuma} value={datum.vrednost} />
+            <button
+              type="button"
+              onClick={otvori}
+              disabled={disabled}
+              className="flex min-h-9 w-full items-center text-left text-base text-muted-foreground"
+            >
+              {datum.vrednost === ""
+                ? datum.oznaka
+                : formatDatum(datum.vrednost as Datum)}
+            </button>
+          </>
+        ) : null}
 
         {greska ? (
           <p id={idGreske} role="alert" className="mt-1 text-sm text-destructive">
             {greska}
+          </p>
+        ) : null}
+        {datum?.greska ? (
+          <p role="alert" className="mt-1 text-sm text-destructive">
+            {datum.greska}
           </p>
         ) : null}
       </div>
@@ -179,6 +228,25 @@ export function RedDestinacije({
               // The form outside this portal owns them; see the note up top.
               skrivenaPolja={false}
             />
+
+            {/* The date, in the same sheet and the same breath as the place —
+                and with no `name`, because it is a draft until Potvrdi and it
+                is portalled outside the form anyway. */}
+            {datum ? (
+              <div className="mt-3 flex flex-col gap-1.5">
+                <label htmlFor={idDatuma} className="text-sm font-medium">
+                  {datum.oznaka}
+                </label>
+                <Input
+                  id={idDatuma}
+                  type="date"
+                  value={nacrtDatuma}
+                  min={datum.min}
+                  onChange={(e) => postaviNacrtDatuma(e.target.value)}
+                  className="h-11 text-base md:text-base"
+                />
+              </div>
+            ) : null}
           </div>
 
           <SheetFooter className="flex-row gap-3 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

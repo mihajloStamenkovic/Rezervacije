@@ -334,11 +334,20 @@ export function KaskadaDestinacija({
     primeni({ grad: tekst }, upisano({ grad: tekst }));
   }
 
-  /**
-   * With a region level, the city list waits for a region. Without one, the
-   * country is enough.
+  /*
+   * **Every level is on screen from the start** — the owner's words,
+   * 09.09.2026: "let everything for data entry appear at once". Until then a
+   * level appeared only once the one above it was answered, so the form grew
+   * under the thumb and you could not see what you were being asked for until
+   * you were being asked for it.
+   *
+   * What is *not* answerable yet is disabled rather than hidden, because those
+   * are different statements: hidden says "this is not part of the question",
+   * disabled says "this comes after that one". A town cannot be picked before
+   * its country, and the greyed-out box is what says so.
    */
-  const prikaziGrad = bezRegijeZa(sifra)
+  const prikaziRegiju = !bezRegije && (sifra === "" || drzavaTraziRegiju(katalog, sifra));
+  const gradDostupan = bezRegijeZa(sifra)
     ? Boolean(sifra)
     : rucnaRegija || Boolean(regija);
 
@@ -378,7 +387,7 @@ export function KaskadaDestinacija({
         </Izbor>
       </div>
 
-      {sifra && !bezRegijeZa(sifra) ? (
+      {prikaziRegiju ? (
         <div className="flex flex-col gap-1.5">
           <label htmlFor={idRegije} className="text-sm font-medium">
             {T.forma.regija}
@@ -387,7 +396,7 @@ export function KaskadaDestinacija({
             id={idRegije}
             value={rucnaRegija ? RUCNO : regija}
             onChange={(e) => promeniRegiju(e.target.value)}
-            disabled={disabled}
+            disabled={disabled || sifra === ""}
           >
             <option value="">{T.forma.izaberi}</option>
             {regije.map((r) => (
@@ -418,45 +427,47 @@ export function KaskadaDestinacija({
         to enter the town that is missing from it. The auto-select survives:
         the single city is already chosen, so it still costs no taps.
       */}
-      {prikaziGrad ? (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={idGrada} className="text-sm font-medium">
-            {T.forma.grad}
-          </label>
-          {rucnaRegija ? null : (
-            <Izbor
-              id={idGrada}
-              value={rucniGrad ? RUCNO : (vrednost.id ?? "")}
-              onChange={(e) => promeniGrad(e.target.value)}
-              disabled={disabled}
-            >
-              <option value="">{T.forma.izaberi}</option>
-              {gradovi.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.naziv}
-                </option>
-              ))}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={idGrada} className="text-sm font-medium">
+          {T.forma.grad}
+        </label>
+        {rucnaRegija ? null : (
+          <Izbor
+            id={idGrada}
+            value={rucniGrad ? RUCNO : (vrednost.id ?? "")}
+            onChange={(e) => promeniGrad(e.target.value)}
+            // Greyed out until the level above it is answered, rather than
+            // absent — see the note on `prikaziRegiju`.
+            disabled={disabled || !gradDostupan}
+          >
+            <option value="">{T.forma.izaberi}</option>
+            {gradovi.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.naziv}
+              </option>
+            ))}
+            {gradDostupan ? (
               <option value={RUCNO}>{T.forma.drugoRucno}</option>
-            </Izbor>
-          )}
-          {rucniGrad ? (
-            <>
-              <Input
-                id={rucnaRegija ? idGrada : undefined}
-                aria-label={T.forma.nazivMesta}
-                value={grad}
-                onChange={(e) => upisiGrad(e.target.value)}
-                placeholder={T.forma.nazivMestaPlaceholder}
-                disabled={disabled}
-                className="h-11 text-base md:text-base"
-              />
-              <p className="text-sm text-muted-foreground">
-                {T.forma.nazivMestaPomoc}
-              </p>
-            </>
-          ) : null}
-        </div>
-      ) : null}
+            ) : null}
+          </Izbor>
+        )}
+        {rucniGrad ? (
+          <>
+            <Input
+              id={rucnaRegija ? idGrada : undefined}
+              aria-label={T.forma.nazivMesta}
+              value={grad}
+              onChange={(e) => upisiGrad(e.target.value)}
+              placeholder={T.forma.nazivMestaPlaceholder}
+              disabled={disabled}
+              className="h-11 text-base md:text-base"
+            />
+            <p className="text-sm text-muted-foreground">
+              {T.forma.nazivMestaPomoc}
+            </p>
+          </>
+        ) : null}
+      </div>
 
       {greska ? (
         <p id={idGreske} role="alert" className="text-sm text-destructive">
