@@ -2343,3 +2343,20 @@ honest start state — no team exists yet for them to belong to.
       Regija and Grad greyed until their turn; picking Srbija drops Regija;
       filling Grčka › Kasandra › Hanioti and 29.01.2026 in one pass leaves the
       row reading both, and the form carrying `destinacija` and `datumPolaska`.
+- [x] ~~Owner correction 09.09.2026: opening Povratak grabs the Država field~~ —
+      fixed, and only for that leg, as asked. A Radix dialog focuses its first
+      control on open; on the outbound leg that is a blank form and the tap it
+      saves is worth having, while on the return it is Beograd already filled in
+      and a country picker lighting up for no reason — the date is usually why
+      that sheet was opened at all.
+
+      `onOpenAutoFocus` is cancelled and focus moved to the **panel itself**
+      rather than nowhere: cancelling alone would have left focus on the row
+      behind the sheet, outside the focus trap, which is worse for a keyboard
+      or a screen reader than the thing being fixed.
+
+      Verified in the browser: opening Povratak leaves focus on the sheet
+      element and nothing highlighted, opening Odlazak still lands on
+      `odlazak-drzava`, and the return sheet still fills and commits — Država,
+      Grad, Datum povratka, then the row reads 12.02.2026 and the form carries
+      `destinacijaPovratka` and `datumPovratka`.

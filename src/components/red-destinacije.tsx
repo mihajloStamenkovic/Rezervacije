@@ -23,7 +23,7 @@
  * This is the kind of thing that fails silently and only on save, which is why
  * it is written down.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import {
   KaskadaDestinacija,
@@ -76,6 +76,7 @@ export function RedDestinacije({
   bezRegije,
   datum,
   imeDatuma,
+  samofokus = true,
 }: {
   idPolja: string;
   naziv: string;
@@ -110,7 +111,23 @@ export function RedDestinacije({
   } | null;
   /** The field name the date is submitted under — `datumPolaska` and friend. */
   imeDatuma: string;
+  /**
+   * Put the cursor in the first field when the sheet opens.
+   *
+   * On by default, and **off for the return leg** at the owner's request,
+   * 09.09.2026: "when I click Povratak I want the window to just open". A
+   * dialog normally focuses its first control, which is the right thing when
+   * the sheet is a blank form to fill — the outbound leg — and the wrong thing
+   * when it is not. The return is pre-filled with Beograd on nearly every
+   * booking, so opening it usually means going for the date, and being dropped
+   * into the country picker is a field lighting up that he did not ask for.
+   *
+   * Focus still moves *into* the sheet, onto the panel itself, so the trap
+   * holds and a keyboard or screen reader is not left behind on the trigger.
+   */
+  samofokus?: boolean;
 }) {
+  const sadrzaj = useRef<HTMLDivElement>(null);
   const [otvoren, postaviOtvoren] = useState(false);
   const [nacrt, postaviNacrt] = useState<Odabir>(vrednost);
   const [nacrtDatuma, postaviNacrtDatuma] = useState(datum?.vrednost ?? "");
@@ -205,7 +222,22 @@ export function RedDestinacije({
       </div>
 
       <Sheet open={otvoren} onOpenChange={postaviOtvoren}>
-        <SheetContent side="bottom" className="max-h-[88svh] gap-0 rounded-t-2xl p-0">
+        <SheetContent
+          ref={sadrzaj}
+          side="bottom"
+          className="max-h-[88svh] gap-0 rounded-t-2xl p-0"
+          onOpenAutoFocus={
+            samofokus
+              ? undefined
+              : (e) => {
+                  // Not "focus nothing" — focus the panel. Cancelling Radix's
+                  // own focus without putting it somewhere would leave it on
+                  // the row behind the sheet, outside the trap.
+                  e.preventDefault();
+                  sadrzaj.current?.focus();
+                }
+          }
+        >
           <span
             aria-hidden="true"
             className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border"

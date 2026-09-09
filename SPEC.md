@@ -503,6 +503,12 @@ apart.
    > the form. Both were wrong for the same reason: a leg is settled in one
    > breath — country, region, town and day are one answer — so the screen has
    > to ask for it in one place, all at once.
+   >
+   > **The *Povratak* sheet opens without taking a field**, unlike *Odlazak*.
+   > Also his call, the same day. A dialog normally puts the cursor in its
+   > first control, which saves a tap on a blank outbound leg and is an
+   > unasked-for highlight on a return that already says Beograd — where the
+   > reason for opening it is usually the date.
 4. **Detalji** — full booking with *Pozovi* and *Viber* straight off the phone
    number, plus edit and delete. A round trip reads *Polazak / Povratak*; a
    one-way reads **Odakle / Kuda / Povratak nije dogovoren**, so the origin is

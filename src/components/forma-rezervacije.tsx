@@ -192,6 +192,10 @@ export function FormaRezervacije({
          (06.09.2026): the return end is Beograd on nearly every booking, so
          naming its region is a tap that buys nothing. */
       bezRegije
+      /* The return sheet opens without grabbing a field — the owner's request,
+         09.09.2026. See `samofokus`. Only this leg: the outbound one is a
+         blank form and putting the cursor in its first box saves a tap. */
+      samofokus={false}
       onChangeDatuma={postaviDatumPovratka}
       imeDatuma="datumPovratka"
       /* No return date on a one-way — that absence is what makes it one. */
