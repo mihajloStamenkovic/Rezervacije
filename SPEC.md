@@ -152,9 +152,24 @@ its own date; that shape went with the controls.
 ## 3. Filter and search
 
 - **Datum** — quick chips (*danas · ova nedelja · ovaj mesec*) plus a custom range picker.
-- **Destinacija** — checkboxes over the destination reference data (§5), grouped by
+- **Destinacija** — chips over the destination reference data (§5), grouped by
   country. Ticking a country matches every destination in it; ticking a region
   matches every city in it. **One canonical list** — see §5.
+- **Tapping inside something already ticked narrows to it.** Grčka is on, you
+  tap Sitonija: the rest of Grčka goes off and Sitonija stays on. Other
+  countries are untouched — you were answering a question about Grčka.
+
+  **Amended 09.09.2026 at the owner's request, reversing what this section
+  used to say.** The old rule subtracted, the way a checkbox tree does: a tap
+  inside a ticked country removed that one place and left the rest. He read it
+  as a bug — he tapped a region meaning "just this one" and watched every
+  *other* region stay lit — and he is right that the tap reads as a choice, not
+  as an exception. The trade, stated plainly: "all of Grčka except Solun" was
+  two taps and is now one per region kept. He does not ask that of this filter.
+
+  Where a region holds a single town, or a country a single region, there is
+  nothing to narrow to and the tap is an ordinary toggle — otherwise such a
+  chip could be ticked and never unticked.
 - Multiple destinations **OR** together; date and destination **AND** together.
   Both can be active at once.
 - Filters live in a bottom sheet with a badge showing how many are active, plus *Obriši sve*.

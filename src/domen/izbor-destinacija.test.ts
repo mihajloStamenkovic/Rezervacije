@@ -121,17 +121,57 @@ describe("prebaciCvor", () => {
     expect(prebaciCvor(stablo, jedan, grad(SIVIRI.id))).toEqual([KASANDRA]);
   });
 
-  it("unticking one city inside a ticked country keeps the rest", () => {
+  /*
+   * SPEC §3, amended 09.09.2026. These two used to assert the opposite — that
+   * a tap inside a ticked country *subtracted* that place and kept the rest,
+   * the way a checkbox tree behaves. The owner reported it as the bug it felt
+   * like: he ticked Grčka, tapped Sitonija meaning "just Sitonija", and
+   * watched every other Greek region stay lit.
+   */
+  it("tapping inside a ticked country narrows to what was tapped", () => {
     const posle = prebaciCvor(stablo, [GRCKA], grad(SARTI.id));
     expect(posle).not.toContain(GRCKA);
+    expect([...razviIzbor(stablo, posle)]).toEqual([grad(SARTI.id)]);
+  });
+
+  it("narrows to a region the same way, and only inside its own country", () => {
+    const posle = prebaciCvor(stablo, [GRCKA, HRVATSKA], KASANDRA);
+    // Grčka collapses to Kasandra; Hrvatska was a separate answer and stands.
     expect([...razviIzbor(stablo, posle)].sort()).toEqual(
-      SVI_GRCKI.filter((k) => k !== grad(SARTI.id)).sort(),
+      [grad(HANIOTI.id), grad(SIVIRI.id), grad(ZAGREB.id)].sort(),
     );
   });
 
-  it("is reversible — unticking then re-ticking restores the country key", () => {
-    const bez = prebaciCvor(stablo, [GRCKA], grad(SARTI.id));
-    expect(prebaciCvor(stablo, bez, grad(SARTI.id))).toEqual([GRCKA]);
+  it("tapping it again turns it off — nothing above it is on any more", () => {
+    const samoKasandra = prebaciCvor(stablo, [GRCKA], KASANDRA);
+    expect(prebaciCvor(stablo, samoKasandra, KASANDRA)).toEqual([]);
+  });
+
+  /*
+   * Sarti is the only town of Sitonija in the fixtures, so narrowing Sitonija
+   * to Sarti removes nothing — the two keys are the same selection spelled
+   * differently. Without the "narrow only where it reduces" guard this chip
+   * could be ticked and never unticked again, which is how the rule first
+   * failed when it was written.
+   */
+  it("a place that is its own region can still be turned off", () => {
+    const samoSarti = prebaciCvor(stablo, [GRCKA], grad(SARTI.id));
+    expect([...razviIzbor(stablo, samoSarti)]).toEqual([grad(SARTI.id)]);
+    expect(prebaciCvor(stablo, samoSarti, grad(SARTI.id))).toEqual([]);
+  });
+
+  it("a single-city country behaves the same", () => {
+    // Hrvatska is Zagreb and nothing else in the fixtures.
+    const posle = prebaciCvor(stablo, [HRVATSKA], grad(ZAGREB.id));
+    expect(posle).toEqual([]);
+  });
+
+  it("narrowing does not fire when no ancestor is ticked", () => {
+    // Two regions picked by hand: tapping one of them subtracts it, because
+    // nothing above it was ever ticked to narrow out of.
+    const dve = prebaciCvor(stablo, [KASANDRA], grad(SARTI.id));
+    const posle = prebaciCvor(stablo, dve, KASANDRA);
+    expect([...razviIzbor(stablo, posle)]).toEqual([grad(SARTI.id)]);
   });
 
   it("unticking a ticked country clears it entirely", () => {

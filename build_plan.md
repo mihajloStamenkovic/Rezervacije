@@ -2360,3 +2360,29 @@ honest start state — no team exists yet for them to belong to.
       `odlazak-drzava`, and the return sheet still fills and commits — Država,
       Grad, Datum povratka, then the row reads 12.02.2026 and the form carries
       `destinacijaPovratka` and `datumPovratka`.
+- [x] ~~Owner correction 09.09.2026: ticking Grčka then tapping a region left
+      everything *except* that region selected~~ — fixed, and it is a reversal
+      of `prebaciCvor`'s own documented rule rather than a defect in it. The
+      function subtracted, the way a checkbox tree does: a tap inside a ticked
+      country removed that place and kept the rest. He read the tap as a
+      choice — "just Sitonija" — which is the more natural reading of a chip.
+
+      Now a tap on something that is only on because an ancestor is on
+      **narrows to it**: the ancestor's places go off, the tapped one stays.
+      Scoped to that ancestor, so ticking Grčka, tapping Sitonija and leaving
+      Hrvatska alone does exactly that. A tap with no ticked ancestor is the
+      plain toggle it always was.
+
+      The trade is recorded in SPEC §3: "all of Grčka except Solun" used to be
+      two taps and is now one per region kept.
+
+      **The tests caught a real hole in the first version.** Where a region
+      holds a single town — Sitonija is only Sarti in the fixtures — narrowing
+      removes nothing, so the chip could be ticked and never unticked again.
+      Narrowing now applies only where the ancestor covers strictly more than
+      the tap; otherwise it falls through to the toggle. Two cases pinned:
+      a one-town region, and a one-city country.
+
+      Verified in the browser: Grčka then Sitonija leaves only Sitonija lit and
+      the badge at 1; Grčka then Hanioti two levels down leaves only Hanioti;
+      Kasandra tapped twice ends with nothing selected.
