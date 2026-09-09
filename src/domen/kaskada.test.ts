@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  drzavaTraziRegiju,
   drzaveZaFormu,
   gradoviDrzaveZaFormu,
   gradoviZaFormu,
@@ -190,6 +191,51 @@ describe("sledeciRedosled", () => {
 
   it("starts at zero for a country with nothing in it yet", () => {
     expect(sledeciRedosled(KATALOG, "austrija")).toBe(0);
+  });
+});
+
+/**
+ * Which countries show a region at all — SPEC §5, amended 09.09.2026.
+ *
+ * The owner asked for Serbia to lose its region. This is the rule that gives
+ * him that without naming him a country: a region is worth a tap only where it
+ * narrows the town list.
+ */
+describe("drzavaTraziRegiju", () => {
+  it("says no where every region holds one town", () => {
+    // `Srbija › Beograd › Beograd`, `Srbija › Kopaonik › Kopaonik` — the region
+    // is the town's name asked a second time. This is the owner's case.
+    expect(drzavaTraziRegiju(KATALOG, "srbija")).toBe(false);
+  });
+
+  it("says no where the country has a single region", () => {
+    // One region over however many towns narrows nothing: every town is in it.
+    expect(drzavaTraziRegiju(KATALOG, "slovenija")).toBe(false);
+    expect(drzavaTraziRegiju(KATALOG, "hrvatska")).toBe(false);
+  });
+
+  it("says yes where a region really groups towns", () => {
+    // Kasandra holds Hanioti and Siviri, and forty minutes of driving sits
+    // between them. This is the case the middle dropdown exists for.
+    expect(drzavaTraziRegiju(KATALOG, "grcka")).toBe(true);
+  });
+
+  it("needs both halves of the rule at once", () => {
+    const jednaRegijaDveVarosi = [SOLUN, { ...SARTI, regija: SOLUN.regija }];
+    expect(drzavaTraziRegiju(jednaRegijaDveVarosi, "grcka")).toBe(false);
+
+    const dveRegijePoJedna = [SOLUN, SARTI];
+    expect(drzavaTraziRegiju(dveRegijePoJedna, "grcka")).toBe(false);
+
+    expect(drzavaTraziRegiju([SOLUN, HANIOTI, SIVIRI], "grcka")).toBe(true);
+  });
+
+  it("answers for the catalogue it is given, not for the whole table", () => {
+    // The form is handed the active rows plus whatever the booking being
+    // edited points at, and the dropdowns have to match what is on offer.
+    expect(drzavaTraziRegiju([], "srbija")).toBe(false);
+    expect(drzavaTraziRegiju(KATALOG, "")).toBe(false);
+    expect(drzavaTraziRegiju(KATALOG, "austrija")).toBe(false);
   });
 });
 

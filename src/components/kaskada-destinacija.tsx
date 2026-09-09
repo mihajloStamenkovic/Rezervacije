@@ -1,8 +1,14 @@
 "use client";
 
 /**
- * Država → Regija → Grad, the three cascading dropdowns of SPEC §5, plus the
+ * Država → Regija → Grad, the cascading dropdowns of SPEC §5, plus the
  * *Drugo — upiši ručno* escape hatch added 06.09.2026.
+ *
+ * **The middle level is not always there.** It is dropped for the whole
+ * *Povratak* leg (06.09.2026), and since 09.09.2026 it is dropped for any
+ * country where it does not narrow the town list — Srbija first among them,
+ * which is what the owner asked for. `bezRegijeZa` below is where the two
+ * reasons meet; `drzavaTraziRegiju` is the rule itself.
  *
  * Three rules the screen has to get right, all of them in `promeni*` below:
  *
@@ -34,6 +40,7 @@ import { useState } from "react";
 import { Izbor } from "@/components/izbor";
 import { Input } from "@/components/ui/input";
 import {
+  drzavaTraziRegiju,
   drzaveZaFormu,
   gradoviDrzaveZaFormu,
   gradoviZaFormu,
@@ -116,6 +123,23 @@ export function KaskadaDestinacija({
    */
   bezRegije?: boolean;
 }) {
+  /**
+   * Does *this* country show a region here?
+   *
+   * Two independent reasons not to, which is why this is a function of the
+   * country rather than one flag: the leg may have no region field at all
+   * (*Povratak*, 06.09.2026), or the country may not need one — Srbija,
+   * Makedonija, Italija, BiH, Slovenija (09.09.2026). See
+   * `drzavaTraziRegiju` for what "need" means and why it is a rule and not a
+   * list of country names.
+   *
+   * It takes the country as an argument because the answer is asked about two
+   * different ones: the country being *rendered*, and the country carried by a
+   * selection arriving from outside.
+   */
+  const bezRegijeZa = (sifraDrzave: string) =>
+    bezRegije || !drzavaTraziRegiju(katalog, sifraDrzave);
+
   const putZa = (odabir: Odabir): Put => {
     if (odabir.novo !== null) {
       const { drzavaSifra, regija, grad } = odabir.novo;
@@ -132,7 +156,7 @@ export function KaskadaDestinacija({
         odabir,
         sifra: drzavaSifra,
         regija,
-        rucnaRegija: !bezRegije && !poznata,
+        rucnaRegija: !bezRegijeZa(drzavaSifra) && !poznata,
         rucniGrad: true,
         grad,
       };
@@ -162,10 +186,10 @@ export function KaskadaDestinacija({
   const { sifra, regija, rucnaRegija, rucniGrad, grad } = put;
 
   const drzave = drzaveZaFormu(katalog);
-  const regije = !bezRegije && sifra ? regijeZaFormu(katalog, sifra) : [];
+  const regije = sifra && !bezRegijeZa(sifra) ? regijeZaFormu(katalog, sifra) : [];
   const gradovi = !sifra
     ? []
-    : bezRegije
+    : bezRegijeZa(sifra)
       ? gradoviDrzaveZaFormu(katalog, sifra)
       : regija && !rucnaRegija
         ? gradoviZaFormu(katalog, sifra, regija)
@@ -187,7 +211,7 @@ export function KaskadaDestinacija({
          * server matching the town anywhere else in the country, which is the
          * whole point of leaving the region out.
          */
-        regija: bezRegije ? "" : p.regija,
+        regija: bezRegijeZa(p.sifra) ? "" : p.regija,
         grad: p.grad,
       },
     };
@@ -203,7 +227,7 @@ export function KaskadaDestinacija({
     // auto-select rule applies here instead: a country holding exactly one
     // town needs no choosing.
     const gradoviNove =
-      bezRegije && nova ? gradoviDrzaveZaFormu(katalog, nova) : [];
+      nova && bezRegijeZa(nova) ? gradoviDrzaveZaFormu(katalog, nova) : [];
     const noviId = gradoviNove.length === 1 ? gradoviNove[0].id : null;
     primeni(
       {
@@ -267,7 +291,7 @@ export function KaskadaDestinacija({
    * With a region level, the city list waits for a region. Without one, the
    * country is enough.
    */
-  const prikaziGrad = bezRegije
+  const prikaziGrad = bezRegijeZa(sifra)
     ? Boolean(sifra)
     : rucnaRegija || Boolean(regija);
 
@@ -322,7 +346,7 @@ export function KaskadaDestinacija({
         </Izbor>
       </div>
 
-      {sifra && !bezRegije ? (
+      {sifra && !bezRegijeZa(sifra) ? (
         <div className="flex flex-col gap-1.5">
           <label htmlFor={idRegije} className="text-sm font-medium">
             {T.forma.regija}

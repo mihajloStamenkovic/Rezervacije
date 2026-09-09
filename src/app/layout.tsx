@@ -4,7 +4,49 @@ import { PovuciZaOsvezavanje } from "@/components/povuci-za-osvezavanje";
 import { RegistracijaSw } from "@/components/registracija-sw";
 import { TrakaMreze } from "@/components/traka-mreze";
 import { T } from "@/lib/tekst";
+import { BOJA_TRAKE, KLASA, KLJUC_TEME } from "@/lib/tema";
 import "./globals.css";
+
+/**
+ * Light or dark, decided before the first pixel — SPEC §6.
+ *
+ * This has to be a blocking inline script and it has to run here. The class
+ * lives on `<html>`, and anything that set it later — an effect, a component,
+ * anything React does — would paint the wrong theme first and correct it a
+ * frame afterwards. That flash is the whole reason this pattern exists.
+ *
+ * It is written out as a string because it runs before any bundle: it cannot
+ * import `tema.ts`, so it is *generated* from those constants instead, which
+ * is what stops the class names and the status bar colours drifting from the
+ * ones `PrekidacTeme` and `globals.css` use.
+ *
+ * With nothing stored it follows the phone and keeps following it, so an app
+ * whose owner never opens Podešavanja behaves exactly as it did before the
+ * switch existed. Everything is inside a `try`: `localStorage` throws outright
+ * in some privacy modes, and a theme is never worth a blank screen.
+ *
+ * It **strips the `media` attribute** off the `theme-color` tags rather than
+ * only rewriting them. `viewport.themeColor` below declares one per phone
+ * preference, which is the right answer while no choice is stored and the
+ * wrong one the moment a choice overrides the phone; and Next adds a third tag
+ * of its own during hydration, so trusting document order to settle which wins
+ * would be trusting a detail of the framework. A tag with no `media` always
+ * matches, and the browser takes the first match — so ours is the answer
+ * whatever arrives afterwards.
+ */
+const SKRIPTA_TEME = `(function(){
+var K=${JSON.stringify(KLJUC_TEME)},S=${JSON.stringify(KLASA.svetla)},T=${JSON.stringify(KLASA.tamna)};
+var B={};B[S]=${JSON.stringify(BOJA_TRAKE.svetla)};B[T]=${JSON.stringify(BOJA_TRAKE.tamna)};
+function p(t){var k=document.documentElement.classList;k.toggle(T,t===T);k.toggle(S,t===S);
+var m=document.querySelectorAll('meta[name="theme-color"]');
+for(var i=0;i<m.length;i++){m[i].removeAttribute("media");
+m[i].setAttribute("content",B[t]);}}
+try{var s=localStorage.getItem(K);var u=matchMedia("(prefers-color-scheme: dark)");
+if(s===S||s===T){p(s);}else{p(u.matches?T:S);
+u.addEventListener("change",function(e){p(e.matches?T:S);});}
+document.addEventListener("DOMContentLoaded",function(){
+p(document.documentElement.classList.contains(T)?T:S);});}catch(e){}
+})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,8 +107,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="sr-Latn-RS"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // The theme script adds `svetla` or `tamna` to this element before React
+      // ever sees it, so the class it hydrates against is legitimately not the
+      // one the server sent.
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        {/* First thing in the document, and blocking on purpose — see above. */}
+        <script dangerouslySetInnerHTML={{ __html: SKRIPTA_TEME }} />
         <RegistracijaSw />
         {/* Above the screens, so it pushes their sticky headers down rather
             than covering the search field. */}

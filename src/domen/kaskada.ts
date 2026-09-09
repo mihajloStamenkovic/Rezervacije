@@ -67,6 +67,52 @@ export function regijeZaFormu(
 }
 
 /**
+ * Is the region worth asking about in this country? — SPEC §5, amended
+ * 09.09.2026 at the owner's request.
+ *
+ * He asked for Serbia to lose its region, and Serbia is not a special case —
+ * it is the clearest instance of a general one. A region dropdown earns its
+ * place only when picking one **narrows the town list**, and that takes two
+ * things at once:
+ *
+ *   - **more than one region**, or there is nothing to choose between;
+ *   - **some region holding more than one town**, or the region is just the
+ *     town's name asked a second time.
+ *
+ * Serbia fails the second (`Beograd › Beograd`, `Kopaonik › Kopaonik`,
+ * `Niš › Niš`), Slovenia fails the first (one region over seven towns), and
+ * Macedonia, Italy and Bosnia fail both. Greece and Croatia pass, which is the
+ * answer that matters: Kasandra versus Sitonija is forty minutes of driving,
+ * and that is the leg where the region is doing real work.
+ *
+ * A rule rather than a list of countries, per SPEC §5's own instruction. If
+ * Serbia ever gets a region with two towns in it, the dropdown comes back on
+ * its own — and a town typed with no region becomes its own region, which
+ * keeps every region here single-town and so keeps the rule stable.
+ *
+ * Judged on the catalogue it is handed, which is what the form can actually
+ * offer: active rows plus whatever the booking being edited points at.
+ */
+export function drzavaTraziRegiju(
+  // Only the two columns it actually reads, so the seed rows — which have no
+  // `id` until they are inserted — can be asked the same question.
+  katalog: readonly Pick<Destinacija, "drzavaSifra" | "regija">[],
+  sifra: string,
+): boolean {
+  if (sifra === "") return false;
+
+  const poRegiji = new Map<string, number>();
+  for (const d of katalog) {
+    if (d.drzavaSifra !== sifra) continue;
+    poRegiji.set(d.regija, (poRegiji.get(d.regija) ?? 0) + 1);
+  }
+
+  if (poRegiji.size < 2) return false;
+  for (const broj of poRegiji.values()) if (broj > 1) return true;
+  return false;
+}
+
+/**
  * Every city of one country, in the client's order, ignoring regions.
  *
  * The **Povratak** leg uses this instead of the three-level cascade — the

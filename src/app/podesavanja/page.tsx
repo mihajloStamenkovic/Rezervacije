@@ -1,5 +1,10 @@
 /**
- * Podešavanja — one field, plus the way out (SPEC §6).
+ * Podešavanja — the theme switch, one field, plus the way out (SPEC §6).
+ *
+ * The two are not the same kind of setting and are not stored the same way.
+ * *Izgled* is this phone's, in `localStorage`, and every account has it. The
+ * default home town is the business's, in the one shared `settings` row, and
+ * only an owner may touch it.
  *
  * The default home destination is kept as the *active* catalogue only: unlike
  * the edit form there is no existing booking to preserve here, and offering a
@@ -11,6 +16,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { odjaviSe } from "@/app/actions/nalog";
 import { FormaPodesavanja } from "@/components/forma-podesavanja";
 import { PozivInstalacije } from "@/components/poziv-instalacije";
+import { PrekidacTeme } from "@/components/prekidac-teme";
 import { Button } from "@/components/ui/button";
 import { podesavanja, sveDestinacije } from "@/db/queries";
 import { katalogZaFormu } from "@/domen/kaskada";
@@ -38,6 +44,13 @@ export default async function Podesavanja() {
       </header>
 
       <main className="flex flex-1 flex-col gap-8 px-4 py-4">
+        {/*
+          First, and shown to everybody. Every other control on this screen is
+          about the business and most of them are the owner's alone; this one
+          is about the phone in the hand, so a driver gets it too.
+        */}
+        <PrekidacTeme />
+
         {/*
           `settings` is one shared row, so the default home town is the same
           for every crew. A driver changing it would change it for everybody,

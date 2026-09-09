@@ -316,13 +316,34 @@ The third level stays where it earns its keep — *Odlazak* — because Hanioti
 versus Siviri really is forty minutes of driving, and that is the leg where the
 owner is choosing between towns rather than confirming the obvious one.
 
+> **Amended 09.09.2026 at the owner's request: on *Odlazak* too, the region
+> only appears where it narrows the town list.** He asked for Srbija to lose
+> it — `Srbija › Beograd › Beograd` asks for the same town twice — and that is
+> not a special case but the clearest instance of a general one, so what is
+> implemented is the rule and not the country (this section's own instruction).
+>
+> A region is shown when **both** hold: the country has more than one region,
+> and some region holds more than one town. Miss either and choosing a region
+> tells the city dropdown nothing it did not already know.
+>
+> On the seed data that comes to **Grčka and Hrvatska keep it; Srbija,
+> Makedonija, Italija, Bosna i Hercegovina and Slovenija lose it** — the first
+> four because every region there holds a single town, Slovenija because one
+> region holds all seven. If Srbija ever gains a region with two towns in it,
+> the dropdown returns on its own. `drzavaTraziRegiju` in
+> `src/domen/kaskada.ts` is the rule; `src/db/destinacije-json.test.ts` pins
+> what it currently comes to, so a re-seed that changes the answer fails loudly.
+
 Two consequences follow, and both are load-bearing:
 
 - **The region is optional everywhere**, since a leg with no region field
   cannot supply one. A town entered without a region **becomes its own region**
   — which is not a fudge but the shape the seed already uses for exactly this
   case: `Srbija › Beograd › Beograd`, `Srbija › Kopaonik › Kopaonik`,
-  `Srbija › Niš › Niš`.
+  `Srbija › Niš › Niš`. Since 09.09.2026 that is also what a town typed under
+  Srbija on the *Odlazak* leg does, and it is what keeps the rule above stable:
+  every new Serbian town becomes its own single-town region, so Srbija does not
+  drift back into showing a dropdown.
 - **A town typed with no region is matched by country and name alone.** Typing
   `Hanioti` on the return leg must find `Grčka › Kasandra › Hanioti`; matching
   it as though its region were `Hanioti` would miss and create a second
@@ -473,7 +494,38 @@ apart.
    one-way reads **Odakle / Kuda / Povratak nije dogovoren**, so the origin is
    never invisible.
 
-Plus **Podešavanja** — one field: the default home town.
+Plus **Podešavanja** — two settings that are not the same kind of thing:
+
+- **Izgled** — *Svetla* or *Tamna*, added 09.09.2026 at the owner's request.
+  **Every account has it**, driver included: it is the only control on that
+  screen that is about the phone in the hand rather than about the business.
+  It applies on the tap, with no *Sačuvaj* and nothing sent to the server.
+- **Podrazumevano mesto povratka** — the one shared `settings` row, so it is
+  the same for every crew and only an owner may change it.
+
+### The theme is stored on the phone, not on the account
+
+A `localStorage` key. No column, no migration, no round trip — and it works
+with no signal, which a theme that had to be fetched would not. Two people
+sharing one account on two phones each get the app the way they want it, and
+the same person's second phone is simply a second choice to make. That is the
+right shape: the reason to want a dark screen is the light in the room, not
+who is holding it.
+
+**There are two buttons, not three — no *Sistemski*.** Until one is tapped the
+phone is still in charge, and it keeps being in charge while the app is open,
+so an app whose owner never opens Podešavanja behaves exactly as it always
+did. The first tap is what freezes it, and from then on the phone is ignored.
+
+The class goes on `<html>` from a **blocking inline script** in `layout.tsx`,
+before the first paint — anything later would paint the wrong theme and correct
+it a frame afterwards. That script also strips `media` off the `theme-color`
+tags and sets them to the chosen theme's colour, because those tags are matched
+on the *phone's* preference and the switch is precisely what overrides it; a
+light status bar over a dark screen is the seam §7 is trying not to have.
+
+With JavaScript off there is no stored choice to honour, and the palette falls
+back to the phone's own preference exactly as before.
 
 **Povuci da osvežiš** — on every screen, added 07.09.2026 at the owner's
 request. Installed to the home screen there is no address bar and so no reload
@@ -520,13 +572,14 @@ Adding and editing need a connection.
 | Trip shape | Return leg **optional**, with an explicit *Jednosmerna vožnja* option (§5) | One-way and "return not agreed yet" look identical in the data |
 | Time of day | Dates only, **no times** | Departure times live in his head. Column drops in later without touching anything else. |
 | Home destination | Default town in settings, pre-fills, editable | — |
+| Light or dark | **Two buttons in Podešavanja, stored per phone** (§6, added 09.09.2026) | The choice does not follow the account to a second device. No *Sistemski* option either — instead an untouched app keeps following the phone, so the default costs nobody anything |
 | List shape | **Two tabs, *Odlasci* and *Povratak*, one row per leg** (§2) | A round trip is two rows and is counted twice. The main leg rule no longer decides what the list shows — it keeps *Detalji* and the direction chip. Added 09.09.2026 at the owner's request, so that a homecoming is visible before the van has left. |
 | Departed, no return date | **Drops off the list**; findable by search **or** by filtering its past departure date | Possible to forget someone who is abroad. **Reaffirmed 01.09.2026** after seeing it on real data, and **again 09.09.2026**: asked directly whether these should be shown at the top of *Povratak* under "Povratak nije dogovoren", the owner chose to leave it as it is. He searches the name and edits, or enters a new booking. |
 | Language | Serbian, **Latin script** | — |
 | Messenger on *Detalji* | **Viber** (`viber://chat?number=%2B381…`) | Changed 06.09.2026 at the owner's request; it was WhatsApp before. Viber has no `wa.me` equivalent, so the button is a deep link into the app: it does nothing at all on a device without Viber, where the old link at least opened a web chat. *Pozovi* is the fallback. |
 | Delete | **Permanent**, confirm dialog only | No undo, no recycle bin. The nightly backup (§9) is the only net — it is not optional, and it now exists. |
 | Destinations | **Reference data** from eurotravel.rs, plus *Drugo — upiši ručno* (§5, amended 06.09.2026) | A typed place becomes a permanent row. Misspellings cannot be deleted, only deactivated — the case- and diacritic-insensitive match against the existing list is what keeps that rare. |
-| Cascade depth | **Odlazak** Država → Regija → Grad; **Povratak** Država → Grad (§5, amended 06.09.2026) | The two legs no longer look alike. A town entered on the return leg carries no region and becomes its own, so the same place can enter the table by two routes — matching by country and name is what keeps them one row. |
+| Cascade depth | **Povratak** always Država → Grad (06.09.2026); **Odlazak** keeps Regija only where it narrows the town list — Grčka and Hrvatska today (§5, amended 09.09.2026) | The two legs no longer look alike, and neither do two countries on the same leg. A town entered with no region becomes its own, so the same place can enter the table by several routes — matching by country and name is what keeps them one row. The depth is now a property of the data, so a re-seed can change it; the seed test is the alarm. |
 | Destination filter | **One canonical list**, grouped by country only | — |
 | Accounts | Created in the Supabase dashboard; `profiles` is the access list (§9) | Adding a person is two steps, and skipping the second locks them out rather than letting them in |
 | Pickup towns | **Beograd** (default) and **Niš** only (§5) | Not from the client's site; maintained by hand in `data/destinacije.json`. More are one edit plus a re-seed away |
@@ -747,8 +800,21 @@ All of it drops onto this schema later without a rewrite.
 
 ## 12. Changelog
 
-**09.09.2026** — two tabs: *Odlasci* and *Povratak*, and no sort.
+**09.09.2026** — two tabs: *Odlasci* and *Povratak*, no sort, a theme switch, and
+the region only where it earns a tap.
 
+- **§5: the *Odlazak* leg drops the region** wherever it narrows nothing. The
+  owner asked for Srbija; the rule he approved is "more than one region, and
+  some region holding more than one town", which today means Grčka and Hrvatska
+  keep it and Srbija, Makedonija, Italija, BiH and Slovenija lose it. A rule
+  rather than a country name, per §5's own instruction, with the current answer
+  pinned by a test on the seed data.
+- **§6 gains *Izgled*** — *Svetla* / *Tamna* in Podešavanja, on every account,
+  stored per phone in `localStorage`. `globals.css` moves to the two-branch
+  form its own note had been describing since the dark palette went in: a
+  `prefers-color-scheme` branch guarded by `:not(.svetla)`, plus a `.tamna`
+  branch. Two buttons and no *Sistemski*, so an untouched app still follows the
+  phone.
 - **§3 loses the sort**, at the owner's request, later the same day. The
   *Sortiranje* section of the filter sheet is gone — date or destination,
   ascending or descending — and with it the `sort` and `smer` URL parameters,

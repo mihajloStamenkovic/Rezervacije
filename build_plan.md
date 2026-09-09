@@ -2219,3 +2219,58 @@ honest start state — no team exists yet for them to belong to.
       Verified: `npm run test` (358 pass — two fewer files' worth of sort cases,
       replaced by tests that the order is fixed), `npm run test:tz`,
       `npm run lint`, `npm run typecheck`, `npm run build`.
+- [x] ~~Owner request 09.09.2026: Svetla / Tamna in Podešavanja, on every
+      account~~ — built. Stored per phone in `localStorage`, not on the account:
+      no column, no migration, and it works with no signal. Two buttons and no
+      *Sistemski* — the owner asked for two — so an untouched app keeps
+      following the phone and the first tap is what freezes it. That is the one
+      decision inside his answer he did not make himself, and it is the reason
+      nobody who never opens Podešavanja sees any change.
+
+      `globals.css` finally takes the two-branch form its own comment had been
+      describing since the dark palette landed: a `prefers-color-scheme` branch
+      guarded by `:not(.svetla)`, plus a `.tamna` branch, and the `dark:`
+      variant matching both so the eleven `dark:` utilities keep working under
+      a forced theme. The palette is written out twice, deliberately —
+      `light-dark()` would state each colour once but needs iOS 17.5, and an
+      older phone would lose every colour rather than merely lose the switch.
+
+      Two things that are easy to miss and were both caught in the browser:
+      `color-scheme` has to follow the forced theme or a light app on a dark
+      phone opens a black date picker; and the `theme-color` tags are matched on
+      the *phone's* preference, which is exactly what the switch overrides — so
+      the script strips their `media` rather than only rewriting `content`.
+      Next adds a third such tag during hydration, so relying on document order
+      would have been relying on a framework detail.
+
+      Verified in the browser this time, on the real app: switch renders in
+      Podešavanja, tapping *Svetla* turns the whole app light while Chrome
+      itself stays dark, the choice survives a reload with no flash, the chips'
+      `dark:` colours follow, and clearing the key returns it to following the
+      browser. Plus 364 tests, `test:tz`, `lint`, `typecheck`, `build`.
+- [x] ~~Owner request 09.09.2026: no region for Srbija~~ — built as a rule, not
+      as a country name, which is what §5 already instructs. Counting
+      `data/destinacije.json` first was what made the question worth asking:
+      Srbija is not alone. Makedonija, Italija and BiH also have one town per
+      region, and Slovenija has one region over seven towns — all five ask for a
+      region that narrows nothing. The owner picked the widest of the three
+      options offered, so `drzavaTraziRegiju` shows the middle dropdown only
+      when the country has **more than one region** and **some region holds more
+      than one town**. Grčka and Hrvatska keep it; the other five lose it.
+
+      The flag was per *leg* before (`bezRegije`, the Povratak leg, 06.09.2026)
+      and is now per leg **and** per country, so `bezRegijeZa(sifra)` replaces
+      it at all eight decision points in `kaskada-destinacija.tsx` — including
+      the two that ask about a country other than the one on screen. The server
+      needed nothing: `razresiDestinaciju` already keys off whether a region was
+      submitted, so a typed Serbian town matches by country and name and, if
+      new, becomes its own region — the shape `Srbija › Beograd › Beograd`
+      already has, which is also what keeps Srbija from drifting back into
+      showing a dropdown.
+
+      Verified in the browser on the real data: Srbija, Makedonija and Italija
+      render Država → Grad, Italija auto-selecting its single town (Trst);
+      Hrvatska and Grčka keep Regija with their four and five regions;
+      Podešavanja loses the Regija row it had; and editing an existing booking
+      still prefills Grčka › Sitonija › Kalamici with a region-less Serbian
+      return leg. Plus 370 tests, `typecheck`, `lint`, `build`.

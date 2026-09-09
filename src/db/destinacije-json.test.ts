@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { drzavaTraziRegiju } from "@/domen/kaskada";
 import { ucitajDestinacije } from "./destinacije-json";
 
 const redovi = ucitajDestinacije();
@@ -21,6 +22,24 @@ describe("data/destinacije.json", () => {
     expect(srbija.map((r) => r.grad)).toEqual(["Beograd", "Kopaonik", "Niš"]);
     // ~99% of rides start in Belgrade, so redosled 0 is not decoration.
     expect(srbija.find((r) => r.redosled === 0)?.grad).toBe("Beograd");
+  });
+
+  it("shows a region only for Grčka and Hrvatska", () => {
+    /*
+     * The rule lives in `drzavaTraziRegiju`; this is what it comes to on the
+     * real seed data, which is the thing the owner actually sees. He asked on
+     * 09.09.2026 for Serbia to lose its region, and the answer he approved was
+     * "everywhere the region narrows nothing" — Srbija, Makedonija, Italija and
+     * BiH because every region there holds one town, Slovenija because one
+     * region holds all seven.
+     *
+     * A second drift alarm, like the counts above: re-capture the client's site
+     * and add a real region to one of these countries and this test fails,
+     * which is the moment to notice the dropdown has come back.
+     */
+    const sifre = [...new Set(redovi.map((r) => r.drzavaSifra))];
+    const saRegijom = sifre.filter((s) => drzavaTraziRegiju(redovi, s)).sort();
+    expect(saRegijom).toEqual(["grcka", "hrvatska"]);
   });
 
   it("marks Slovenija and Bosna i Hercegovina inactive, everything else active", () => {

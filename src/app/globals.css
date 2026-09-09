@@ -3,16 +3,30 @@
 @import "shadcn/tailwind.css";
 
 /*
- * Dark follows the phone, because there is no theme switch anywhere in this
- * app and SPEC does not ask for one. This was `(&:is(.dark *))` — a class
- * variant — while nothing in the app ever set that class, so every `dark:`
- * utility and every token below it was unreachable.
+ * The two-branch form this file's earlier note said would be needed the day a
+ * manual switch arrived. It arrived on 09.09.2026, at the owner's request:
+ * *Podešavanja › Izgled*, Svetla or Tamna, per phone (SPEC §6).
  *
- * If a manual toggle is ever added, this becomes the two-branch form:
- * a `prefers-color-scheme` branch guarded by `:not(.light *)`, plus a
- * `.dark` branch. Until then that machinery would be dead weight.
+ *   `.tamna` on <html>  → dark, whatever the phone says
+ *   `.svetla` on <html> → light, whatever the phone says
+ *   neither             → follow the phone, which is what it always did
+ *
+ * The class comes from the blocking script in `layout.tsx`, before first
+ * paint. The media branch is guarded by `:not(.svetla)` so a forced light
+ * theme survives a dark phone, and it is what still renders the app correctly
+ * if that script never runs — with no JavaScript there is no stored choice to
+ * honour anyway.
  */
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark {
+  &:where(.tamna, .tamna *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not(.svetla, .svetla *)) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -93,9 +107,19 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* The same palette, switched by the phone rather than by a class. */
+/*
+ * The dark palette, in two branches — the phone's own preference, and the
+ * switch in Podešavanja.
+ *
+ * **The two blocks must stay identical.** They are written out twice because
+ * CSS cannot share one declaration block between a media query and a plain
+ * rule, and the alternative — `light-dark()`, which would state each colour
+ * once — needs iOS 17.5, so an older phone would lose every colour in the app
+ * rather than merely lose the switch. A palette that reads twice is a smaller
+ * price than a screen that goes blank.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.svetla) {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -130,12 +154,59 @@
   }
 }
 
+/* Branch two — the same palette, chosen in Podešavanja. Keep it identical. */
+:root.tamna {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  /*
+   * `color-scheme` is what tells the platform to draw its own furniture — the
+   * date picker, the scrollbar, the caret — in the right shade. It has to
+   * follow the forced theme too, or a light app on a dark phone opens a black
+   * date picker.
+   */
   :root {
     color-scheme: light dark;
+  }
+  :root.svetla {
+    color-scheme: light;
+  }
+  :root.tamna {
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;

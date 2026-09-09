@@ -201,6 +201,20 @@ export const T = {
 
   podesavanja: {
     naslov: "Podešavanja",
+    /**
+     * The theme switch — SPEC §6, added 09.09.2026. *Izgled* rather than
+     * *Tema*: "tema" in Serbian is first of all the subject of a conversation,
+     * and this is about how the screen looks.
+     */
+    izgled: "Izgled",
+    svetlaTema: "Svetla",
+    tamnaTema: "Tamna",
+    /**
+     * Says the two things the two buttons cannot: that this is *this* phone,
+     * and that until one is tapped the phone's own setting is still in charge.
+     */
+    izgledPomoc:
+      "Važi samo na ovom telefonu. Dok ne izabereš, prati podešavanje telefona.",
     podrazumevaniGrad: "Podrazumevano mesto povratka",
     podrazumevaniGradPomoc:
       "Unapred se popunjava u polju povratka kod nove rezervacije.",
