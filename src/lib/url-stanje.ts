@@ -1,8 +1,9 @@
 /**
  * The list screen's whole state, carried in the URL.
  *
- * Filter, sort and search live in the query string rather than in React
- * state, and that is a deliberate choice with three consequences worth having:
+ * Filter, search and the open tab live in the query string rather than in
+ * React state, and that is a deliberate choice with three consequences worth
+ * having:
  * the list page stays a Server Component that reads `searchParams` and renders
  * once; a filtered view is linkable and survives a reload; and the back button
  * steps through filter changes the way a phone user expects.
@@ -16,13 +17,7 @@
  * than throw — an unfiltered list is recoverable, an error page is not.
  */
 import { opsegZaCip, type CipDatuma } from "@/domen/filteri";
-import { PODRAZUMEVANO_SORTIRANJE } from "@/domen/sortiranje";
-import type {
-  OpsegDatuma,
-  PoljeSortiranja,
-  SmerSortiranja,
-  Sortiranje,
-} from "@/domen/tipovi";
+import type { OpsegDatuma, Smer } from "@/domen/tipovi";
 import { jeDatum, type Datum } from "@/lib/datum";
 
 /** What `searchParams` hands a page in Next 16. */
@@ -33,24 +28,42 @@ export type StanjeUrl = {
   /** Destination filter keys — `drzava:`, `regija:` or `grad:` prefixed. */
   destinacije: string[];
   pretraga: string;
-  sort: Sortiranje;
+  /**
+   * Which tab is open — *Odlasci* or *Povratak* (SPEC §2, amended
+   * 09.09.2026). Stored as the domain `Smer` rather than as a tab index,
+   * because the tab *is* the leg direction and a number would let the two
+   * drift apart.
+   *
+   * It lives in the URL for the same reason the filters do: a link opens on
+   * the tab it was sent from, and the cards in each panel carry their own tab
+   * back, so returning from *Detalji* lands where you left.
+   */
+  tab: Smer;
 };
+
+/** *Odlasci* — what the app opens on, and what is left out of the query. */
+export const PODRAZUMEVANI_TAB: Smer = "odlazak";
 
 export const PRAZNO_STANJE: StanjeUrl = {
   opseg: null,
   destinacije: [],
   pretraga: "",
-  sort: PODRAZUMEVANO_SORTIRANJE,
+  tab: PODRAZUMEVANI_TAB,
 };
 
-/** Parameter names, in one place so the reader and the writer cannot drift. */
+/**
+ * Parameter names, in one place so the reader and the writer cannot drift.
+ *
+ * `sort` and `smer` were here until 09.09.2026 and are gone with the sort
+ * controls. Nothing reads them any more, and an old link still carrying them
+ * opens on the one order there is — the parser ignores what it does not know.
+ */
 export const P = {
   od: "od",
   do: "do",
   destinacija: "d",
   pretraga: "q",
-  polje: "sort",
-  smer: "smer",
+  tab: "tab",
 } as const;
 
 function prvi(vrednost: string | string[] | undefined): string | undefined {
@@ -85,27 +98,19 @@ export function procitajStanjeUrl(parametri: UlazniParametri): StanjeUrl {
   else if (od) opseg = { od, do: od };
   else if (doDatuma) opseg = { od: doDatuma, do: doDatuma };
 
-  const polje = prvi(parametri[P.polje]);
-  const smer = prvi(parametri[P.smer]);
+  const tab = prvi(parametri[P.tab]);
 
   return {
     opseg,
     // Deduplicated: a repeated key would otherwise inflate the filter badge.
     destinacije: [...new Set(sve(parametri[P.destinacija]).filter((k) => k !== ""))],
     pretraga: (prvi(parametri[P.pretraga]) ?? "").trim(),
-    sort: {
-      polje: jePolje(polje) ? polje : PODRAZUMEVANO_SORTIRANJE.polje,
-      smer: jeSmer(smer) ? smer : PODRAZUMEVANO_SORTIRANJE.smer,
-    },
+    tab: jeTab(tab) ? tab : PODRAZUMEVANI_TAB,
   };
 }
 
-function jePolje(v: string | undefined): v is PoljeSortiranja {
-  return v === "datum" || v === "destinacija";
-}
-
-function jeSmer(v: string | undefined): v is SmerSortiranja {
-  return v === "rastuce" || v === "opadajuce";
+function jeTab(v: string | undefined): v is Smer {
+  return v === "odlazak" || v === "povratak";
 }
 
 /**
@@ -125,12 +130,7 @@ export function upitZaStanje(stanje: StanjeUrl): string {
   }
   for (const kljuc of stanje.destinacije) p.append(P.destinacija, kljuc);
   if (stanje.pretraga.trim() !== "") p.set(P.pretraga, stanje.pretraga.trim());
-  if (stanje.sort.polje !== PODRAZUMEVANO_SORTIRANJE.polje) {
-    p.set(P.polje, stanje.sort.polje);
-  }
-  if (stanje.sort.smer !== PODRAZUMEVANO_SORTIRANJE.smer) {
-    p.set(P.smer, stanje.sort.smer);
-  }
+  if (stanje.tab !== PODRAZUMEVANI_TAB) p.set(P.tab, stanje.tab);
 
   const upit = p.toString();
   return upit === "" ? "" : `?${upit}`;

@@ -26,9 +26,23 @@ today.
 | Departure has not passed | `datum_polaska` | trip destination | ↑ Odlazak |
 | Departure has passed | `datum_povratka` | home | ↓ Povratak |
 
-The same rule applies to every reservation, so the list always has a single
-consistent thing to sort by. A booking flips the day after it departs — it stops
-being a trip *to* Greece and becomes a homecoming *to* Belgrade.
+The same rule applies to every reservation, so a booking always has a single
+consistent date to resolve to. A booking flips the day after it departs — it
+stops being a trip *to* Greece and becomes a homecoming *to* Belgrade.
+
+> **Amended 09.09.2026 at the owner's request: the rule no longer picks the row
+> for the list.** The list is now two tabs, *Odlasci* and *Povratak*, and a
+> booking appears in **both** — under its departure date in one and its return
+> date in the other (§2). What the rule still owns is everything that has to
+> resolve a whole booking to one date and one direction: **Detalji**, and the
+> direction chip on a card.
+>
+> The reason it moved is that the rule answers "what is this booking *now*",
+> and the owner's question when he opens the app is "who is going out" or "who
+> is coming home" — and under the rule a return was invisible until the van had
+> already left. It is the same data read a different way, and the two readings
+> agree everywhere except in the one place the tabs were asked for: a return
+> that has not departed yet is now on screen.
 
 ### Worked example
 
@@ -41,57 +55,101 @@ Booking: Marko Petrović, 4 putnika, Grčka, polazak 01.01.2026, povratak 15.01.
 
 Same row in the database. Only today's date changed.
 
+On the **list** since 09.09.2026 that same booking is two rows, not one: on
+20.12.2025 it is under `01.01.2026` in *Odlasci* **and** under `15.01.2026` in
+*Povratak*. On 05.01.2026 the departure has happened, so only the *Povratak*
+row is left. The rule above is what each row's chip and *Detalji* still say.
+
 ### Edge cases
 
 | Case | Behaviour |
 |---|---|
-| Departure passed, **no return date** | No main date → **drops off the list entirely**. Reachable two ways: by search on the name, or by filtering its past departure date. Accepted trade — reaffirmed 01.09.2026, see §8. |
-| Departure and return on the same day | Appears in both the departures group and the returns group of that day's view — two rows for one booking. |
+| Departure passed, **no return date** | No leg left → **drops off the list entirely**: its departure is behind the horizon and it never had a return. Reachable two ways: by search on the name, or by filtering its past departure date. Accepted trade — reaffirmed 01.09.2026 and again 09.09.2026, when the owner was asked whether such a booking should be surfaced on the *Povratak* tab and chose to leave it as it is. See §8. |
+| Departure and return on the same day | One row in each tab — two rows for one booking, both dated that day. |
 | One-way ride *home* (e.g. Greece → Belgrade) | Entered with the **Jednosmerna vožnja** option: *Odakle* = Solun, *Kuda* = Beograd, no return date. See §5. |
 
 ---
 
-## 2. Three ways of looking at the list
+## 2. Two tabs, and three ways of looking at them
 
-A date filter is a question about a **day**, not about a booking. So the list
-behaves differently depending on whether a date filter is on.
+### Odlasci and Povratak
+
+**Added 09.09.2026 at the owner's request.** The list is two tabs, side by side
+and swipeable with a thumb:
+
+| Tab | Holds |
+|---|---|
+| **Odlasci** | every **departure** leg — `datum_polaska`, to the trip destination |
+| **Povratak** | every **return** leg — `datum_povratka`, to the home destination |
+
+A row is a **leg**, not a booking, so a round trip is on both tabs under two
+different dates. That is the change: the main leg rule used to choose one of
+the two legs and throw the other away for as long as it was not the current
+one, which meant next week's homecomings could not be seen until the van had
+left. Both are now on screen from the moment the booking is entered.
+
+The tab is the leg direction — the same `smer` the chip and the sort already
+speak in — and it lives in the URL as `?tab=povratak`, so a link opens where it
+was sent from and a card sends you back to the tab you found it on. *Odlasci*
+is the default and is left out of the query.
+
+**Both tabs are rendered on the server in one pass**, so swiping between them
+is a client-side move: no request, and it works on a phone with no signal. The
+swipe follows the finger and commits at a quarter of the screen; a drag has to
+be clearly more horizontal than vertical before it counts, because the list is
+scrolled far more often than the tab is changed.
+
+### The three modes, unchanged in kind
+
+A date filter is a question about a **day**, not about a booking. So the list is
+still a different shape depending on whether one is on — and each mode now
+feeds both tabs at once, differing only in which dates it admits.
 
 **Raspored** *(no date filter — default)*
-One row per reservation, showing its main leg, from today forward. Sorted by main
-date ascending. Answers *"what is coming up."*
+Every leg from today forward, sorted by date ascending. Answers *"what is coming
+up."*
 
 **Dan** *(date filter active)*
-Every leg falling inside the chosen date or range — **departures first, then
-returns**. Answers *"what happens on 01.01.2026."* Neither the main leg rule
-nor the "from today forward" horizon applies here, which is what makes a past
-departure date reach a booking that has no main date (§1).
+Every leg falling inside the chosen date or range, past days included. Answers
+*"what happens on 01.01.2026."* The "from today forward" horizon does not apply
+here, which is what makes a past departure date reach a booking that has no
+return (§1). Departures and returns are no longer split by a heading inside the
+day — the tabs are that split.
 
 **Pretraga** *(search active, no date filter)*
-One row per matching reservation, with no date horizon. Needed because §3 makes
-search the only way to reach a booking with no main date, and such a booking
-has no main leg for either mode above to render — it shows its departure leg
-instead. Added 28.08.2026 during implementation; this paragraph is the spec
-catching up with it.
+Every leg of every match, with no date horizon at all. Needed because §3 makes
+search the only way to reach a booking that departed with no return date; that
+booking has exactly one leg, its departure, so search finds it on *Odlasci*.
+Added 28.08.2026 during implementation; this paragraph is the spec catching up
+with it.
 
-### Sorting inside a day
+### One order, and it is not a choice
 
-No times are stored, so same-day order needs an explicit rule or rows shuffle
-between renders. Order is:
+**Amended 09.09.2026 at the owner's request: the *Sortiranje* controls are
+gone.** The sheet used to offer date or destination, ascending or descending.
+The list now runs by **date, soonest first**, in both tabs, and nothing offers
+to change that.
 
-1. Departures before returns
-2. Destination A–Z
-3. Name A–Z
-4. Reservation id, so the order never depends on what order Postgres returned
+No times are stored, so same-day order still needs an explicit rule or rows
+shuffle between renders. In full, the order is:
 
-Stable on every render.
+1. Date ascending
+2. Departures before returns
+3. Destination A–Z
+4. Name A–Z
+5. Reservation id, so the order never depends on what order Postgres returned
 
-Day headings follow the **date** sort. Sorted by destination the dates are
-scattered, so the list goes flat and each card carries its own date instead —
-grouping by day there would produce a column of one-row groups.
+Stable on every render. Key 2 does nothing inside a tab, where every row points
+the same way; it is kept because the sort is defined over a list of legs and
+runs before they are split, so it must not depend on who is looking at it.
+
+Cards are therefore always under a day heading. While the list could be sorted
+by destination the dates were scattered, so it went flat and each card carried
+its own date; that shape went with the controls.
 
 ---
 
-## 3. Filter, sort, search
+## 3. Filter and search
 
 - **Datum** — quick chips (*danas · ova nedelja · ovaj mesec*) plus a custom range picker.
 - **Destinacija** — checkboxes over the destination reference data (§5), grouped by
@@ -100,8 +158,10 @@ grouping by day there would produce a column of one-row groups.
 - Multiple destinations **OR** together; date and destination **AND** together.
   Both can be active at once.
 - Filters live in a bottom sheet with a badge showing how many are active, plus *Obriši sve*.
-- **Sort** — by date or destination, ascending or descending. Lives in the same
-  bottom sheet as the filters; two toggles do not deserve a second sheet.
+- **No sort.** The sheet carried a *Sortiranje* section — date or destination,
+  ascending or descending — until 09.09.2026, when the owner asked for it to
+  go. §2 has the one order that is left. The sheet now holds only the two
+  things that are genuinely questions: which days, and which places.
 - **Pretraga** over name, phone and destination. Often faster than filtering, and it
   is the only way to reach a booking that has no main date.
 
@@ -392,7 +452,10 @@ apart.
 
 ## 6. Ekrani
 
-1. **Lista** — sticky header with search, filter and sort. Cards grouped under date
+1. **Lista** — sticky header with search and filter, and under them the
+   two tabs, *Odlasci* and *Povratak*, each with the number of rows behind it
+   (§2). Swipe sideways to change tab; the count on the tab you are not on is
+   the useful half of it. Cards always grouped under date
    headings (*danas · sutra · subota, 12.09.*), each carrying a direction chip,
    the **route**, passenger count and the badge of whoever booked it.
    The route is both ends of that leg — `Solun → Beograd` on a return,
@@ -457,7 +520,8 @@ Adding and editing need a connection.
 | Trip shape | Return leg **optional**, with an explicit *Jednosmerna vožnja* option (§5) | One-way and "return not agreed yet" look identical in the data |
 | Time of day | Dates only, **no times** | Departure times live in his head. Column drops in later without touching anything else. |
 | Home destination | Default town in settings, pre-fills, editable | — |
-| Departed, no return date | **Drops off the list**; findable by search **or** by filtering its past departure date | Possible to forget someone who is abroad. **Reaffirmed 01.09.2026** after seeing it on real data: the owner searches the name and edits, or enters a new booking. Not changing it. |
+| List shape | **Two tabs, *Odlasci* and *Povratak*, one row per leg** (§2) | A round trip is two rows and is counted twice. The main leg rule no longer decides what the list shows — it keeps *Detalji* and the direction chip. Added 09.09.2026 at the owner's request, so that a homecoming is visible before the van has left. |
+| Departed, no return date | **Drops off the list**; findable by search **or** by filtering its past departure date | Possible to forget someone who is abroad. **Reaffirmed 01.09.2026** after seeing it on real data, and **again 09.09.2026**: asked directly whether these should be shown at the top of *Povratak* under "Povratak nije dogovoren", the owner chose to leave it as it is. He searches the name and edits, or enters a new booking. |
 | Language | Serbian, **Latin script** | — |
 | Messenger on *Detalji* | **Viber** (`viber://chat?number=%2B381…`) | Changed 06.09.2026 at the owner's request; it was WhatsApp before. Viber has no `wa.me` equivalent, so the button is a deep link into the app: it does nothing at all on a device without Viber, where the old link at least opened a web chat. *Pozovi* is the fallback. |
 | Delete | **Permanent**, confirm dialog only | No undo, no recycle bin. The nightly backup (§9) is the only net — it is not optional, and it now exists. |
@@ -682,6 +746,31 @@ All of it drops onto this schema later without a rewrite.
 ---
 
 ## 12. Changelog
+
+**09.09.2026** — two tabs: *Odlasci* and *Povratak*, and no sort.
+
+- **§3 loses the sort**, at the owner's request, later the same day. The
+  *Sortiranje* section of the filter sheet is gone — date or destination,
+  ascending or descending — and with it the `sort` and `smer` URL parameters,
+  the `Sortiranje` types, and the flat no-headings list shape that only the
+  destination sort produced. The order is fixed in §2: by date, soonest first.
+  An old link still carrying `?sort=` opens on that one order.
+- **§2 is now the tabs**, at the owner's request. A row on the list is a **leg**,
+  not a booking, so a round trip appears in both tabs — under its departure date
+  in one and its return date in the other. Swipeable with a thumb; the tab lives
+  in the URL as `?tab=povratak`.
+- **§1's rule no longer picks the row for the list**, and that is a supersession,
+  not a clarification. It is recorded as one. The rule is unchanged and still
+  owns *Detalji* and the direction chip — what changed is that a homecoming is
+  now visible before the van has left, which is the whole reason the tabs were
+  asked for.
+- **All three modes stayed**, and are now distinguished by their horizon alone:
+  today forward, inside the chosen range, or none at all. The *Polasci /
+  Povratci* split inside a day in **Dan** is gone — the tabs are that split.
+- **§1's accepted trade was put to the owner again and stands.** Asked whether a
+  booking that departed with no return date should be surfaced on *Povratak*
+  under "Povratak nije dogovoren", he chose to leave it as it is. Reaffirmed
+  twice now: 01.09.2026 and 09.09.2026.
 
 **07.09.2026** — address, price and note.
 

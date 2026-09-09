@@ -152,49 +152,33 @@ describe("stability", () => {
   });
 });
 
-describe("sort field and direction — SPEC §3", () => {
-  it("by date, descending, still puts departures before returns within a day", () => {
-    const stavke = danView(SVI, {
+/**
+ * There used to be a *Sortiranje* section in the filter sheet — date or
+ * destination, ascending or descending. The owner had it removed on
+ * 09.09.2026. These are the tests that keep it removed: there is one order,
+ * `sortirajStavke` takes nothing but the rows, and every view produces the
+ * same sequence.
+ */
+describe("one order and no choice — SPEC §3, amended 09.09.2026", () => {
+  it("dates run ascending in every mode", () => {
+    const raspored = rasporedView(SVI, { danas: DANAS }).map((s) => s.datum);
+    expect(raspored).toEqual([...raspored].sort());
+
+    const dan30 = danView(SVI, {
       danas: DANAS,
-      opseg: { od: dan(2), do: dan(3) },
-      sort: { polje: "datum", smer: "opadajuce" },
-    });
-    // dan(3) first, then dan(2) — and inside dan(2), departures first.
-    expect(stavke.map((s) => `${s.datum} ${s.smer}`)).toEqual([
-      `${dan(3)} odlazak`,
-      `${dan(2)} odlazak`,
-      `${dan(2)} odlazak`,
-      `${dan(2)} povratak`,
-    ]);
+      opseg: { od: dan(-30), do: dan(30) },
+    }).map((s) => s.datum);
+    expect(dan30).toEqual([...dan30].sort());
   });
 
-  it("by destination, ascending then descending", () => {
-    const rastuce = rasporedView(SVI, {
-      danas: DANAS,
-      sort: { polje: "destinacija", smer: "rastuce" },
-    }).map((s) => s.destinacija.grad);
-    expect(rastuce).toEqual([
-      "Beograd",
-      "Beograd",
-      "Hanioti",
-      "Hanioti",
-      "Kopaonik",
-      "Ljubljana",
-      "Solun",
-    ]);
-
-    const opadajuce = rasporedView(SVI, {
-      danas: DANAS,
-      sort: { polje: "destinacija", smer: "opadajuce" },
-    }).map((s) => s.destinacija.grad);
-    expect(opadajuce).toEqual([...rastuce].reverse());
-  });
-
-  it("within one destination, sorting by destination falls back to the date", () => {
-    const beogradi = rasporedView(SVI, {
-      danas: DANAS,
-      sort: { polje: "destinacija", smer: "rastuce" },
-    }).filter((s) => s.destinacija.grad === "Beograd");
-    expect(beogradi.map((s) => s.datum)).toEqual([dan(3), dan(9)]);
+  it("sorts by date first, so a destination never groups the list", () => {
+    // Under the old destination sort these seven Beograd legs sat together.
+    // Now they are wherever their dates put them, scattered through the list.
+    const stavke = rasporedView(SVI, { danas: DANAS });
+    const beogradi = stavke
+      .map((s, i) => (s.destinacija.grad === "Beograd" ? i : -1))
+      .filter((i) => i >= 0);
+    expect(beogradi.length).toBe(7);
+    expect(beogradi).not.toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });

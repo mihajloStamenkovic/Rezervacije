@@ -1,5 +1,6 @@
 /**
- * The domain core — the main leg rule, the two list modes, filters and sort.
+ * The domain core — the main leg rule, the three list modes, the two tabs,
+ * filters and the one sort order.
  *
  * Free of any database import by design: it takes rows in and returns rows
  * out, so every rule in here is testable at a fixed `danas` with no connection

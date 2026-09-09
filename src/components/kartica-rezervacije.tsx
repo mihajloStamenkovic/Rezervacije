@@ -17,22 +17,21 @@ import { CipSmera } from "@/components/cip-smera";
 import { imeDestinacije } from "@/domen/destinacije";
 import { jeIstaTacka, rutaEtape } from "@/domen/glavna-etapa";
 import type { StavkaListe } from "@/domen/tipovi";
-import { formatDatum } from "@/lib/datum";
 import { T, putnika } from "@/lib/tekst";
 
+/**
+ * A card never carries its own date. It used to, when the list could be sorted
+ * by destination and the dates were scattered with no day heading to read them
+ * off; the sort controls went on 09.09.2026 and every card is under a heading
+ * again, where a date on the card would only repeat it.
+ */
 export function KarticaRezervacije({
   stavka,
   povratak,
-  prikaziDatum = false,
 }: {
   stavka: StavkaListe;
   /** Where the detail screen should send the user back to — the filtered list. */
   povratak: string;
-  /**
-   * Sorted by destination there are no day headings to read the date off, so
-   * the card carries its own. Under a day heading it would just repeat it.
-   */
-  prikaziDatum?: boolean;
 }) {
   const { rezervacija, autor } = stavka.red;
   // Both ends of this leg, so a return says where they are coming *from* and
@@ -74,11 +73,6 @@ export function KarticaRezervacije({
           <span aria-hidden="true">·</span>
           <span className="shrink-0">{putnika(rezervacija.brojPutnika)}</span>
         </div>
-        {prikaziDatum ? (
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {formatDatum(stavka.datum)}
-          </span>
-        ) : null}
       </div>
       <ChevronRightIcon
         aria-hidden="true"

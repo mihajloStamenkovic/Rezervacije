@@ -2163,3 +2163,59 @@ honest start state — no team exists yet for them to belong to.
       create a second row. Caught in the browser: the leg was initially sending
       the previously selected town's region, which would have filed a typed
       `Novi Sad` under `Srbija › Beograd`.
+- [x] ~~Owner request 09.09.2026: two tabs, *Odlasci* and *Povratak*, swipeable
+      on the phone~~ — built. This is the largest behavioural change since the
+      teams work, because it **supersedes the main leg rule for the list**: a
+      row is now a leg, not a booking, so a round trip appears in both tabs —
+      under its departure date in one and its return date in the other. The
+      conflict with SPEC §1 was reported before any code was written and is now
+      recorded in §1, §2, §6 and §8 rather than resolved silently. The rule
+      itself is untouched and still owns *Detalji* and the direction chip.
+
+      All three modes became leg-shaped in `src/domen/liste.ts` and now differ
+      only in which dates they admit — today forward, inside the range, or no
+      horizon at all — and `prikaziListu` returns **both** tabs from one pass so
+      the screen can render them together. That is what makes the swipe free:
+      `src/components/tabovi-liste.tsx` moves between two lists that are already
+      on the page, so changing tab costs no request and works with no signal.
+      The gesture arithmetic is in `src/lib/prevlacenje.ts` under test, next to
+      `povlacenje.ts`; pull-to-refresh gained an axis check the same day, so a
+      sideways swipe can no longer open the refresh indicator under itself.
+
+      Asked at the same time whether a booking that departed with no return date
+      should finally be surfaced — at the top of *Povratak*, under "Povratak
+      nije dogovoren" — **the owner said no**. That leaves SPEC §1's accepted
+      trade standing, now reaffirmed twice.
+
+      Verified: `npm run test` (360 pass), `npm run test:tz` (identical under
+      all five zones), `npm run lint`, `npm run typecheck`, `npm run build`.
+      **Not yet verified in the browser** — the dev session had no signed-in
+      user, so the swipe itself has been read but not driven.
+- [x] ~~Owner request 09.09.2026: remove the sort controls~~ — done, the same
+      day and at his explicit instruction. The whole *Sortiranje* section of the
+      filter sheet is gone: field (*Po datumu* / *Po destinaciji*) and direction
+      (*Rastuće* / *Opadajuće*) both. What went with it is the point — this is a
+      deletion, not a hidden default:
+
+      - `Sortiranje`, `PoljeSortiranja`, `SmerSortiranja` and
+        `PODRAZUMEVANO_SORTIRANJE` are deleted. `sortirajStavke(stavke)` and
+        `uporediStavke(a, b)` take the rows and nothing else, so no caller can
+        ask for a different order and none can drift from another.
+      - The `sort` and `smer` URL parameters are gone from `P`. An old link
+        carrying them opens on the one order there is — the parser has always
+        ignored what it does not recognise, which is why nothing had to be
+        written to handle it.
+      - The flat, no-headings list shape went too. It existed only because
+        sorting by destination scattered the dates, and it was the only user of
+        `prikaziDatum` on the card, so both are removed rather than left as
+        unreachable branches.
+      - `T.sortiranje` is deleted, and `RedPrekidaca` — the two-button toggle
+        row in the sheet — had no other caller.
+
+      SPEC §3 is retitled *Filter and search*, §2's "Sorting inside a day" is
+      now "One order, and it is not a choice" with the date promoted to key 1 of
+      5, and §6 no longer says the header holds a sort.
+
+      Verified: `npm run test` (358 pass — two fewer files' worth of sort cases,
+      replaced by tests that the order is fixed), `npm run test:tz`,
+      `npm run lint`, `npm run typecheck`, `npm run build`.

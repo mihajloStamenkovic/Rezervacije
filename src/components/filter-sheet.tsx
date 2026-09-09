@@ -17,6 +17,11 @@
  * No filtering happens in this file. Ticking a box calls `prebaciCvor` in the
  * domain core, the badge count is `brojAktivnihFiltera`, and the chip ranges
  * are `opsegZaCip`. This component decides layout and nothing else.
+ *
+ * **There was a *Sortiranje* section here until 09.09.2026**, offering date or
+ * destination and ascending or descending. The owner asked for it to go. The
+ * list has one order now — by date, soonest first — so the sheet holds only
+ * the two things that are genuinely questions: which days, and which places.
  */
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -48,8 +53,6 @@ import {
 } from "@/domen/izbor-destinacija";
 import type {
   OpsegDatuma,
-  PoljeSortiranja,
-  SmerSortiranja,
 } from "@/domen/tipovi";
 import type { Datum } from "@/lib/datum";
 import { T, filtera } from "@/lib/tekst";
@@ -206,31 +209,6 @@ export function FilterSheet({
             </div>
           </Odeljak>
 
-          <Odeljak naslov={T.sortiranje.naslov}>
-            <div className="flex flex-col gap-2">
-              <RedPrekidaca<PoljeSortiranja>
-                vrednost={nacrt.sort.polje}
-                opcije={[
-                  { vrednost: "datum", naziv: T.sortiranje.poDatumu },
-                  { vrednost: "destinacija", naziv: T.sortiranje.poDestinaciji },
-                ]}
-                onChange={(polje) =>
-                  postaviNacrt((p) => ({ ...p, sort: { ...p.sort, polje } }))
-                }
-              />
-              <RedPrekidaca<SmerSortiranja>
-                vrednost={nacrt.sort.smer}
-                opcije={[
-                  { vrednost: "rastuce", naziv: T.sortiranje.rastuce },
-                  { vrednost: "opadajuce", naziv: T.sortiranje.opadajuce },
-                ]}
-                onChange={(smer) =>
-                  postaviNacrt((p) => ({ ...p, sort: { ...p.sort, smer } }))
-                }
-              />
-            </div>
-          </Odeljak>
-
           <Odeljak naslov={T.filter.destinacija}>
             <ul className="flex flex-col">
               {stablo.map((drzava) => {
@@ -363,37 +341,6 @@ function PoljeDatuma({
         onChange={(e) => onChange(e.target.value)}
         className="h-11 text-base md:text-base"
       />
-    </div>
-  );
-}
-
-function RedPrekidaca<V extends string>({
-  vrednost,
-  opcije,
-  onChange,
-}: {
-  vrednost: V;
-  opcije: readonly { vrednost: V; naziv: string }[];
-  onChange: (v: V) => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {opcije.map((o) => (
-        <button
-          key={o.vrednost}
-          type="button"
-          onClick={() => onChange(o.vrednost)}
-          aria-pressed={vrednost === o.vrednost}
-          className={cn(
-            "h-11 rounded-lg border px-3 text-base transition-colors",
-            vrednost === o.vrednost
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-background active:bg-muted",
-          )}
-        >
-          {o.naziv}
-        </button>
-      ))}
     </div>
   );
 }

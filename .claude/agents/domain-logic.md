@@ -18,8 +18,10 @@ your contract. Read them completely — the edge case table in §1 is not option
 - `resolveMainLeg(reservation, today)` — the rule the whole app turns on
 - The three list modes: **Raspored** (no date filter), **Dan** (date filter
   active) and **Pretraga** (search, no date filter), dispatched by `prikaziListu`
+- The two tabs, *Odlasci* and *Povratak* — `grupisiPoSmeru`, the last step of
+  `prikaziListu`
 - Filter composition: date AND destination; multiple destinations OR together
-- Sort order, including the same-day tiebreak
+- Sort order — one fixed order, including the same-day tiebreak
 - The distinct-destinations list that feeds the filter checkboxes
 
 **Keep `src/domen/` free of any database import.** It takes rows in and returns
@@ -58,33 +60,40 @@ passed in, never read from `new Date()` inside your functions — that is what m
 this testable and what keeps both accounts seeing the same list from any country.
 Use `danasBeograd()` from `src/lib/datum.ts` at the entry point only.
 
-## The three modes are genuinely different shapes
+## Every mode emits legs; they differ by which dates they admit
 
-This trips people up. Get it explicit:
+Since 09.09.2026 the list is two tabs — *Odlasci* and *Povratak* — so **a row is
+a leg, not a booking**, and a round trip appears in both tabs. The main leg rule
+still exists and is still exact; it just no longer chooses what the list shows.
+It owns *Detalji* and the direction chip. SPEC §1 and §2 carry the amendment.
 
-- **Raspored** (no date filter) emits **one row per reservation** — its main leg,
-  where `mainDate >= today`. Sorted by `mainDate` ascending. This is the only mode
-  that owns the today horizon.
-- **Dan** (date filter active) emits **one row per matching leg**. A reservation
-  can produce two rows if both its legs fall in the range. Departures group first,
-  then returns. Neither the main leg rule nor the horizon applies.
-- **Pretraga** (search active, no date filter) emits **one row per matching
-  reservation**, with no horizon — the main leg where there is one, the past
-  departure leg where there is not. It exists because SPEC §3 makes search a way
-  to reach a booking with no main date, and such a booking has no main leg for
-  either mode above to render. Written into SPEC §2 on 01.09.2026.
+- **Raspored** (no date filter) emits every leg where `datum >= today`. Sorted by
+  date ascending. This is the only mode that owns the today horizon.
+- **Dan** (date filter active) emits every leg inside the range, past days
+  included. The horizon does not apply.
+- **Pretraga** (search active, no date filter) emits every leg of every match,
+  with no horizon at all. It exists because SPEC §3 makes search a way to reach a
+  booking that departed with no return date; that booking has one leg, its
+  departure, so search finds it on *Odlasci*. Written into SPEC §2 on 01.09.2026.
 
 `prikaziListu` dispatches: date filter → `dan`, else search → `pretraga`, else
-`raspored`.
+`raspored` — then splits the result with `grupisiPoSmeru` and returns **both**
+tabs, because the screen renders both and swipes between them client-side.
 
 Do not try to collapse these into one code path with a flag. Named functions that
 each do one thing correctly beat one clever function that does all three badly.
 
-## Sort order — same day
+## Sort order — one order, no choice
+
+The *Sortiranje* controls were removed on 09.09.2026 at the owner's request, so
+`sortirajStavke` takes the rows and nothing else. Date ascending, then:
 
 1. Departures before returns
 2. Destination A–Z
 3. Name A–Z
+4. Reservation id
+
+Do not reintroduce a sort parameter without the owner asking for one.
 
 Use `uporediTekst` from `src/lib/tekst.ts` for both string comparisons — it is the
 one `sr-Latn` collator. Never a bare `localeCompare` and never a byte sort;

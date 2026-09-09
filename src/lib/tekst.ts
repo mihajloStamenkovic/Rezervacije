@@ -29,9 +29,27 @@ export const T = {
     /** Headings for the other two list shapes — SPEC §2 and the Phase 3 note. */
     naslovDan: "Dan",
     naslovPretraga: "Pretraga",
-    prazno: "Nema nadolazećih rezervacija.",
-    prazoUzFilter: "Nijedna rezervacija ne odgovara filteru.",
-    praznoPretraga: "Nema rezultata za ovu pretragu.",
+    /**
+     * Six silences: one per tab, times the three reasons a tab can be empty.
+     *
+     * Since the list is split into *Odlasci* and *Povratak* (SPEC §2, amended
+     * 09.09.2026) an empty panel is a narrower statement than it used to be —
+     * "there are no departures" while the other tab is full of returns. One
+     * message for both would read as "there is nothing at all", which is
+     * exactly the thing this app must never say when it is not true.
+     */
+    prazno: {
+      odlazak: {
+        raspored: "Nema nadolazećih odlazaka.",
+        filter: "Nijedan odlazak ne odgovara filteru.",
+        pretraga: "Nema odlazaka za ovu pretragu.",
+      },
+      povratak: {
+        raspored: "Nema nadolazećih povrataka.",
+        filter: "Nijedan povratak ne odgovara filteru.",
+        pretraga: "Nema povrataka za ovu pretragu.",
+      },
+    },
     novaRezervacija: "Nova rezervacija",
     pretraga: "Pretraži ime, telefon ili destinaciju",
     obrisiPretragu: "Obriši pretragu",
@@ -59,9 +77,19 @@ export const T = {
     povratakSaStrelicom: "↓ Povratak",
   },
 
-  grupa: {
-    polasci: "Polasci",
-    povratci: "Povratci",
+  /**
+   * The two tabs — SPEC §2, amended 09.09.2026 at the owner's request.
+   *
+   * His words, kept as he said them: the departures tab is plural (*Odlasci*)
+   * and the returns tab is singular (*Povratak*). It is not a slip to tidy up
+   * — *Povratak* is what the direction chip and the form already say, and the
+   * tab naming the same thing twice over is worth more than symmetry.
+   */
+  tabovi: {
+    odlasci: "Odlasci",
+    povratak: "Povratak",
+    /** Read out before either tab name, so the pair has a name of its own. */
+    izbor: "Odlasci ili povratak",
   },
 
   filter: {
@@ -81,13 +109,12 @@ export const T = {
     aktivnihFiltera: "aktivnih filtera",
   },
 
-  sortiranje: {
-    naslov: "Sortiranje",
-    poDatumu: "Po datumu",
-    poDestinaciji: "Po destinaciji",
-    rastuce: "Rastuće",
-    opadajuce: "Opadajuće",
-  },
+  /*
+   * `sortiranje` stood here — Sortiranje, Po datumu, Po destinaciji, Rastuće,
+   * Opadajuće — until 09.09.2026, when the owner asked for the sort controls
+   * to go. The list has one order and it is not a choice, so there is nothing
+   * left to name.
+   */
 
   forma: {
     naslovNova: "Nova rezervacija",

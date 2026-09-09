@@ -21,37 +21,55 @@ import {
 import { opsegZaCip, opsegZaDan } from "./filteri";
 import { kljucDrzave, kljucGrada, kljucRegije } from "./destinacije";
 
-describe("rasporedView — one row per reservation, SPEC §2", () => {
+describe("rasporedView — every leg from today forward, SPEC §2", () => {
   const stavke = rasporedView(SVI, { danas: DANAS });
 
-  it("emits exactly one row per reservation that has a main leg", () => {
-    // Eight seed rows, one of which (#4) has no main date.
-    expect(stavke).toHaveLength(7);
+  it("emits one row per leg, so a round trip is on both tabs", () => {
+    // Six departures still ahead (#3 and #4 departed) and six returns.
+    expect(stavke).toHaveLength(12);
     expect(new Set(stavke.map((s) => s.red.rezervacija.id)).size).toBe(7);
   });
 
-  it("is sorted by main date ascending, with the same-day tiebreak", () => {
+  it("is sorted by date ascending, with the same-day tiebreak", () => {
     expect(imena(stavke)).toEqual([
       "Jelena Ilić", // dan(0)  — departing today
       "Aleksandar Cvetković", // dan(2) Hanioti
       "Dragan Đorđević", // dan(2) Kopaonik — destination A–Z
+      "Dragan Đorđević", // dan(2) — and home the same day
       "Ana Marković", // dan(3)
+      "Jelena Ilić", // dan(7)  — her return
       "Porodica Jovanović", // dan(9)  — a return
       "Šaban Šaulić", // dan(10)
+      "Šaban Šaulić", // dan(12)
       "Marko Petrović", // dan(14)
+      "Aleksandar Cvetković", // dan(16)
+      "Marko Petrović", // dan(28)
     ]);
     const datumi = stavke.map((s) => s.datum);
     expect([...datumi].sort()).toEqual(datumi);
   });
 
-  it("shows each row's own main leg, departure or return", () => {
-    const poImenu = new Map(stavke.map((s) => [s.red.rezervacija.ime, s]));
-    expect(poImenu.get("Jelena Ilić")).toMatchObject({
-      smer: "odlazak",
-      datum: DANAS,
-    });
-    expect(poImenu.get("Porodica Jovanović")).toMatchObject({
+  it("puts the same booking on both tabs, under a different date in each", () => {
+    // SPEC §1's worked example, now read the new way: Marko is a departure to
+    // Hanioti on dan(14) *and* a homecoming to Beograd on dan(28).
+    const marko = stavke.filter(
+      (s) => s.red.rezervacija.ime === "Marko Petrović",
+    );
+    expect(marko.map((s) => [s.smer, s.datum, s.destinacija.grad])).toEqual([
+      ["odlazak", dan(14), "Hanioti"],
+      ["povratak", dan(28), "Beograd"],
+    ]);
+  });
+
+  it("keeps a departed booking on the returns tab only", () => {
+    // #3 left five days ago; its departure leg is behind us, its return is not.
+    const porodica = stavke.filter(
+      (s) => s.red.rezervacija.ime === "Porodica Jovanović",
+    );
+    expect(porodica).toHaveLength(1);
+    expect(porodica[0]).toMatchObject({
       smer: "povratak",
+      datum: dan(9),
       destinacija: BEOGRAD,
     });
   });
@@ -215,8 +233,18 @@ describe("destination filter — matches a LEG, not a booking (SPEC §5)", () =>
       destinacije: [kljucGrada(BEOGRAD)],
       katalog: KATALOG,
     });
-    expect(imena(stavke)).toEqual(["Ana Marković", "Porodica Jovanović"]);
-    expect(stavke.map((s) => s.smer)).toEqual(["odlazak", "povratak"]);
+    // One checkbox, both columns — and now both tabs: the one-way home is a
+    // departure to Beograd, every ordinary homecoming is a return to it.
+    expect(imena(stavke)).toEqual([
+      "Dragan Đorđević", // dan(2)  povratak
+      "Ana Marković", // dan(3)  odlazak — Beograd in the outbound column
+      "Jelena Ilić", // dan(7)  povratak
+      "Porodica Jovanović", // dan(9)  povratak
+      "Šaban Šaulić", // dan(12) povratak
+      "Aleksandar Cvetković", // dan(16) povratak
+      "Marko Petrović", // dan(28) povratak
+    ]);
+    expect(stavke.filter((s) => s.smer === "odlazak")).toHaveLength(1);
   });
 
   it("several destinations OR together", () => {
@@ -225,11 +253,11 @@ describe("destination filter — matches a LEG, not a booking (SPEC §5)", () =>
       destinacije: [kljucGrada(BEOGRAD), kljucDrzave(LJUBLJANA)],
       katalog: KATALOG,
     });
-    expect(imena(stavke)).toEqual([
-      "Ana Marković",
-      "Porodica Jovanović",
-      "Šaban Šaulić",
-    ]);
+    // The seven Beograd legs, plus Šaban's departure to Ljubljana on dan(10).
+    expect(stavke).toHaveLength(8);
+    expect(
+      stavke.filter((s) => s.destinacija.grad === "Ljubljana"),
+    ).toHaveLength(1);
   });
 
   it("date AND destination compose", () => {
@@ -269,7 +297,7 @@ describe("destination filter — matches a LEG, not a booking (SPEC §5)", () =>
   it("an empty selection is no filter at all", () => {
     expect(
       rasporedView(SVI, { danas: DANAS, destinacije: [], katalog: KATALOG }),
-    ).toHaveLength(7);
+    ).toHaveLength(12);
   });
 });
 
@@ -285,45 +313,74 @@ describe("pretragaView — the only way to reach a booking with no main date", (
     expect(rasporedView(SVI, { danas: DANAS, pretraga: "stefan" })).toEqual([]);
   });
 
-  it("shows the main leg for everything that has one", () => {
+  it("shows both legs of a match, the past one included", () => {
+    // No horizon here at all: #3 departed on dan(-5) and comes home on dan(9),
+    // so it is on the departures tab and on the returns tab both.
     const stavke = pretragaView(SVI, { danas: DANAS, pretraga: "beograd" });
-    const porodica = stavke.find(
+    const porodica = stavke.filter(
       (s) => s.red.rezervacija.ime === "Porodica Jovanović",
-    )!;
-    expect(porodica).toMatchObject({ smer: "povratak", datum: dan(9) });
+    );
+    expect(porodica.map((s) => [s.smer, s.datum])).toEqual([
+      ["odlazak", dan(-5)],
+      ["povratak", dan(9)],
+    ]);
   });
 
-  it("emits one row per reservation, never two", () => {
-    const stavke = pretragaView(SVI, { danas: DANAS, pretraga: "beograd" });
-    expect(new Set(stavke.map((s) => s.red.rezervacija.id)).size).toBe(
-      stavke.length,
-    );
+  it("puts the booking with no return date on the departures tab", () => {
+    // The one row it has is a departure, which is the whole of why search can
+    // reach it and Raspored cannot.
+    const stavke = pretragaView(SVI, { danas: DANAS, pretraga: "stefan" });
+    expect(stavke.map((s) => s.smer)).toEqual(["odlazak"]);
   });
 });
 
 describe("prikaziListu — the entry point the screen calls", () => {
-  it("picks Raspored by default", () => {
-    const { rezim, stavke } = prikaziListu(SVI, { danas: DANAS });
+  it("picks Raspored by default, and hands back both tabs", () => {
+    const { rezim, odlasci, povratci } = prikaziListu(SVI, { danas: DANAS });
     expect(rezim).toBe("raspored");
-    expect(stavke).toHaveLength(7);
+    expect(imena(odlasci)).toEqual([
+      "Jelena Ilić",
+      "Aleksandar Cvetković",
+      "Dragan Đorđević",
+      "Ana Marković",
+      "Šaban Šaulić",
+      "Marko Petrović",
+    ]);
+    expect(imena(povratci)).toEqual([
+      "Dragan Đorđević",
+      "Jelena Ilić",
+      "Porodica Jovanović",
+      "Šaban Šaulić",
+      "Aleksandar Cvetković",
+      "Marko Petrović",
+    ]);
+  });
+
+  it("gives each tab only its own direction", () => {
+    const { odlasci, povratci } = prikaziListu(SVI, { danas: DANAS });
+    expect(odlasci.every((s) => s.smer === "odlazak")).toBe(true);
+    expect(povratci.every((s) => s.smer === "povratak")).toBe(true);
   });
 
   it("switches to Dan the moment a date filter is on", () => {
-    const { rezim, stavke } = prikaziListu(SVI, {
+    const { rezim, odlasci, povratci } = prikaziListu(SVI, {
       danas: DANAS,
       opseg: opsegZaDan(dan(2)),
     });
     expect(rezim).toBe("dan");
-    expect(stavke).toHaveLength(3);
+    // The same-day round trip is one row in each tab, plus #8 departing.
+    expect(imena(odlasci)).toEqual(["Aleksandar Cvetković", "Dragan Đorđević"]);
+    expect(imena(povratci)).toEqual(["Dragan Đorđević"]);
   });
 
   it("switches to Pretraga when only a search is on", () => {
-    const { rezim, stavke } = prikaziListu(SVI, {
+    const { rezim, odlasci, povratci } = prikaziListu(SVI, {
       danas: DANAS,
       pretraga: "stefan",
     });
     expect(rezim).toBe("pretraga");
-    expect(imena(stavke)).toEqual(["Stefan Nikolić"]);
+    expect(imena(odlasci)).toEqual(["Stefan Nikolić"]);
+    expect(povratci).toEqual([]);
   });
 
   it("refuses to run without a valid Belgrade today", () => {

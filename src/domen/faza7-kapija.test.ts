@@ -172,18 +172,22 @@ describe("SPEC §2 — Dan applies neither the rule nor the horizon", () => {
     expect(resolveMainLeg(s!.red, DANAS)?.smer).toBe("povratak");
   });
 
-  it("Raspored emits at most one row per reservation, Dan may emit two", () => {
+  it("Raspored and Dan both emit legs, and differ by horizon alone", () => {
+    // Since the tabs (SPEC §2, amended 09.09.2026) both views are leg-shaped,
+    // so a round trip is two rows in either. What still separates them is the
+    // horizon: Raspored starts at today, Dan answers about a day that may be
+    // in the past — which is what reaches the booking with no return date.
     const raspored = rasporedView(SVI, { danas: DANAS });
-    expect(new Set(raspored.map((s) => s.red.rezervacija.id)).size).toBe(
-      raspored.length,
+    expect(raspored.length).toBeGreaterThan(
+      new Set(raspored.map((s) => s.red.rezervacija.id)).size,
     );
+    expect(imena(raspored)).not.toContain("Stefan Nikolić");
+
     const danStavke = danView(SVI, {
       danas: DANAS,
       opseg: { od: dan(-10), do: dan(30) },
     });
-    expect(danStavke.length).toBeGreaterThan(
-      new Set(danStavke.map((s) => s.red.rezervacija.id)).size,
-    );
+    expect(imena(danStavke)).toContain("Stefan Nikolić");
   });
 });
 
@@ -191,14 +195,15 @@ describe("SPEC §5 — the Beograd test and the rollup", () => {
   it("Beograd matches a one-way home and an ordinary return at once", () => {
     // R5 Ana Marković: Beograd in the OUTBOUND column, departs dan(3).
     // R3 Porodica Jovanović: departed, so its main leg is the return, home.
-    const stavke = rasporedView(SVI, {
+    const { odlasci, povratci } = prikaziListu(SVI, {
       danas: DANAS,
       destinacije: [kljucGrada(BEOGRAD)],
       katalog: KATALOG,
     });
-    expect(imena(stavke).sort()).toEqual(
-      ["Ana Marković", "Porodica Jovanović"].sort(),
-    );
+    // One checkbox reaches both columns, and the tabs keep them apart: the
+    // one-way home is a *departure* to Beograd, #3 is a return to it.
+    expect(imena(odlasci)).toEqual(["Ana Marković"]);
+    expect(imena(povratci)).toContain("Porodica Jovanović");
   });
 
   it("a country whose every region holds one city still rolls up", () => {
@@ -268,9 +273,14 @@ describe("SPEC §2 — the four sort keys, and stability", () => {
     const unazad = [...blizanci].reverse();
     const a = rasporedView(blizanci, { danas: DANAS });
     const b = rasporedView(unazad, { danas: DANAS });
-    const ids = a.map((s) => s.red.rezervacija.id);
+    // One tab at a time: the six departures share a date and a destination, so
+    // the id is the only thing left that can order them.
+    const polasci = (stavke: typeof a) =>
+      stavke.filter((s) => s.smer === "odlazak").map((s) => s.red.rezervacija.id);
+    const ids = polasci(a);
     expect(ids).toEqual([...ids].sort());
-    expect(b.map((s) => s.red.rezervacija.id)).toEqual(ids);
+    expect(polasci(b)).toEqual(ids);
+    expect(kljucevi(b)).toEqual(kljucevi(a));
   });
 
   it("is stable across repeated renders and every input order", () => {
@@ -292,46 +302,17 @@ describe("SPEC §2 — the four sort keys, and stability", () => {
     }
   });
 
-  it("descending by date reverses the days, not the order inside one", () => {
+  it("the order is fixed — there is nothing to pass and nothing to reverse", () => {
+    // The Sortiranje controls were removed on 09.09.2026 at the owner's
+    // request. Days run ascending, and inside a day the same-day rule decides;
+    // no caller can ask for anything else.
     const opseg = { od: dan(-30), do: dan(30) };
-    const rastuce = danView(SVI, { danas: DANAS, opseg });
-    const opadajuce = danView(SVI, {
-      danas: DANAS,
-      opseg,
-      sort: { polje: "datum", smer: "opadajuce" },
-    });
-    const daniR = [...new Set(rastuce.map((s) => s.datum))];
-    const daniO = [...new Set(opadajuce.map((s) => s.datum))];
-    expect(daniO).toEqual([...daniR].reverse());
-    for (const d of daniR) {
-      const a = rastuce.filter((s) => s.datum === d).map((s) => s.kljuc);
-      const b = opadajuce.filter((s) => s.datum === d).map((s) => s.kljuc);
-      expect(b).toEqual(a);
-    }
-  });
-
-  it("descending by destination reverses only the destination key", () => {
-    const opseg = { od: dan(-30), do: dan(30) };
-    const rastuce = danView(SVI, {
-      danas: DANAS,
-      opseg,
-      sort: { polje: "destinacija", smer: "rastuce" },
-    });
-    const opadajuce = danView(SVI, {
-      danas: DANAS,
-      opseg,
-      sort: { polje: "destinacija", smer: "opadajuce" },
-    });
-    const grupe = (l: StavkaListe[]) => [
-      ...new Set(l.map((s) => s.destinacija.grad)),
-    ];
-    expect(grupe(opadajuce)).toEqual([...grupe(rastuce)].reverse());
-    for (const g of grupe(rastuce)) {
-      const a = rastuce.filter((s) => s.destinacija.grad === g);
-      const b = opadajuce.filter((s) => s.destinacija.grad === g);
-      expect(b.map((s) => s.kljuc)).toEqual(a.map((s) => s.kljuc));
-      expect(a.map((s) => s.datum)).toEqual([...a.map((s) => s.datum)].sort());
-    }
+    const stavke = danView(SVI, { danas: DANAS, opseg });
+    const dani = [...new Set(stavke.map((s) => s.datum))];
+    expect(dani).toEqual([...dani].sort());
+    expect(sortirajStavke(stavke).map((s) => s.kljuc)).toEqual(
+      stavke.map((s) => s.kljuc),
+    );
   });
 
   it("sortirajStavke is idempotent", () => {

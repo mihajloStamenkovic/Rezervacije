@@ -70,23 +70,22 @@ export type Ruta = { od: Destinacija; do: Destinacija };
 /** An inclusive calendar range. A single day is `od === do`. */
 export type OpsegDatuma = { od: Datum; do: Datum };
 
-export type PoljeSortiranja = "datum" | "destinacija";
-export type SmerSortiranja = "rastuce" | "opadajuce";
-export type Sortiranje = { polje: PoljeSortiranja; smer: SmerSortiranja };
-
 /**
  * Everything the list screen can have switched on at once.
  *
  * Date and destination AND together; several destinations OR together
  * (SPEC §3). `destinacije` holds *filter keys* — a country, a region or a
  * city — resolved through the reference table by `razresiDestinacije`.
+ *
+ * There is no sort here. The order is fixed — by date, soonest first — since
+ * the *Sortiranje* controls were removed on 09.09.2026 at the owner's request;
+ * see `sortiranje.ts`.
  */
 export type StanjeListe = {
   danas: Datum;
   opseg?: OpsegDatuma | null;
   destinacije?: readonly string[];
   pretraga?: string | null;
-  sort?: Sortiranje;
   /**
    * The destination reference table. Optional: when absent the rollup is
    * resolved against the destinations carried by the rows themselves, which

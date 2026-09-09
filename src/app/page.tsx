@@ -6,22 +6,34 @@
  * accounts looking at the same list from two countries (SPEC §7, standing
  * rule 5).
  *
- * Filter, sort and search arrive in `searchParams` and are handed straight to
+ * Filter and search arrive in `searchParams` and are handed straight to
  * `prikaziListu`, which picks the mode and does the work. No filtering, no
- * sorting and no main-leg reasoning happens in this file or below it.
+ * sorting and no leg reasoning happens in this file or below it. The order is
+ * fixed — by date, soonest first — since the sort controls were removed.
+ *
+ * **Both tabs are rendered here, always** (SPEC §2, amended 09.09.2026).
+ * `prikaziListu` hands back the departures and the returns from one pass over
+ * the rows, and `PanelTabova` swipes between two lists that are already on the
+ * page — so changing tab costs no request and works offline.
  */
 import Link from "next/link";
-import { PlusIcon, SettingsIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 import { FilterSheet } from "@/components/filter-sheet";
 import { ListaRezervacija } from "@/components/lista-rezervacija";
 import { PoljePretrage } from "@/components/polje-pretrage";
-import { Button } from "@/components/ui/button";
+import {
+  DugmeNove,
+  PanelTabova,
+  TaboviListe,
+  TrakaTabova,
+} from "@/components/tabovi-liste";
 import { sveDestinacije, rezervacijeZa } from "@/db/queries";
 import { destinacijeZaFilter, stabloDestinacija } from "@/domen/destinacije";
 import { prikaziListu } from "@/domen/liste";
+import type { RezimPrikaza, Smer, StavkaListe } from "@/domen/tipovi";
 import { zahtevajKorisnika } from "@/lib/auth";
-import { danasBeograd, formatDatum } from "@/lib/datum";
-import { T, rezervacija as rezervacijaBroj } from "@/lib/tekst";
+import { danasBeograd, formatDatum, type Datum } from "@/lib/datum";
+import { T } from "@/lib/tekst";
 import { procitajStanjeUrl, putanjaListe } from "@/lib/url-stanje";
 
 const NASLOV = {
@@ -43,12 +55,11 @@ export default async function Lista({ searchParams }: PageProps<"/">) {
     sveDestinacije(),
   ]);
 
-  const { rezim, stavke } = prikaziListu(redovi, {
+  const { rezim, odlasci, povratci } = prikaziListu(redovi, {
     danas,
     opseg: stanje.opseg,
     destinacije: stanje.destinacije,
     pretraga: stanje.pretraga,
-    sort: stanje.sort,
     katalog,
   });
 
@@ -56,73 +67,125 @@ export default async function Lista({ searchParams }: PageProps<"/">) {
   // so the Ljubljana booking stays findable after Slovenija went inactive
   // (SPEC §5).
   const stablo = stabloDestinacija(destinacijeZaFilter(katalog, redovi));
-  const povratak = putanjaListe(stanje);
+
+  // Each panel sends its cards back to its own tab, so returning from Detalji
+  // lands where you left. Built per panel rather than from the open tab: a
+  // swipe changes the tab without re-rendering this file.
+  const nazad: Record<Smer, string> = {
+    odlazak: putanjaListe({ ...stanje, tab: "odlazak" }),
+    povratak: putanjaListe({ ...stanje, tab: "povratak" }),
+  };
+
+  const imaFilter = stanje.destinacije.length > 0 || stanje.opseg !== null;
 
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="flex items-center gap-2 px-4 pt-3">
-          <h1 className="text-xl font-semibold">{NASLOV[rezim]}</h1>
-          {stanje.opseg ? (
-            <span className="truncate text-sm text-muted-foreground">
-              {formatDatum(stanje.opseg.od)}
-              {stanje.opseg.do !== stanje.opseg.od
-                ? ` – ${formatDatum(stanje.opseg.do)}`
-                : null}
-            </span>
-          ) : null}
-          <Link
-            href="/podesavanja"
-            aria-label={T.nav.podesavanja}
-            className="ml-auto flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-muted"
-          >
-            <SettingsIcon className="size-5" />
-          </Link>
-        </div>
+      <TaboviListe stanje={stanje}>
+        <header className="sticky top-0 z-20 border-b border-border bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+          <div className="flex items-center gap-2 px-4 pt-3">
+            <h1 className="text-xl font-semibold">{NASLOV[rezim]}</h1>
+            {stanje.opseg ? (
+              <span className="truncate text-sm text-muted-foreground">
+                {formatDatum(stanje.opseg.od)}
+                {stanje.opseg.do !== stanje.opseg.od
+                  ? ` – ${formatDatum(stanje.opseg.do)}`
+                  : null}
+              </span>
+            ) : null}
+            <Link
+              href="/podesavanja"
+              aria-label={T.nav.podesavanja}
+              className="ml-auto flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-muted"
+            >
+              <SettingsIcon className="size-5" />
+            </Link>
+          </div>
 
-        <div className="flex items-center gap-2 px-4 py-3">
-          <PoljePretrage stanje={stanje} />
-          <FilterSheet stablo={stablo} stanje={stanje} danas={danas} />
-        </div>
-      </header>
+          <div className="flex items-center gap-2 px-4 py-3">
+            <PoljePretrage stanje={stanje} />
+            <FilterSheet stablo={stablo} stanje={stanje} danas={danas} />
+          </div>
 
-      {/* pb-28 clears the fixed action bar; without it the last card is
-          unreachable behind it. */}
-      <main className="flex-1 px-4 pt-3 pb-28">
-        {stavke.length === 0 ? (
-          <p className="mt-12 text-center text-sm text-muted-foreground">
-            {prazno(rezim, stanje.destinacije.length > 0 || stanje.opseg !== null)}
-          </p>
-        ) : (
-          <>
-            <p className="mb-3 text-xs text-muted-foreground">
-              {rezervacijaBroj(stavke.length)}
-            </p>
-            <ListaRezervacija
-              stavke={stavke}
-              rezim={rezim}
-              sort={stanje.sort}
-              danas={danas}
-              povratak={povratak}
-            />
-          </>
-        )}
-      </main>
+          <TrakaTabova
+            brojevi={{ odlazak: odlasci.length, povratak: povratci.length }}
+          />
+        </header>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <Button asChild className="h-12 w-full gap-2 text-base">
-          <Link href={`/nova?nazad=${encodeURIComponent(povratak)}`}>
-            <PlusIcon className="size-5" />
-            {T.lista.novaRezervacija}
-          </Link>
-        </Button>
-      </div>
+        {/* pb-28 clears the fixed action bar; without it the last card is
+            unreachable behind it. */}
+        <main className="flex-1 pt-3 pb-28">
+          <PanelTabova
+            odlasci={
+              <Panel
+                stavke={odlasci}
+                smer="odlazak"
+                rezim={rezim}
+                imaFilter={imaFilter}
+                danas={danas}
+                povratak={nazad.odlazak}
+              />
+            }
+            povratci={
+              <Panel
+                stavke={povratci}
+                smer="povratak"
+                rezim={rezim}
+                imaFilter={imaFilter}
+                danas={danas}
+                povratak={nazad.povratak}
+              />
+            }
+          />
+        </main>
+
+        <DugmeNove stanje={stanje} />
+      </TaboviListe>
     </div>
   );
 }
 
-/** Three different silences, three different reasons. */
-function prazno(rezim: string, imaFilter: boolean): string {
-  if (rezim === "pretraga") return T.lista.praznoPretraga;
-  return imaFilter ? T.lista.prazoUzFilter : T.lista.prazno;
+/** One tab's worth of list, or the reason it is empty. */
+function Panel({
+  stavke,
+  smer,
+  rezim,
+  imaFilter,
+  danas,
+  povratak,
+}: {
+  stavke: StavkaListe[];
+  smer: Smer;
+  rezim: RezimPrikaza;
+  imaFilter: boolean;
+  danas: Datum;
+  povratak: string;
+}) {
+  if (stavke.length === 0) {
+    return (
+      <p className="mt-12 px-4 text-center text-sm text-muted-foreground">
+        {prazno(rezim, smer, imaFilter)}
+      </p>
+    );
+  }
+
+  return (
+    <div className="px-4">
+      <ListaRezervacija
+        stavke={stavke}
+        danas={danas}
+        povratak={povratak}
+      />
+    </div>
+  );
+}
+
+/**
+ * Six silences, and which one this is depends on both the tab and why it is
+ * empty — "there are no departures" is a much narrower thing to say than
+ * "there is nothing", and while the other tab has rows in it, it is the only
+ * true one.
+ */
+function prazno(rezim: RezimPrikaza, smer: Smer, imaFilter: boolean): string {
+  if (rezim === "pretraga") return T.lista.prazno[smer].pretraga;
+  return imaFilter ? T.lista.prazno[smer].filter : T.lista.prazno[smer].raspored;
 }

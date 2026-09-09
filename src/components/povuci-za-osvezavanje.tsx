@@ -60,6 +60,13 @@ export function PovuciZaOsvezavanje() {
    * decide whether it is even a pull.
    */
   const pocetnaY = useRef<number | null>(null);
+  /*
+   * The horizontal start, kept for one reason: since 09.09.2026 the list also
+   * swipes sideways between Odlasci and Povratak, and a swipe that drifts a
+   * few pixels downward must not open this indicator underneath it. A pull is
+   * a pull only while it is going down more than it is going across.
+   */
+  const pocetnaX = useRef(0);
   const povlacim = useRef(false);
 
   /*
@@ -102,6 +109,7 @@ export function PovuciZaOsvezavanje() {
         return;
       }
       pocetnaY.current = e.touches[0]!.clientY;
+      pocetnaX.current = e.touches[0]!.clientX;
       povlacim.current = false;
       postaviBezMreze(false);
     }
@@ -111,14 +119,15 @@ export function PovuciZaOsvezavanje() {
       if (pocetna === null) return;
 
       const razlika = e.touches[0]!.clientY - pocetna;
+      const poprecno = Math.abs(e.touches[0]!.clientX - pocetnaX.current);
 
       /*
-       * Upward, or the page has scrolled away from the top under the finger:
-       * this is a scroll, not a pull. Let go of it completely rather than
-       * waiting to see if it comes back — a gesture that re-arms mid-swipe is
-       * how you get a refresh nobody asked for.
+       * Upward, sideways, or the page has scrolled away from the top under the
+       * finger: this is a scroll or a tab swipe, not a pull. Let go of it
+       * completely rather than waiting to see if it comes back — a gesture
+       * that re-arms mid-swipe is how you get a refresh nobody asked for.
        */
-      if (razlika <= 0 || window.scrollY > 0) {
+      if (razlika <= 0 || poprecno > razlika || window.scrollY > 0) {
         if (povlacim.current) otkazi();
         return;
       }
