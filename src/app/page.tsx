@@ -78,8 +78,15 @@ export default async function Lista({ searchParams }: PageProps<"/">) {
 
   const imaFilter = stanje.destinacije.length > 0 || stanje.opseg !== null;
 
+  /*
+   * `touch-pan-y pinch-zoom` goes on the whole screen, not just on the list:
+   * the tab swipe listens on the document (see `PanelTabova`), so the browser
+   * has to be told across the whole page that a sideways drag is not its to
+   * handle. `pinch-zoom` is named explicitly — leaving it out would be a quiet
+   * way to stop the owner zooming a phone screen he reads in daylight.
+   */
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex min-h-svh touch-pan-y flex-col touch-pinch-zoom">
       <TaboviListe stanje={stanje}>
         <header className="sticky top-0 z-20 border-b border-border bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
           <div className="flex items-center gap-2 px-4 pt-3">

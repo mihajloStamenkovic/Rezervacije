@@ -24,9 +24,15 @@
  * re-based so the incoming panel carries on from exactly where it was drawn
  * rather than jumping to its new home.
  *
- * `touch-action: pan-y` is what keeps the browser's own horizontal gestures
- * out of it while leaving vertical scrolling entirely alone — the document is
- * still the scroller, which is what pull-to-refresh reads.
+ * The gesture listens on the **document**, so it works anywhere on the screen
+ * — including the empty space below the last card, which is where a short list
+ * leaves most of a phone. `smePrevlacenje` below is what keeps it out of text
+ * fields and away from an open sheet.
+ *
+ * `touch-action: pan-y pinch-zoom` is what keeps the browser's own horizontal
+ * gestures out of it while leaving vertical scrolling and zooming entirely
+ * alone — the document is still the scroller, which is what pull-to-refresh
+ * reads. It is declared on the page root too, since the swipe now spans it.
  */
 import {
   createContext,
@@ -62,6 +68,34 @@ const NAZIV: Record<Smer, string> = {
 
 /** How long the URL waits behind the finger. Same idea as the search box. */
 const ODLAGANJE_MS = 200;
+
+/**
+ * May the tabs claim this touch?
+ *
+ * The swipe listens on the whole document rather than on the panel, because
+ * the panel is exactly as tall as the list inside it: on any screen the list
+ * does not fill, a finger put down below the last card was landing on nothing
+ * and the gesture never began. A swipe that dies in the empty half of the
+ * screen reads as the app ignoring you.
+ *
+ * Two places it must still keep out of. A **text field**, where dragging
+ * sideways is how a cursor gets placed and the platform's own handling must
+ * win. And anything under an **open Sheet or Dialog** — the filter sheet
+ * covers the list, so a finger moving over it is not aiming at the list
+ * behind. Radix marks both: `data-scroll-locked` on the body while it holds
+ * the page, and `data-state="open"` on the panel itself.
+ */
+function smePrevlacenje(cilj: EventTarget | null): boolean {
+  if (document.body.hasAttribute("data-scroll-locked")) return false;
+  if (document.querySelector("[data-state='open'][role='dialog']")) return false;
+  if (
+    cilj instanceof Element &&
+    cilj.closest("input, textarea, select, [contenteditable]")
+  ) {
+    return false;
+  }
+  return true;
+}
 
 type Kontekst = { aktivan: Smer; postavi: (smer: Smer) => void };
 
@@ -234,7 +268,7 @@ export function PanelTabova({
 
     function pocetak(e: TouchEvent) {
       // A second finger is a pinch or a two-handed scroll, never this.
-      if (e.touches.length !== 1) {
+      if (e.touches.length !== 1 || !smePrevlacenje(e.target)) {
         pocetna.current = null;
         return;
       }
@@ -298,21 +332,31 @@ export function PanelTabova({
       );
     }
 
-    element.addEventListener("touchstart", pocetak, { passive: true });
-    element.addEventListener("touchmove", kretanje, { passive: false });
-    element.addEventListener("touchend", kraj, { passive: true });
-    element.addEventListener("touchcancel", otkazi, { passive: true });
+    /*
+     * On the document, not on the panel. The panel is exactly as tall as the
+     * list inside it, so on any screen the list does not fill — which is most
+     * of them — a finger put down below the last card was landing on nothing
+     * and the swipe never started. The gesture belongs to the screen.
+     * `smePrevlacenje` is what keeps it off the places it must not take.
+     */
+    document.addEventListener("touchstart", pocetak, { passive: true });
+    document.addEventListener("touchmove", kretanje, { passive: false });
+    document.addEventListener("touchend", kraj, { passive: true });
+    document.addEventListener("touchcancel", otkazi, { passive: true });
 
     return () => {
-      element.removeEventListener("touchstart", pocetak);
-      element.removeEventListener("touchmove", kretanje);
-      element.removeEventListener("touchend", kraj);
-      element.removeEventListener("touchcancel", otkazi);
+      document.removeEventListener("touchstart", pocetak);
+      document.removeEventListener("touchmove", kretanje);
+      document.removeEventListener("touchend", kraj);
+      document.removeEventListener("touchcancel", otkazi);
     };
   }, [indeks, postavi]);
 
   return (
-    <div ref={okvir} className="relative touch-pan-y overflow-x-clip">
+    <div
+      ref={okvir}
+      className="relative touch-pan-y overflow-x-clip touch-pinch-zoom"
+    >
       <div
         style={{
           transform: `translate3d(${pomeraj}px, 0, 0)`,
