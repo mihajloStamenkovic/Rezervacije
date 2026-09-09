@@ -2274,3 +2274,49 @@ honest start state — no team exists yet for them to belong to.
       Podešavanja loses the Regija row it had; and editing an existing booking
       still prefills Grčka › Sitonija › Kalamici with a region-less Serbian
       return leg. Plus 370 tests, `typecheck`, `lint`, `build`.
+- [x] ~~Owner request 09.09.2026: implement the `Rezervacije UI` design canvas,
+      Nova rezervacija and Filter only~~ — built. Imported through the design
+      MCP (`DesignSync`, after `/design-login`); the canvas holds five artboards
+      and the owner named two. `support.js` is the generated canvas runtime and
+      has nothing in it to implement.
+
+      **An artboard is a still picture, so two things it showed could not say
+      what they do.** Both were put to the owner rather than guessed:
+
+      - The form draws the route as a line of text, not as dropdowns. He chose:
+        tapping the row opens the cascade in a sheet. So the cascade is intact,
+        *Drugo — upiši ručno* with it, and the form loses four selects.
+      - The filter draws Grčka as regions with no towns under it. He chose: the
+        chevron opens them. Filtering to Hanioti alone still works, which SPEC
+        §3 gives and the other reading would have quietly taken away.
+
+      He also scoped the petrol accent to those two screens, so it is its own
+      palette (`--akcenat` and four relatives, both theme branches) rather than
+      a new `--primary`. Lista, Detalji and Podešavanja are untouched. Making it
+      the app's primary later is one line.
+
+      Three decisions taken without asking, each stated at the time: the
+      *Jednosmerna vožnja* toggle is a `role="switch"` button rather than a
+      seventh shadcn primitive (SPEC §9 caps the list at six); the head-count
+      stepper keeps the number as a real input, because typing 21 should not be
+      twenty taps; and the accent got a second, lighter set of values for dark,
+      since the canvas is light-only.
+
+      **One real bug, found by driving it rather than reading it.** The stepper
+      computed the next value from the rendered one, so two taps inside a frame
+      moved by one — four quick taps gave 2. The arithmetic is now
+      `pomeriPutnike` in `validacija.ts`, applied through the functional form of
+      `setState`, with tests including the composition case. Four rapid taps
+      give 4.
+
+      A second trap avoided by construction: Radix portals a Sheet outside the
+      `<form>`, so the cascade's hidden inputs would have left the form and the
+      Server Action would have received nothing. They stay behind in the form
+      (`SkrivenaPolja`, `skrivenaPolja={false}`) — verified by reading the
+      hidden input after *Potvrdi*, not by assuming.
+
+      Verified in the browser, both themes: the route row fills in from the
+      sheet and the id reaches the form; the stepper steps and still accepts
+      typing; the filter's chevron opens Kasandra, ticking Siviri turns Kasandra
+      soft, and *Primeni* lands on `?d=grad:…`. Plus 375 tests, `test:tz`,
+      `lint`, `typecheck`, `build`.

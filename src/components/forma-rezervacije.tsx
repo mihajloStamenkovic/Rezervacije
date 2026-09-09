@@ -25,14 +25,11 @@
  */
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { ArrowUpDownIcon } from "lucide-react";
+import { ArrowUpDownIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { Izbor } from "@/components/izbor";
-import {
-  KaskadaDestinacija,
-  type Odabir,
-} from "@/components/kaskada-destinacija";
+import type { Odabir } from "@/components/kaskada-destinacija";
+import { RedDestinacije } from "@/components/red-destinacije";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { sacuvajRezervaciju } from "@/app/actions/rezervacije";
@@ -40,7 +37,13 @@ import { SAMO_ADMINI } from "@/domen/pristup";
 import type { Destinacija } from "@/domen/tipovi";
 import { useNaMrezi } from "@/lib/mreza";
 import { T } from "@/lib/tekst";
-import type { GreskePolja, StanjeForme } from "@/lib/validacija";
+import { cn } from "@/lib/utils";
+import {
+  MAX_PUTNIKA,
+  pomeriPutnike,
+  type GreskePolja,
+  type StanjeForme,
+} from "@/lib/validacija";
 
 export type PocetnaRezervacija = {
   ime: string;
@@ -152,90 +155,81 @@ export function FormaRezervacije({
   }
 
   const odredisteBlok = (
-    <Odeljak
+    <RedDestinacije
       key="odrediste"
-      naslov={jednosmerno ? T.forma.kuda : T.forma.odlazak}
-    >
-      <KaskadaDestinacija
-        idPolja="odlazak"
-        naziv="destinacija"
-        katalog={katalog}
-        vrednost={odrediste}
-        onChange={postaviOdrediste}
-        greska={greske.destinacija}
-        disabled={uToku}
-      />
-      <Polje
-        id="datumPolaska"
-        oznaka={T.forma.datumPolaska}
-        greska={greske.datumPolaska}
-      >
-        <Input
+      idPolja="odlazak"
+      naziv="destinacija"
+      oznaka={jednosmerno ? T.forma.kuda : T.forma.odlazak}
+      smer="odlazak"
+      katalog={katalog}
+      vrednost={odrediste}
+      onChange={postaviOdrediste}
+      greska={greske.destinacija}
+      disabled={uToku}
+      datum={
+        <DatumEtape
           id="datumPolaska"
-          name="datumPolaska"
-          type="date"
-          value={datumPolaska}
-          onChange={(e) => postaviDatumPolaska(e.target.value)}
+          oznaka={T.forma.datumPolaska}
+          vrednost={datumPolaska}
+          onChange={postaviDatumPolaska}
           disabled={uToku}
-          aria-invalid={greske.datumPolaska ? true : undefined}
-          className="h-11 text-base md:text-base"
+          greska={greske.datumPolaska}
         />
-      </Polje>
-    </Odeljak>
+      }
+    />
   );
 
   const poreklo = (
-    <Odeljak key="poreklo" naslov={jednosmerno ? T.forma.odakle : T.forma.povratak}>
-      <KaskadaDestinacija
-        idPolja="povratak"
-        naziv="destinacijaPovratka"
-        katalog={katalog}
-        vrednost={povratak}
-        onChange={postaviPovratak}
-        greska={greske.destinacijaPovratka}
-        disabled={uToku}
-        /* Država → Grad only. The owner asked for the region to go on this
-           leg (06.09.2026): the return end is Beograd on nearly every
-           booking, so naming its region is a tap that buys nothing. */
-        bezRegije
-      />
-      {/* No return date on a one-way — that absence is what makes it one. */}
-      {jednosmerno ? null : (
-        <Polje
-          id="datumPovratka"
-          oznaka={T.forma.datumPovratka}
-          pomoc={T.forma.datumPovratkaPomoc}
-          greska={greske.datumPovratka}
-        >
-          <Input
+    <RedDestinacije
+      key="poreklo"
+      idPolja="povratak"
+      naziv="destinacijaPovratka"
+      oznaka={jednosmerno ? T.forma.odakle : T.forma.povratak}
+      smer="povratak"
+      katalog={katalog}
+      vrednost={povratak}
+      onChange={postaviPovratak}
+      greska={greske.destinacijaPovratka}
+      disabled={uToku}
+      /* Država → Grad only. The owner asked for the region to go on this leg
+         (06.09.2026): the return end is Beograd on nearly every booking, so
+         naming its region is a tap that buys nothing. */
+      bezRegije
+      datum={
+        /* No return date on a one-way — that absence is what makes it one. */
+        jednosmerno ? null : (
+          <DatumEtape
             id="datumPovratka"
-            name="datumPovratka"
-            type="date"
-            value={datumPovratka}
+            oznaka={T.forma.datumPovratka}
+            vrednost={datumPovratka}
+            onChange={postaviDatumPovratka}
+            disabled={uToku}
+            greska={greske.datumPovratka}
             // A departure is the earliest a return can be; the same rule is
             // enforced again in the schema and by a check constraint.
             min={datumPolaska || undefined}
-            onChange={(e) => postaviDatumPovratka(e.target.value)}
-            disabled={uToku}
-            aria-invalid={greske.datumPovratka ? true : undefined}
-            className="h-11 text-base md:text-base"
           />
-        </Polje>
-      )}
-    </Odeljak>
+        )
+      }
+    />
   );
 
+  /*
+   * The swap sits on the hairline between the two legs, half over each, which
+   * is what the canvas draws and what says what it does without a label: it
+   * exchanges the two rows it is straddling.
+   */
   const zamenaDugme = (
-    <div key="zamena" className="flex justify-center">
+    <div key="zamena" className="relative mx-4 h-px bg-border">
       <Button
         type="button"
         variant="outline"
         onClick={zameni}
         disabled={uToku}
         aria-label={T.forma.zameni}
-        className="size-11 rounded-full p-0"
+        className="absolute -top-[18px] right-0 size-9 rounded-full bg-background p-0 text-akcenat"
       >
-        <ArrowUpDownIcon className="size-5" />
+        <ArrowUpDownIcon className="size-4" />
       </Button>
     </div>
   );
@@ -293,128 +287,173 @@ export function FormaRezervacije({
         </Polje>
       ) : null}
 
-      <Polje id="ime" oznaka={T.forma.ime} greska={greske.ime}>
-        <Input
-          id="ime"
-          name="ime"
-          value={ime}
-          onChange={(e) => postaviIme(e.target.value)}
-          placeholder={T.forma.imePlaceholder}
-          autoComplete="name"
-          enterKeyHint="next"
-          disabled={uToku}
-          aria-invalid={greske.ime ? true : undefined}
-          className="h-11 text-base md:text-base"
-        />
-      </Polje>
+      {/*
+        The route, as one block — the canvas puts it first, and it is right to:
+        it is the thing the booking is about, and everything below it is detail.
 
-      <Polje
-        id="telefon"
-        oznaka={T.forma.telefon}
-        pomoc={T.forma.telefonPomoc}
-        greska={greske.telefon}
-      >
-        <Input
-          id="telefon"
-          name="telefon"
-          type="tel"
-          inputMode="tel"
-          value={telefon}
-          onChange={(e) => postaviTelefon(e.target.value)}
-          placeholder={T.forma.telefonPlaceholder}
-          autoComplete="tel"
-          disabled={uToku}
-          aria-invalid={greske.telefon ? true : undefined}
-          className="h-11 text-base md:text-base"
-        />
-      </Polje>
+        On a round trip the legs read outbound-then-return, which is the order
+        they happen in. On a one-way there is no return, so the same two rows
+        read origin-then-destination — and origin comes first, because that is
+        the order someone says it out loud: "from Solun to Beograd". Keys, so
+        React moves these rather than re-labelling them in place.
+      */}
+      <div className="overflow-hidden rounded-2xl border border-border">
+        {jednosmerno ? (
+          <>
+            {poreklo}
+            {zamenaDugme}
+            {odredisteBlok}
+          </>
+        ) : (
+          <>
+            {odredisteBlok}
+            {zamenaDugme}
+            {poreklo}
+          </>
+        )}
+
+        {/* One-way is a reading of the two columns, not a tenth one. */}
+        <div className="flex items-center gap-3 border-t border-border bg-muted/40 px-4 py-3">
+          <Prekidac
+            ukljucen={jednosmerno}
+            onChange={prebaciJednosmerno}
+            disabled={uToku}
+            oznaka={T.forma.jednosmerno}
+            opisId="jednosmerno-opis"
+          />
+          <div className="min-w-0">
+            <span className="block text-base font-medium">
+              {T.forma.jednosmerno}
+            </span>
+            <span
+              id="jednosmerno-opis"
+              className="block text-sm text-muted-foreground"
+            >
+              {T.forma.jednosmernoPomoc}
+            </span>
+          </div>
+        </div>
+      </div>
+
 
       {/*
-        The doorstep, between the phone and the head count because that is the
-        order the call goes in: who, on what number, from which address, how
-        many of them (SPEC §4, amended 07.09.2026).
+        Who, on what number, from which address — one card, because that is
+        one answer to one question and not three unrelated fields. It is also
+        the order the call goes in (SPEC §4, amended 07.09.2026).
       */}
-      <Polje
-        id="adresa"
-        oznaka={T.forma.adresa}
-        pomoc={T.forma.adresaPomoc}
-        greska={greske.adresa}
-      >
-        <Input
-          id="adresa"
-          name="adresa"
-          value={adresa}
-          onChange={(e) => postaviAdresa(e.target.value)}
-          placeholder={T.forma.adresaPlaceholder}
-          autoComplete="street-address"
-          enterKeyHint="next"
-          disabled={uToku}
-          aria-invalid={greske.adresa ? true : undefined}
-          className="h-11 text-base md:text-base"
-        />
-      </Polje>
+      <div className="overflow-hidden rounded-2xl border border-border">
+        <RedForme id="ime" oznaka={T.forma.ime} greska={greske.ime}>
+          <Input
+            id="ime"
+            name="ime"
+            value={ime}
+            onChange={(e) => postaviIme(e.target.value)}
+            placeholder={T.forma.imePlaceholder}
+            autoComplete="name"
+            enterKeyHint="next"
+            disabled={uToku}
+            aria-invalid={greske.ime ? true : undefined}
+            className={POLJE}
+          />
+        </RedForme>
 
-      <Polje
-        id="brojPutnika"
-        oznaka={T.forma.brojPutnika}
-        greska={greske.brojPutnika}
-      >
-        <Input
-          id="brojPutnika"
-          name="brojPutnika"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          value={brojPutnika}
-          onChange={(e) => postaviBrojPutnika(e.target.value)}
-          disabled={uToku}
-          aria-invalid={greske.brojPutnika ? true : undefined}
-          className="h-11 text-base md:text-base"
-        />
-      </Polje>
-
-      {/* One-way is a reading of the two columns, not a tenth one. */}
-      <div className="flex items-start gap-3 rounded-xl border border-border p-4">
-        <Checkbox
-          id="jednosmerno"
-          checked={jednosmerno}
-          onCheckedChange={(v) => prebaciJednosmerno(v === true)}
-          disabled={uToku}
-          className="mt-1 size-5"
-        />
-        <label
-          htmlFor="jednosmerno"
-          className="flex min-h-11 flex-col justify-center"
+        <RedForme
+          id="telefon"
+          oznaka={T.forma.telefon}
+          pomoc={T.forma.telefonPomoc}
+          greska={greske.telefon}
         >
-          <span className="text-base font-medium">{T.forma.jednosmerno}</span>
-          <span className="text-sm text-muted-foreground">
-            {T.forma.jednosmernoPomoc}
-          </span>
-        </label>
+          <Input
+            id="telefon"
+            name="telefon"
+            type="tel"
+            inputMode="tel"
+            value={telefon}
+            onChange={(e) => postaviTelefon(e.target.value)}
+            placeholder={T.forma.telefonPlaceholder}
+            autoComplete="tel"
+            disabled={uToku}
+            aria-invalid={greske.telefon ? true : undefined}
+            // A phone number is read back digit by digit off this screen, and
+            // proportional figures make that harder than it needs to be.
+            className={cn(POLJE, "font-mono")}
+          />
+        </RedForme>
+
+        <RedForme
+          id="adresa"
+          oznaka={T.forma.adresa}
+          pomoc={T.forma.adresaPomoc}
+          greska={greske.adresa}
+        >
+          <Input
+            id="adresa"
+            name="adresa"
+            value={adresa}
+            onChange={(e) => postaviAdresa(e.target.value)}
+            placeholder={T.forma.adresaPlaceholder}
+            autoComplete="street-address"
+            enterKeyHint="next"
+            disabled={uToku}
+            aria-invalid={greske.adresa ? true : undefined}
+            className={POLJE}
+          />
+        </RedForme>
       </div>
 
       {/*
-        On a round trip the legs read outbound-then-return, which is the order
-        they happen in. On a one-way there is no return, so the same two
-        cascades read origin-then-destination — and origin comes first, because
-        that is the order someone says it out loud: "from Solun to Beograd".
-        Keys, so React moves these rather than re-labelling them in place.
+        Head count and price, side by side: two short numbers that would each
+        waste a full row of a phone screen on their own.
       */}
-      {jednosmerno ? (
-        <>
-          {poreklo}
-          {zamenaDugme}
-          {odredisteBlok}
-        </>
-      ) : (
-        <>
-          {odredisteBlok}
-          {zamenaDugme}
-          {poreklo}
-        </>
-      )}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border border-border px-3 py-2.5">
+          <span className={OZNAKA}>{T.forma.brojPutnika}</span>
+          <BrojPutnika
+            vrednost={brojPutnika}
+            onChange={postaviBrojPutnika}
+            // The functional form, so two quick taps are two steps — see the
+            // note on `onKorak`.
+            onKorak={(za) => postaviBrojPutnika((p) => pomeriPutnike(p, za))}
+            disabled={uToku}
+            neispravno={greske.brojPutnika !== undefined}
+          />
+          {greske.brojPutnika ? (
+            <p role="alert" className="mt-1 text-sm text-destructive">
+              {greske.brojPutnika}
+            </p>
+          ) : null}
+        </div>
 
+        <div className="rounded-2xl border border-border px-3 py-2.5">
+          <span className={OZNAKA}>{T.forma.cena}</span>
+          <div className="mt-1 flex items-baseline gap-1">
+            <Input
+              id="cena"
+              name="cena"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={cena}
+              onChange={(e) => postaviCena(e.target.value)}
+              disabled={uToku}
+              aria-invalid={greske.cena ? true : undefined}
+              className={cn(POLJE, "font-mono text-[20px] md:text-[20px]")}
+            />
+            <span aria-hidden="true" className="text-muted-foreground">
+              €
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {T.forma.cenaPomoc}
+          </p>
+          {greske.cena ? (
+            <p role="alert" className="mt-1 text-sm text-destructive">
+              {greske.cena}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
       {/*
         Price and note come after the legs, because both are things you can
@@ -422,33 +461,14 @@ export function FormaRezervacije({
         is the only field with no shape, and it is read on Detalji rather than
         in any list.
       */}
-      <Polje
-        id="cena"
-        oznaka={T.forma.cena}
-        pomoc={T.forma.cenaPomoc}
-        greska={greske.cena}
-      >
-        <Input
-          id="cena"
-          name="cena"
-          type="number"
-          inputMode="numeric"
-          min={0}
-          step={1}
-          value={cena}
-          onChange={(e) => postaviCena(e.target.value)}
-          disabled={uToku}
-          aria-invalid={greske.cena ? true : undefined}
-          className="h-11 text-base md:text-base"
-        />
-      </Polje>
-
-      <Polje
-        id="napomena"
-        oznaka={T.forma.napomena}
-        pomoc={T.forma.napomenaPomoc}
-        greska={greske.napomena}
-      >
+      {/*
+        Last of all: the only field with no shape, and the only one read on
+        Detalji rather than in any list.
+      */}
+      <div className="rounded-2xl border border-border px-4 py-2.5">
+        <label htmlFor="napomena" className={OZNAKA}>
+          {T.forma.napomena}
+        </label>
         <Textarea
           id="napomena"
           name="napomena"
@@ -458,9 +478,17 @@ export function FormaRezervacije({
           placeholder={T.forma.napomenaPlaceholder}
           disabled={uToku}
           aria-invalid={greske.napomena ? true : undefined}
-          className="text-base md:text-base"
+          className={cn(POLJE, "min-h-0 py-1")}
         />
-      </Polje>
+        <p className="text-sm text-muted-foreground">
+          {T.forma.napomenaPomoc}
+        </p>
+        {greske.napomena ? (
+          <p role="alert" className="mt-1 text-sm text-destructive">
+            {greske.napomena}
+          </p>
+        ) : null}
+      </div>
 
       {stanje && !stanje.ok && stanje.opsta ? (
         <p role="alert" className="text-sm text-destructive">
@@ -482,7 +510,7 @@ export function FormaRezervacije({
         <Button
           type="submit"
           disabled={uToku || !naMrezi}
-          className="h-12 flex-1 text-base"
+          className="h-12 flex-1 bg-akcenat text-base text-na-akcentu hover:bg-akcenat/90"
         >
           {uToku ? T.forma.cuvanje : T.forma.sacuvaj}
         </Button>
@@ -491,20 +519,229 @@ export function FormaRezervacije({
   );
 }
 
-function Odeljak({
-  naslov,
+/**
+ * The micro-label above every field — mono, uppercase, tracked out.
+ *
+ * It reads as a caption rather than as a heading, which is the point: on a
+ * card of stacked rows the *value* is what you scan for, and a label that
+ * competes with it makes the form twice as long to read.
+ */
+const OZNAKA =
+  "font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase";
+
+/**
+ * A field inside a card: no border of its own, since the card draws it.
+ *
+ * The focus ring is kept — a borderless input with no focus state is a field
+ * you cannot tell you are in, and on a form this long that matters more than
+ * the tidiness of losing it.
+ */
+const POLJE =
+  "h-auto rounded-none border-0 bg-transparent px-0 py-1 text-[17px] shadow-none focus-visible:border-0 focus-visible:ring-0 focus-visible:underline focus-visible:decoration-akcenat focus-visible:decoration-2 focus-visible:underline-offset-4 md:text-[17px] dark:bg-transparent";
+
+/** One labelled row of a card, with its help text and error underneath. */
+function RedForme({
+  id,
+  oznaka,
+  pomoc,
+  greska,
   children,
 }: {
-  naslov: string;
+  id: string;
+  oznaka: string;
+  pomoc?: string;
+  greska?: string;
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="flex flex-col gap-4 rounded-xl border border-border p-4">
-      <legend className="px-1 text-sm font-semibold">{naslov}</legend>
+    <div className="border-b border-border px-4 py-2.5 last:border-0">
+      <label htmlFor={id} className={OZNAKA}>
+        {oznaka}
+      </label>
       {children}
-    </fieldset>
+      {pomoc ? <p className="text-sm text-muted-foreground">{pomoc}</p> : null}
+      {greska ? (
+        <p role="alert" className="mt-1 text-sm text-destructive">
+          {greska}
+        </p>
+      ) : null}
+    </div>
   );
 }
+
+/** The date of one leg, sitting under its destination inside the route block. */
+function DatumEtape({
+  id,
+  oznaka,
+  vrednost,
+  onChange,
+  disabled,
+  greska,
+  min,
+}: {
+  id: string;
+  oznaka: string;
+  vrednost: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  greska?: string;
+  min?: string;
+}) {
+  return (
+    <>
+      <label htmlFor={id} className="sr-only">
+        {oznaka}
+      </label>
+      {/* Native, so the phone's own picker opens and the value is already the
+          `YYYY-MM-DD` the rest of the app speaks (standing rule 4). */}
+      <Input
+        id={id}
+        name={id}
+        type="date"
+        value={vrednost}
+        min={min}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        aria-invalid={greska ? true : undefined}
+        className={cn(POLJE, "text-base text-muted-foreground md:text-base")}
+      />
+      {greska ? (
+        <p role="alert" className="text-sm text-destructive">
+          {greska}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The *Jednosmerna vožnja* switch.
+ *
+ * A `role="switch"` button rather than a Radix Switch: SPEC §9 caps this
+ * project at six shadcn primitives, and a control this simple is not worth
+ * making it seven. It carries no `name` — the one-way state is client-side
+ * only, since what actually records it is the empty return date.
+ */
+function Prekidac({
+  ukljucen,
+  onChange,
+  disabled,
+  oznaka,
+  opisId,
+}: {
+  ukljucen: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  oznaka: string;
+  opisId: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={ukljucen}
+      aria-label={oznaka}
+      aria-describedby={opisId}
+      disabled={disabled}
+      onClick={() => onChange(!ukljucen)}
+      className={cn(
+        "relative flex h-7 w-12 shrink-0 items-center rounded-full p-0.5 transition-colors disabled:opacity-50",
+        ukljucen ? "bg-akcenat" : "bg-input",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "size-6 rounded-full bg-background shadow-sm transition-transform",
+          ukljucen && "translate-x-5",
+        )}
+      />
+    </button>
+  );
+}
+
+/**
+ * Head count: a stepper, with the number still typeable.
+ *
+ * The canvas draws − and +, which is right for a field that is 2 or 4 nearly
+ * every time. It is not right for a bus of 21, so the number in the middle
+ * stays a real input — the buttons are the fast path, not the only one.
+ * `MAX_PUTNIKA` is 100 in the schema; the + stops there rather than handing
+ * the server a value it will refuse.
+ */
+function BrojPutnika({
+  vrednost,
+  onChange,
+  onKorak,
+  disabled,
+  neispravno,
+}: {
+  vrednost: string;
+  onChange: (v: string) => void;
+  /**
+   * A *step*, not a value — and deliberately separate from `onChange`.
+   *
+   * The parent applies it with the functional form of `setState`, so two taps
+   * inside one frame are two steps. Computing the next value here from the
+   * prop looked right and was not: a quick double tap read the same stale
+   * number twice and moved by one. Caught in the browser, 09.09.2026.
+   */
+  onKorak: (za: number) => void;
+  disabled?: boolean;
+  neispravno?: boolean;
+}) {
+  const broj = Number.parseInt(vrednost, 10);
+
+  return (
+    <div className="mt-1 flex items-center justify-between gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onKorak(-1)}
+        disabled={disabled || broj <= 1}
+        aria-label={T.forma.manjePutnika}
+        className="size-11 shrink-0 rounded-xl p-0"
+      >
+        <MinusIcon className="size-4" />
+      </Button>
+      <Input
+        id="brojPutnika"
+        name="brojPutnika"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        step={1}
+        value={vrednost}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        aria-invalid={neispravno ? true : undefined}
+        aria-label={T.forma.brojPutnika}
+        className={cn(
+          POLJE,
+          "text-center font-mono text-[22px] md:text-[22px]",
+          // The spinners duplicate the two buttons either side of them.
+          "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
+        )}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => onKorak(1)}
+        disabled={disabled || broj >= MAX_PUTNIKA}
+        aria-label={T.forma.visePutnika}
+        className="size-11 shrink-0 rounded-xl border-akcenat bg-akcenat-blago p-0 text-akcenat-slova"
+      >
+        <PlusIcon className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+/*
+ * `Odeljak` — a bordered fieldset with a legend — stood here until 09.09.2026.
+ * It wrapped each leg's cascade; the legs are now rows of one route block and
+ * nothing else on this screen groups that way.
+ */
 
 function Polje({
   id,

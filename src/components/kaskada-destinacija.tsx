@@ -77,6 +77,43 @@ type Put = {
   grad: string;
 };
 
+/**
+ * The four fields the Server Action reads, as one piece.
+ *
+ * Exported because they do not always sit where the cascade does: when the
+ * cascade is opened in a Sheet, Radix portals it outside the `<form>` and
+ * these have to stay behind in it — see `skrivenaPolja` and
+ * `RedDestinacije`.
+ */
+export function SkrivenaPolja({
+  naziv,
+  vrednost,
+}: {
+  naziv: string;
+  vrednost: Odabir;
+}) {
+  return (
+    <>
+      <input type="hidden" name={naziv} value={vrednost.id ?? ""} />
+      <input
+        type="hidden"
+        name={`${naziv}Drzava`}
+        value={vrednost.novo?.drzavaSifra ?? ""}
+      />
+      <input
+        type="hidden"
+        name={`${naziv}Regija`}
+        value={vrednost.novo?.regija ?? ""}
+      />
+      <input
+        type="hidden"
+        name={`${naziv}Grad`}
+        value={vrednost.novo?.grad ?? ""}
+      />
+    </>
+  );
+}
+
 /** Value equality, so re-deriving fires on a real outside change only. */
 function istiOdabir(a: Odabir, b: Odabir): boolean {
   if (a.id !== b.id) return false;
@@ -97,6 +134,7 @@ export function KaskadaDestinacija({
   greska,
   disabled,
   bezRegije = false,
+  skrivenaPolja = true,
 }: {
   /** Prefix for the generated element ids — two cascades share one page. */
   idPolja: string;
@@ -122,6 +160,15 @@ export function KaskadaDestinacija({
    * Action resolves that — see `razresiDestinaciju`.
    */
   bezRegije?: boolean;
+  /**
+   * Render the four hidden inputs the form submits.
+   *
+   * Off when the cascade lives inside a Sheet: Radix portals a sheet to the
+   * end of `<body>`, which is outside the `<form>`, and an input outside the
+   * form is an input the Server Action never receives. `RedDestinacije` keeps
+   * them in the form and hands the cascade the value instead.
+   */
+  skrivenaPolja?: boolean;
 }) {
   /**
    * Does *this* country show a region here?
@@ -308,22 +355,7 @@ export function KaskadaDestinacija({
         every time so a field never disappears mid-edit — the Server Action
         reads an empty id plus a filled-in name as "create this place".
       */}
-      <input type="hidden" name={naziv} value={vrednost.id ?? ""} />
-      <input
-        type="hidden"
-        name={`${naziv}Drzava`}
-        value={vrednost.novo?.drzavaSifra ?? ""}
-      />
-      <input
-        type="hidden"
-        name={`${naziv}Regija`}
-        value={vrednost.novo?.regija ?? ""}
-      />
-      <input
-        type="hidden"
-        name={`${naziv}Grad`}
-        value={vrednost.novo?.grad ?? ""}
-      />
+      {skrivenaPolja ? <SkrivenaPolja naziv={naziv} vrednost={vrednost} /> : null}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={idDrzave} className="text-sm font-medium">

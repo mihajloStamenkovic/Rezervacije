@@ -112,6 +112,26 @@ export const DestinacijaSchema = z
 export const MAX_PUTNIKA = 100;
 
 /**
+ * One step of the *Broj putnika* stepper — SPEC §6, screen 3, added with the
+ * design canvas on 09.09.2026.
+ *
+ * Takes the field as it stands, as a string, because that is what a text field
+ * holds: empty while nothing has been typed, and possibly something that is
+ * not a number at all. Empty counts as zero, so the first `+` lands on 1
+ * rather than on nothing.
+ *
+ * Clamped to 1…`MAX_PUTNIKA` so a thumb cannot walk the field to a value the
+ * schema will refuse — the stepper is a shortcut through the same range the
+ * form accepts, not a second opinion about it. Typing is still free to go
+ * anywhere; that is what validation is for.
+ */
+export function pomeriPutnike(vrednost: string, za: number): string {
+  const broj = Number.parseInt(vrednost, 10);
+  const osnova = Number.isFinite(broj) ? broj : 0;
+  return String(Math.min(MAX_PUTNIKA, Math.max(1, osnova + za)));
+}
+
+/**
  * Longest pickup address accepted.
  *
  * Same kind of guardrail as `MAX_NAZIVA`: the column is `text`, so this is

@@ -23,11 +23,14 @@
  * list has one order now — by date, soonest first — so the sheet holds only
  * the two things that are genuinely questions: which days, and which places.
  */
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon, SlidersHorizontalIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  SlidersHorizontalIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -38,7 +41,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type { CvorDrzave, CvorRegije } from "@/domen/destinacije";
+import type { CvorDrzave } from "@/domen/destinacije";
 import {
   brojAktivnihFiltera,
   opsegZaCip,
@@ -83,7 +86,9 @@ export function FilterSheet({
   const [otvoren, postaviOtvoren] = useState(false);
   const [nacrt, postaviNacrt] = useState<StanjeUrl>(stanje);
   const [beseOtvoren, postaviBeseOtvoren] = useState(false);
-  const [otvoreneDrzave, postaviOtvoreneDrzave] = useState<string[]>([]);
+  // Which regions are showing their towns. Never applied, never in the URL —
+  // it is where you are looking, not what you are filtering on.
+  const [otvoreneRegije, postaviOtvoreneRegije] = useState<string[]>([]);
 
   // Reseed the draft from the applied state each time the sheet opens, so a
   // sheet closed with the X leaves no half-made changes behind. Done as a
@@ -100,6 +105,7 @@ export function FilterSheet({
   );
 
   const broj = brojAktivnihFiltera(stanje);
+  const brojNacrta = brojAktivnihFiltera(nacrt);
   const cip = aktivanCip(nacrt.opseg, danas);
 
   function postaviOpseg(opseg: OpsegDatuma | null) {
@@ -119,6 +125,12 @@ export function FilterSheet({
    */
   function postaviKraj(kraj: "od" | "do", vrednost: string) {
     postaviOpseg(postaviKrajOpsega(nacrt.opseg, kraj, vrednost));
+  }
+
+  function prebaciOtvorenu(kljuc: string) {
+    postaviOtvoreneRegije((p) =>
+      p.includes(kljuc) ? p.filter((k) => k !== kljuc) : [...p, kljuc],
+    );
   }
 
   function prebaciDestinaciju(kljuc: string) {
@@ -165,8 +177,27 @@ export function FilterSheet({
         // the body scrolls rather than the sheet growing off-screen.
         className="max-h-[88svh] gap-0 rounded-t-2xl p-0"
       >
-        <SheetHeader className="border-b border-border px-4 py-3">
+        {/* The grab handle. Decoration in the strictest sense — the sheet is
+            dismissed by the ✕, the overlay or Escape — but it is the mark that
+            says "this slid up from the bottom", and the canvas draws it. */}
+        <span
+          aria-hidden="true"
+          className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border"
+        />
+
+        <SheetHeader className="flex-row items-center gap-2 border-b border-border px-4 pt-2 pb-3">
           <SheetTitle className="text-base">{T.filter.naslov}</SheetTitle>
+          {/* The *draft's* count, not the applied one the trigger shows: in
+              here the number has to move as boxes are ticked, or it reads as
+              broken. */}
+          {brojNacrta > 0 ? (
+            <span
+              aria-label={filtera(brojNacrta)}
+              className="inline-flex min-w-5 items-center justify-center rounded-full bg-akcenat px-1.5 py-0.5 text-xs font-semibold text-na-akcentu"
+            >
+              {brojNacrta}
+            </span>
+          ) : null}
           <SheetDescription className="sr-only">
             {T.filter.naslov}
           </SheetDescription>
@@ -184,7 +215,7 @@ export function FilterSheet({
                   className={cn(
                     "h-11 rounded-full border px-4 text-base transition-colors",
                     cip === c
-                      ? "border-primary bg-primary text-primary-foreground"
+                      ? "border-akcenat bg-akcenat text-na-akcentu"
                       : "border-border bg-background active:bg-muted",
                   )}
                 >
@@ -210,66 +241,19 @@ export function FilterSheet({
           </Odeljak>
 
           <Odeljak naslov={T.filter.destinacija}>
-            <ul className="flex flex-col">
-              {stablo.map((drzava) => {
-                const otvorena = otvoreneDrzave.includes(drzava.kljuc);
-                const panelId = `panel-${drzava.sifra}`;
-                return (
-                  <li
-                    key={drzava.kljuc}
-                    className="border-b border-border/60 last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <RedIzbora
-                        kljuc={drzava.kljuc}
-                        naziv={drzava.naziv}
-                        podebljano
-                        pokriven={jePokriven(
-                          gradoviCvora(stablo, drzava.kljuc),
-                          izabraniGradovi,
-                        )}
-                        onToggle={prebaciDestinaciju}
-                      />
-                      <button
-                        type="button"
-                        aria-expanded={otvorena}
-                        aria-controls={panelId}
-                        aria-label={drzava.naziv}
-                        onClick={() =>
-                          postaviOtvoreneDrzave((p) =>
-                            p.includes(drzava.kljuc)
-                              ? p.filter((k) => k !== drzava.kljuc)
-                              : [...p, drzava.kljuc],
-                          )
-                        }
-                        className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-muted"
-                      >
-                        <ChevronDownIcon
-                          className={cn(
-                            "size-5 transition-transform",
-                            otvorena && "rotate-180",
-                          )}
-                        />
-                      </button>
-                    </div>
-
-                    {otvorena ? (
-                      <ul id={panelId} className="pb-1 pl-4">
-                        {drzava.regije.map((regija) => (
-                          <Regija
-                            key={regija.kljuc}
-                            regija={regija}
-                            stablo={stablo}
-                            izabraniGradovi={izabraniGradovi}
-                            onToggle={prebaciDestinaciju}
-                          />
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="flex flex-col gap-4">
+              {stablo.map((drzava) => (
+                <GrupaDrzave
+                  key={drzava.kljuc}
+                  drzava={drzava}
+                  stablo={stablo}
+                  izabraniGradovi={izabraniGradovi}
+                  otvorene={otvoreneRegije}
+                  onOtvori={prebaciOtvorenu}
+                  onToggle={prebaciDestinaciju}
+                />
+              ))}
+            </div>
           </Odeljak>
         </div>
 
@@ -289,7 +273,7 @@ export function FilterSheet({
           <Button
             type="button"
             onClick={primeni}
-            className="h-12 flex-1 text-base"
+            className="h-12 flex-1 bg-akcenat text-base text-na-akcentu hover:bg-akcenat/90"
           >
             {T.filter.primeni}
           </Button>
@@ -346,95 +330,166 @@ function PoljeDatuma({
 }
 
 /**
- * A region holding exactly one city renders as that city and nothing else —
- * showing `Solun i okolina` above `Solun` is two rows and two taps to say
- * Solun. The selection algebra treats the two keys as equivalent anyway.
+ * One country as a row of chips: the country itself, then what sits under it.
+ *
+ * **A region holding exactly one city renders as that city** — showing
+ * `Solun i okolina` beside `Solun` is two chips to say Solun, and the
+ * selection algebra treats the two keys as equivalent anyway. That single rule
+ * is what makes Srbija read as `Beograd · Kopaonik · Niš` while Grčka reads as
+ * its four regions, with no country named anywhere in this file.
+ *
+ * A real region keeps its towns one tap away rather than on screen: 45 towns
+ * laid out at once is a wall, and the towns of a region you are not filtering
+ * on are noise. The chevron inside the chip opens them; the chip itself still
+ * selects the whole region, which is the common case.
  */
-function Regija({
-  regija,
+function GrupaDrzave({
+  drzava,
   stablo,
   izabraniGradovi,
+  otvorene,
+  onOtvori,
   onToggle,
 }: {
-  regija: CvorRegije;
+  drzava: CvorDrzave;
   stablo: CvorDrzave[];
   izabraniGradovi: ReadonlySet<string>;
+  otvorene: string[];
+  onOtvori: (kljuc: string) => void;
   onToggle: (kljuc: string) => void;
 }) {
-  if (regija.gradovi.length === 1) {
-    const grad = regija.gradovi[0];
-    return (
-      <li>
-        <RedIzbora
-          kljuc={grad.kljuc}
-          naziv={grad.naziv}
-          pokriven={izabraniGradovi.has(grad.kljuc)}
-          onToggle={onToggle}
-        />
-      </li>
-    );
-  }
+  const stanje = (kljuc: string, roditeljPun: boolean): StanjeCipa => {
+    const gradovi = gradoviCvora(stablo, kljuc);
+    if (jePokriven(gradovi, izabraniGradovi)) {
+      // Ticked in its own right, or merely swept up by its country. The
+      // difference is the whole reason for the soft state: a filled chip is
+      // something you chose, a soft one is something you are getting.
+      return roditeljPun ? "blag" : "pun";
+    }
+    return gradovi.some((g) => izabraniGradovi.has(g)) ? "blag" : "prazan";
+  };
+
+  const drzavaPuna = stanje(drzava.kljuc, false) === "pun";
 
   return (
-    <li>
-      <RedIzbora
-        kljuc={regija.kljuc}
-        naziv={regija.naziv}
+    <div className="flex flex-wrap items-start gap-2">
+      <Cip
+        naziv={drzava.naziv}
+        stanje={drzavaPuna ? "pun" : "prazan"}
         podebljano
-        pokriven={jePokriven(
-          gradoviCvora(stablo, regija.kljuc),
-          izabraniGradovi,
-        )}
-        onToggle={onToggle}
+        onClick={() => onToggle(drzava.kljuc)}
       />
-      <ul className="pl-4">
-        {regija.gradovi.map((grad) => (
-          <li key={grad.kljuc}>
-            <RedIzbora
-              kljuc={grad.kljuc}
+
+      {drzava.regije.map((regija) => {
+        if (regija.gradovi.length === 1) {
+          const grad = regija.gradovi[0];
+          return (
+            <Cip
+              key={grad.kljuc}
               naziv={grad.naziv}
-              pokriven={izabraniGradovi.has(grad.kljuc)}
-              onToggle={onToggle}
+              stanje={stanje(grad.kljuc, drzavaPuna)}
+              onClick={() => onToggle(grad.kljuc)}
             />
-          </li>
-        ))}
-      </ul>
-    </li>
+          );
+        }
+
+        const otvorena = otvorene.includes(regija.kljuc);
+        const regijaPuna = stanje(regija.kljuc, drzavaPuna) === "pun";
+        return (
+          <Fragment key={regija.kljuc}>
+            <Cip
+              naziv={regija.naziv}
+              stanje={stanje(regija.kljuc, drzavaPuna)}
+              otvorena={otvorena}
+              onOtvori={() => onOtvori(regija.kljuc)}
+              onClick={() => onToggle(regija.kljuc)}
+            />
+            {otvorena ? (
+              // Its own full-width line, so opening a region never reshuffles
+              // the chips beside it — a list that rearranges under the thumb
+              // is a list you tap the wrong thing in.
+              <div className="flex w-full flex-wrap gap-2 pl-4">
+                {regija.gradovi.map((grad) => (
+                  <Cip
+                    key={grad.kljuc}
+                    naziv={grad.naziv}
+                    stanje={stanje(grad.kljuc, drzavaPuna || regijaPuna)}
+                    onClick={() => onToggle(grad.kljuc)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </Fragment>
+        );
+      })}
+    </div>
   );
 }
 
-/** Checkbox plus label, the pair sized as one 44px row. */
-function RedIzbora({
-  kljuc,
+/**
+ * Filled when you chose it, soft when something under or over it is chosen,
+ * plain otherwise.
+ */
+type StanjeCipa = "pun" | "blag" | "prazan";
+
+function Cip({
   naziv,
-  pokriven,
+  stanje,
   podebljano = false,
-  onToggle,
+  otvorena,
+  onOtvori,
+  onClick,
 }: {
-  kljuc: string;
   naziv: string;
-  pokriven: boolean;
+  stanje: StanjeCipa;
   podebljano?: boolean;
-  onToggle: (kljuc: string) => void;
+  /** Present only on a chip that has towns to open. */
+  otvorena?: boolean;
+  onOtvori?: () => void;
+  onClick: () => void;
 }) {
-  const id = `dest-${kljuc}`;
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
-      <Checkbox
-        id={id}
-        checked={pokriven}
-        onCheckedChange={() => onToggle(kljuc)}
-        className="size-5"
-      />
-      <label
-        htmlFor={id}
+    <span
+      className={cn(
+        "inline-flex h-11 items-center rounded-full border transition-colors",
+        stanje === "pun" &&
+          "border-akcenat bg-akcenat text-na-akcentu",
+        stanje === "blag" &&
+          "border-akcenat-ivica bg-akcenat-blago text-akcenat-slova",
+        stanje === "prazan" && "border-border bg-background",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={stanje === "pun"}
         className={cn(
-          "flex min-h-11 min-w-0 flex-1 items-center truncate text-base",
+          "flex h-11 items-center gap-1.5 rounded-full px-4 text-base",
           podebljano && "font-medium",
+          onOtvori && "pr-2",
         )}
       >
+        {stanje === "pun" ? (
+          <CheckIcon aria-hidden="true" className="size-4" />
+        ) : null}
         {naziv}
-      </label>
-    </div>
+      </button>
+      {onOtvori ? (
+        <button
+          type="button"
+          onClick={onOtvori}
+          aria-expanded={otvorena}
+          aria-label={naziv}
+          className="flex h-11 w-9 items-center justify-center rounded-r-full"
+        >
+          <ChevronDownIcon
+            className={cn(
+              "size-4 transition-transform",
+              otvorena && "rotate-180",
+            )}
+          />
+        </button>
+      ) : null}
+    </span>
   );
 }

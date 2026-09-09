@@ -483,12 +483,18 @@ apart.
    `Beograd → Hanioti` on a departure — because "↓ Povratak · Beograd" says
    they are arriving but not where from, which is half the dispatch question.
    Where both ends are the same place it collapses to one name.
-2. **Filter** — bottom sheet, date chips and the destination checkbox list grouped
-   by country (collapsible), *Primeni* / *Obriši sve*.
-3. **Nova / Izmeni rezervaciju** — one column, big touch targets, native date
-   pickers, three cascading destination dropdowns (Država → Regija → Grad) for
-   each leg. ⇅ swap button between the two legs, and the *Jednosmerna vožnja*
-   checkbox (§5).
+2. **Filter** — bottom sheet, date chips, and the destinations as **chip
+   groups**: each country followed by what sits under it, a region with several
+   towns opening them on its chevron. A filled chip is one you picked, a soft
+   one is one you are getting because something over or under it is picked.
+   *Primeni* / *Obriši sve*.
+3. **Nova / Izmeni rezervaciju** — the **route block first**: two rows, each
+   reading `Grčka › Kasandra › Hanioti` with its date under it, the ⇅ swap on
+   the hairline between them and the *Jednosmerna vožnja* switch beneath (§5).
+   Tapping a row opens the cascade (Država → Regija → Grad) in a sheet;
+   *Potvrdi* writes it back. Then one card of Ime / Telefon / Adresa, the head
+   count and price side by side, and the note last. Native date pickers, big
+   touch targets.
 4. **Detalji** — full booking with *Pozovi* and *Viber* straight off the phone
    number, plus edit and delete. A round trip reads *Polazak / Povratak*; a
    one-way reads **Odakle / Kuda / Povratak nije dogovoren**, so the origin is
@@ -800,8 +806,21 @@ All of it drops onto this schema later without a rewrite.
 
 ## 12. Changelog
 
-**09.09.2026** — two tabs: *Odlasci* and *Povratak*, no sort, a theme switch, and
-the region only where it earns a tap.
+**09.09.2026** — two tabs: *Odlasci* and *Povratak*, no sort, a theme switch,
+the region only where it earns a tap, and the form and filter restyled from a
+design canvas.
+
+- **§6, screens 2 and 3, rebuilt from `Rezervacije UI.dc.html`** — a Claude
+  Design canvas of the owner's, imported through the design MCP. The form leads
+  with the route as two readable rows and puts the cascade behind them in a
+  sheet; the filter trades its checkbox tree for chip groups. A petrol accent
+  arrives with them, as its own palette (`--akcenat`) used **only on those two
+  screens** — the owner scoped the change to them, so Lista, Detalji and
+  Podešavanja stay neutral.
+- Two things the canvas could not decide, because an artboard is a still
+  picture, and the owner did: tapping a route row opens the cascade rather than
+  replacing it, and a region chip still opens its towns, so filtering down to
+  Hanioti alone survives (SPEC §3).
 
 - **§5: the *Odlazak* leg drops the region** wherever it narrows nothing. The
   owner asked for Srbija; the rule he approved is "more than one region, and

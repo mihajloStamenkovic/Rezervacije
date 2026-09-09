@@ -156,6 +156,11 @@ export const T = {
     odakle: "Odakle",
     kuda: "Kuda",
     zameni: "Zameni polazak i povratak",
+    /** Closes the destination sheet and writes the choice into the form. */
+    potvrdi: "Potvrdi",
+    /** The stepper beside Broj putnika — screen-reader labels for ± . */
+    manjePutnika: "Jedan putnik manje",
+    visePutnika: "Jedan putnik više",
     sacuvaj: "Sačuvaj",
     cuvanje: "Čuvanje…",
     odustani: "Odustani",

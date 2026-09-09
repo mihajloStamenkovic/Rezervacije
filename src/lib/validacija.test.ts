@@ -15,6 +15,7 @@ import {
   RezervacijaSchema,
   greskePolja,
   izFormData,
+  pomeriPutnike,
   type UlazRezervacije,
 } from "./validacija";
 import { T } from "./tekst";
@@ -337,5 +338,41 @@ describe("adresa, cena i napomena", () => {
     expect(greskaZa({ napomena: "a".repeat(MAX_NAPOMENE + 1) }).napomena).toBe(
       T.greske.napomenaPredugacka,
     );
+  });
+});
+
+/**
+ * The Broj putnika stepper.
+ *
+ * It exists as a function rather than inside the button handler for one
+ * reason, and the last case is it: the parent applies it with the functional
+ * form of `setState`, so two taps in one frame are two steps. Computing from
+ * the rendered value instead lost the second tap, which is exactly how you
+ * fail to notice you booked four people instead of five.
+ */
+describe("pomeriPutnike", () => {
+  it("starts from one, whatever the field held", () => {
+    expect(pomeriPutnike("", 1)).toBe("1");
+    expect(pomeriPutnike("   ", 1)).toBe("1");
+    expect(pomeriPutnike("abc", 1)).toBe("1");
+  });
+
+  it("steps by one either way", () => {
+    expect(pomeriPutnike("4", 1)).toBe("5");
+    expect(pomeriPutnike("4", -1)).toBe("3");
+  });
+
+  it("never goes below one", () => {
+    expect(pomeriPutnike("1", -1)).toBe("1");
+    expect(pomeriPutnike("", -1)).toBe("1");
+  });
+
+  it("stops at the cap the schema would refuse past", () => {
+    expect(pomeriPutnike(String(MAX_PUTNIKA), 1)).toBe(String(MAX_PUTNIKA));
+    expect(pomeriPutnike(String(MAX_PUTNIKA + 40), 1)).toBe(String(MAX_PUTNIKA));
+  });
+
+  it("composes, which is what makes two quick taps two steps", () => {
+    expect(pomeriPutnike(pomeriPutnike("2", 1), 1)).toBe("4");
   });
 });

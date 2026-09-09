@@ -29,6 +29,24 @@
 }
 
 @theme inline {
+  /*
+   * The petrol accent from the design canvas, 09.09.2026 — `bg-akcenat`,
+   * `text-akcenat-slova`, `border-akcenat-ivica` and so on.
+   *
+   * A palette of its own rather than a new `--primary`, because the owner
+   * asked for **only Nova rezervacija and Filter** to change. Those two
+   * screens use it; Lista, Detalji and Podešavanja are untouched and still
+   * neutral. Making it the app's primary later is one line — point
+   * `--primary` at `--akcenat` — and that is the day to look at every screen
+   * at once rather than a side effect of restyling a form.
+   */
+  --color-akcenat: var(--akcenat);
+  --color-na-akcentu: var(--na-akcentu);
+  --color-akcenat-blago: var(--akcenat-blago);
+  --color-akcenat-ivica: var(--akcenat-ivica);
+  --color-akcenat-slova: var(--akcenat-slova);
+  --color-povratak-akcenat: var(--povratak-akcenat);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -105,6 +123,20 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /*
+   * The petrol accent, light. Straight off the design canvas: `0.44 0.10 205`
+   * is the filled button and the ticked chip, `0.97 0.02 205` the soft chip
+   * behind a chosen country's regions. `--povratak-akcenat` is the amber the
+   * canvas kept for the homeward leg, so the two directions stay told apart by
+   * hue and not only by an arrow.
+   */
+  --akcenat: oklch(0.44 0.1 205);
+  --na-akcentu: oklch(0.99 0 0);
+  --akcenat-blago: oklch(0.97 0.02 205);
+  --akcenat-ivica: oklch(0.86 0.04 205);
+  --akcenat-slova: oklch(0.42 0.09 205);
+  --povratak-akcenat: oklch(0.52 0.13 65);
 }
 
 /*
@@ -151,6 +183,19 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+
+    /*
+     * The same accent, dark. Not the same numbers: the canvas is light-only, and
+     * 0.44 lightness on a near-black ground is a smudge rather than an accent. The
+     * fill lightens so it reads, and --na-akcentu flips dark so text on it stays
+     * legible.
+     */
+    --akcenat: oklch(0.68 0.1 205);
+    --na-akcentu: oklch(0.18 0.02 205);
+    --akcenat-blago: oklch(0.27 0.04 205);
+    --akcenat-ivica: oklch(0.4 0.05 205);
+    --akcenat-slova: oklch(0.8 0.07 205);
+    --povratak-akcenat: oklch(0.75 0.12 65);
   }
 }
 
@@ -187,6 +232,19 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /*
+   * The same accent, dark. Not the same numbers: the canvas is light-only, and
+   * 0.44 lightness on a near-black ground is a smudge rather than an accent. The
+   * fill lightens so it reads, and --na-akcentu flips dark so text on it stays
+   * legible.
+   */
+  --akcenat: oklch(0.68 0.1 205);
+  --na-akcentu: oklch(0.18 0.02 205);
+  --akcenat-blago: oklch(0.27 0.04 205);
+  --akcenat-ivica: oklch(0.4 0.05 205);
+  --akcenat-slova: oklch(0.8 0.07 205);
+  --povratak-akcenat: oklch(0.75 0.12 65);
 }
 
 @layer base {
