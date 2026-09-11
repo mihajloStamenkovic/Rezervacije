@@ -224,7 +224,7 @@ export function FilterSheet({
               ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 flex gap-5">
               <PoljeDatuma
                 id="filter-od"
                 oznaka={T.filter.odDatuma}
@@ -312,7 +312,11 @@ function PoljeDatuma({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    // A fixed width rather than an equal grid column, at the owner's request
+    // (11.09.2026): full-width columns left the two fields touching on a
+    // phone screen. This keeps them narrower than that and lets `gap-5` on
+    // the parent put real space between them instead.
+    <div className="flex w-36 flex-col gap-1.5">
       <label htmlFor={id} className="text-sm text-muted-foreground">
         {oznaka}
       </label>
