@@ -6,7 +6,13 @@
  * from the same two columns and nothing else.
  */
 import { describe, expect, it } from "vitest";
-import { jeIstaTacka, jeJednosmerna, rutaEtape } from "./glavna-etapa";
+import {
+  jeIstaTacka,
+  jeJednosmerna,
+  rutaEtape,
+  strukturniSmer,
+  sveEtape,
+} from "./glavna-etapa";
 import {
   BEOGRAD,
   HANIOTI,
@@ -14,6 +20,7 @@ import {
   R1,
   R5,
   R7,
+  R9,
   SOLUN,
   dan,
   red,
@@ -61,6 +68,24 @@ describe("rutaEtape", () => {
     const ruta = rutaEtape(R7, "odlazak");
     expect(ruta.od.grad).toBe(BEOGRAD.grad);
     expect(ruta.do.grad).toBe(LJUBLJANA.grad);
+  });
+});
+
+describe("strukturniSmer — the formula stays right when smer is relabelled", () => {
+  it("R9's leg reports smer povratak but its route still runs Solun → Beograd", () => {
+    // Amended 11.09.2026: R9 is a ride home from abroad, so `sveEtape` reports
+    // its (only) leg as `povratak` even though it structurally came from the
+    // outbound column. Feeding that reported smer to `rutaEtape` directly
+    // would reverse the arrow; `strukturniSmer` must not.
+    const [etapa] = sveEtape(R9);
+    expect(etapa.smer).toBe("povratak");
+
+    const formula = strukturniSmer(R9, etapa);
+    expect(formula).toBe("odlazak");
+
+    const ruta = rutaEtape(R9, formula);
+    expect(ruta.od.grad).toBe(SOLUN.grad);
+    expect(ruta.do.grad).toBe(BEOGRAD.grad);
   });
 });
 

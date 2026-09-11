@@ -15,7 +15,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { BedzAutora } from "@/components/bedz-autora";
 import { CipSmera } from "@/components/cip-smera";
 import { imeDestinacije } from "@/domen/destinacije";
-import { jeIstaTacka, rutaEtape } from "@/domen/glavna-etapa";
+import { jeIstaTacka, rutaEtape, strukturniSmer } from "@/domen/glavna-etapa";
 import type { StavkaListe } from "@/domen/tipovi";
 import { T, putnika } from "@/lib/tekst";
 
@@ -36,8 +36,10 @@ export function KarticaRezervacije({
   const { rezervacija, autor } = stavka.red;
   // Both ends of this leg, so a return says where they are coming *from* and
   // not just that they are arriving. Inferred from the two destination
-  // columns — see `rutaEtape`.
-  const ruta = rutaEtape(stavka.red, stavka.smer);
+  // columns — see `rutaEtape`. `stavka.smer` can be relabelled for a ride
+  // home from abroad, so the route formula goes through `strukturniSmer`
+  // rather than `stavka.smer` directly.
+  const ruta = rutaEtape(stavka.red, strukturniSmer(stavka.red, stavka));
 
   return (
     <Link

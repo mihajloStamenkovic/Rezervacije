@@ -16,6 +16,14 @@
  * Europe/Belgrade by `danasBeograd()` at the entry point. Nothing in here
  * reads a clock, which is what keeps the two accounts seeing the same list
  * from two different countries (SPEC §7).
+ *
+ * **Amended 11.09.2026, at the owner's request.** A one-way booking whose
+ * outbound column is already a Serbian destination and whose other column is
+ * not — Odakle: Grčka, Kuda: Beograd, no `datum_povratka` — is a passenger
+ * coming home, not one leaving, however the columns happen to be laid out.
+ * `jeJednosmernaKuci` below carves that case out of the `↑ Odlazak` branch
+ * everywhere `smer` is read from a leg: the list tabs, the same-day sort
+ * tie-break, and the Detalji chip all follow.
  */
 import { jeDatum } from "@/lib/datum";
 import type { Datum, Etapa, GlavnaEtapa, RezervacijaRed, Ruta, Smer } from "./tipovi";
@@ -34,10 +42,45 @@ export function proveriDanas(danas: Datum): Datum {
   return danas;
 }
 
+/**
+ * Serbia — the home country, compared by the stable code rather than the
+ * display name, the same way `src/db/seed.ts` and the destination cascade
+ * already do.
+ */
+const DRZAVA_SIFRA_SRBIJA = "srbija";
+
+function jeUSrbiji(destinacija: RezervacijaRed["destinacija"]): boolean {
+  return destinacija.drzavaSifra === DRZAVA_SIFRA_SRBIJA;
+}
+
+/**
+ * A one-way ride *home from abroad* — SPEC §5's Odakle/Kuda reading of a
+ * `Jednosmerna vožnja`, where Kuda already holds a Serbian destination and
+ * Odakle does not. This is what makes the booking a homecoming rather than a
+ * departure, whichever column the data happens to sit in.
+ *
+ * The `!jeUSrbiji(destinacijaPovratka)` half matters: without it, an ordinary
+ * one-way drop-off at **Kopaonik** with no return date yet — a real booking,
+ * since Kopaonik is itself Serbian — would flip too, because its Odakle
+ * column defaults to Beograd and both columns would read as home. Requiring
+ * the *other* end to be abroad is what limits this to genuine cross-border
+ * homecomings.
+ */
+export function jeJednosmernaKuci(red: RezervacijaRed): boolean {
+  return (
+    jeJednosmerna(red) &&
+    jeUSrbiji(red.destinacija) &&
+    !jeUSrbiji(red.destinacijaPovratka)
+  );
+}
+
 /** The outbound leg. Every reservation has one — `datum_polaska` is required. */
 export function etapaPolaska(red: RezervacijaRed): Etapa {
   return {
-    smer: "odlazak",
+    // A ride home from abroad reads as `povratak` here even though it is
+    // structurally the outbound column — see `jeJednosmernaKuci`. `rutaEtape`
+    // must not be handed this value for that reason; see `strukturniSmer`.
+    smer: jeJednosmernaKuci(red) ? "povratak" : "odlazak",
     datum: red.rezervacija.datumPolaska,
     destinacija: red.destinacija,
   };
@@ -78,7 +121,8 @@ export function resolveMainLeg(
 
   if (datumPolaska >= danas) {
     return {
-      smer: "odlazak",
+      // Same carve-out as `etapaPolaska` — see `jeJednosmernaKuci`.
+      smer: jeJednosmernaKuci(red) ? "povratak" : "odlazak",
       datum: datumPolaska,
       destinacija: red.destinacija,
     };
@@ -121,11 +165,33 @@ export function bezGlavneEtape(red: RezervacijaRed, danas: Datum): boolean {
  * departs Beograd and returns to Beograd — where both ends are honestly the
  * same and the caller can collapse the pair rather than draw an arrow from a
  * town to itself.
+ *
+ * **The `smer` here picks a formula, not a business direction.** For a ride
+ * home from abroad, `etapaPolaska` reports `smer: "povratak"` (see
+ * `jeJednosmernaKuci`) even though `destinacija` is still the outbound
+ * column — feeding that reported `smer` in here would draw the arrow
+ * backwards. Callers reading a leg's own `smer` off an `Etapa`/`StavkaListe`
+ * must go through `strukturniSmer` instead of using it directly.
  */
 export function rutaEtape(red: RezervacijaRed, smer: Smer): Ruta {
   return smer === "odlazak"
     ? { od: red.destinacijaPovratka, do: red.destinacija }
     : { od: red.destinacija, do: red.destinacijaPovratka };
+}
+
+/**
+ * Which formula `rutaEtape` needs for a given leg — structural, and never
+ * overridden the way `Etapa.smer` can be for a ride home from abroad.
+ *
+ * A leg's `destinacija` is `red.destinacija` when it came from `etapaPolaska`
+ * and `red.destinacijaPovratka` when it came from `etapaPovratka`; comparing
+ * ids recovers that regardless of what `smer` was relabelled to. In the
+ * degenerate case where both columns are the same place, either branch
+ * yields the same already-collapsed route, so which one this picks does not
+ * matter.
+ */
+export function strukturniSmer(red: RezervacijaRed, etapa: Etapa): Smer {
+  return etapa.destinacija.id === red.destinacija.id ? "odlazak" : "povratak";
 }
 
 /** `true` when both ends are the same place, so one name says everything. */

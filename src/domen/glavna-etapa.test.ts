@@ -3,6 +3,7 @@ import {
   DANAS,
   HANIOTI,
   BEOGRAD,
+  KOPAONIK,
   R1,
   R2,
   R3,
@@ -10,6 +11,8 @@ import {
   R5,
   R6,
   R7,
+  R9,
+  R10,
   dan,
   red,
   SOLUN,
@@ -17,7 +20,9 @@ import {
 import {
   bezGlavneEtape,
   etapaPovratka,
+  jeJednosmernaKuci,
   resolveMainLeg,
+  strukturniSmer,
   sveEtape,
 } from "./glavna-etapa";
 
@@ -119,6 +124,47 @@ describe("resolveMainLeg — SPEC §1", () => {
     // "2026-1-5" >= "2026-01-15" is a perfectly quiet `true`.
     expect(() => resolveMainLeg(R1, "2026-1-5")).toThrow(/Neispravan datum/);
     expect(() => resolveMainLeg(R1, "danas")).toThrow(/Neispravan datum/);
+  });
+});
+
+describe("jeJednosmernaKuci — a ride home from abroad, amended 11.09.2026", () => {
+  it("a one-way with Beograd in Kuda and Grčka in Odakle is a homecoming", () => {
+    expect(jeJednosmernaKuci(R9)).toBe(true);
+    expect(resolveMainLeg(R9, DANAS)).toEqual({
+      smer: "povratak",
+      datum: dan(3),
+      destinacija: BEOGRAD,
+    });
+    expect(sveEtape(R9).map((e) => e.smer)).toEqual(["povratak"]);
+  });
+
+  it("its route still reads Solun → Beograd, not reversed", () => {
+    const [etapa] = sveEtape(R9);
+    expect(strukturniSmer(R9, etapa)).toBe("odlazak");
+  });
+
+  it("does not fire on a one-way whose other end is also Serbian (Kopaonik)", () => {
+    expect(jeJednosmernaKuci(R10)).toBe(false);
+    expect(resolveMainLeg(R10, DANAS)).toEqual({
+      smer: "odlazak",
+      datum: dan(5),
+      destinacija: KOPAONIK,
+    });
+  });
+
+  it("does not fire on a round trip, even one that would otherwise match", () => {
+    // Same shape as R9 but with a return date — no longer one-way.
+    const povratni = red({
+      n: 11,
+      ime: "Test",
+      telefon: "+381601112233",
+      destinacija: BEOGRAD,
+      destinacijaPovratka: SOLUN,
+      datumPolaska: dan(3),
+      datumPovratka: dan(20),
+      brojPutnika: 2,
+    });
+    expect(jeJednosmernaKuci(povratni)).toBe(false);
   });
 });
 

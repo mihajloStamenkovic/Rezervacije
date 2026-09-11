@@ -5,6 +5,8 @@ import {
   HANIOTI,
   KATALOG,
   LJUBLJANA,
+  R9,
+  R10,
   SIVIRI,
   SVI,
   dan,
@@ -389,5 +391,17 @@ describe("prikaziListu — the entry point the screen calls", () => {
     expect(() => prikaziListu(SVI, { danas: "2026-1-15" })).toThrow(
       /Neispravan datum/,
     );
+  });
+
+  it("files a one-way ride home from abroad under Povratak, not Odlasci (11.09.2026)", () => {
+    const { odlasci, povratci } = prikaziListu([R9], { danas: DANAS });
+    expect(imena(odlasci)).toEqual([]);
+    expect(imena(povratci)).toEqual(["Milica Radović"]);
+  });
+
+  it("still files an ordinary domestic one-way (Kopaonik) under Odlasci", () => {
+    const { odlasci, povratci } = prikaziListu([R10], { danas: DANAS });
+    expect(imena(odlasci)).toEqual(["Vuk Ivanović"]);
+    expect(imena(povratci)).toEqual([]);
   });
 });

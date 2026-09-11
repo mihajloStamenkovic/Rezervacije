@@ -276,6 +276,47 @@ export const R8 = red({
 });
 
 /**
+ * #9 — one-way ride home FROM ABROAD: Solun in Odakle, Beograd in Kuda.
+ *
+ * Unlike R5, this one is not degenerate — its two columns are genuinely
+ * different places — so it is the fixture that exercises `jeJednosmernaKuci`
+ * (11.09.2026, at the owner's request): it must resolve to `smer: "povratak"`
+ * and land in the *Povratak* tab, with its route still reading
+ * `Solun → Beograd`, not reversed.
+ *
+ * Not part of `SVI` — it has no corresponding row in `src/db/seed.ts`, and
+ * several tests assert exact counts over that fixed eight-row set.
+ */
+export const R9 = red({
+  n: 9,
+  ime: "Milica Radović",
+  telefon: "+381691234567",
+  destinacija: BEOGRAD,
+  destinacijaPovratka: SOLUN,
+  datumPolaska: dan(3),
+  datumPovratka: null,
+  brojPutnika: 2,
+});
+
+/**
+ * #10 — one-way drop-off at Kopaonik, no return date yet: a real, ordinary
+ * booking, and the carve-out `jeJednosmernaKuci` must *not* fire on. Both its
+ * columns are Serbian (Kopaonik, and Beograd by default), so it stays
+ * `smer: "odlazak"` and stays in *Odlasci*.
+ *
+ * Also not part of `SVI`, for the same reason as R9.
+ */
+export const R10 = red({
+  n: 10,
+  ime: "Vuk Ivanović",
+  telefon: "+381621112222",
+  destinacija: KOPAONIK,
+  datumPolaska: dan(5),
+  datumPovratka: null,
+  brojPutnika: 4,
+});
+
+/**
  * All eight, deliberately **not** in any meaningful order — `sveRezervacije()`
  * promises none, so a test that only passes on sorted input is testing the
  * fixture rather than the sort.

@@ -77,8 +77,10 @@ describe("SPEC §1 — rows of the main-leg table with no direct assertion", () 
     ]);
   });
 
-  it("a Greece to Beograd one-way behaves like any other trip", () => {
+  it("a Greece to Beograd one-way is a homecoming, not a departure (amended 11.09.2026)", () => {
     // Odakle = Solun in the return column, Kuda = Beograd in the outbound one.
+    // Originally this "behaved like any other trip" and stayed ↑ Odlazak; the
+    // owner asked for it to read ↓ Povratak instead, since Beograd is home.
     const r = red({
       n: 33,
       ime: "Kući iz Grčke",
@@ -90,8 +92,10 @@ describe("SPEC §1 — rows of the main-leg table with no direct assertion", () 
       brojPutnika: 2,
     });
     const glavna = resolveMainLeg(r, DANAS);
-    expect(glavna?.smer).toBe("odlazak");
+    expect(glavna?.smer).toBe("povratak");
     expect(glavna?.destinacija.id).toBe(BEOGRAD.id);
+    // Still reachable by the Beograd filter — the leg's destination has not
+    // moved, only which tab it is filed under has.
     expect(
       imena(
         rasporedView([r], {

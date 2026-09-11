@@ -66,7 +66,28 @@ row is left. The rule above is what each row's chip and *Detalji* still say.
 |---|---|
 | Departure passed, **no return date** | No leg left → **drops off the list entirely**: its departure is behind the horizon and it never had a return. Reachable two ways: by search on the name, or by filtering its past departure date. Accepted trade — reaffirmed 01.09.2026 and again 09.09.2026, when the owner was asked whether such a booking should be surfaced on the *Povratak* tab and chose to leave it as it is. See §8. |
 | Departure and return on the same day | One row in each tab — two rows for one booking, both dated that day. |
-| One-way ride *home* (e.g. Greece → Belgrade) | Entered with the **Jednosmerna vožnja** option: *Odakle* = Solun, *Kuda* = Beograd, no return date. See §5. |
+| One-way ride *home* (e.g. Greece → Belgrade) | Entered with the **Jednosmerna vožnja** option: *Odakle* = Solun, *Kuda* = Beograd, no return date. Direction ↓ Povratak, not ↑ Odlazak — see below. See §5. |
+
+> **Amended 11.09.2026 at the owner's request.** A one-way booking whose *Kuda*
+> column is already a Serbian destination and whose *Odakle* column is not is
+> a passenger **coming home**, not one leaving, whichever column the trip
+> happens to be stored in — so its direction is ↓ Povratak everywhere `smer`
+> is read: the list tab, the same-day sort tie-break, and the *Detalji* chip.
+> Before this it read ↑ Odlazak, purely because `datum_polaska` pairs with the
+> *Kuda* column structurally — the rule never looked at which country either
+> end was actually in.
+>
+> This does **not** fire on an ordinary domestic one-way — a drop-off at
+> **Kopaonik** with no return date agreed yet, say — because there *both*
+> columns are Serbian (Kopaonik, and Beograd by default). The rule requires
+> the *Odakle* end to be abroad, which is what keeps it scoped to genuine
+> cross-border homecomings rather than any Serbian destination. And it never
+> fires on a round trip: the moment a return date exists the booking is no
+> longer one-way, and both legs keep meaning exactly what they always have.
+>
+> The route shown on the card is unaffected — it still reads `Solun → Beograd`
+> — because it is read off the two destination columns directly (§4), not
+> derived from this now-sometimes-relabelled direction.
 
 ---
 
@@ -484,6 +505,12 @@ confirmed yet" are both an absent `datum_povratka`. Nothing in the app behaves
 differently between them, so nothing is lost — but no report can tell them
 apart.
 
+**When *Kuda* is Serbian and *Odakle* is not, this is a homecoming.** Amended
+11.09.2026 at the owner's request — see §1, "Edge cases": such a one-way
+resolves to ↓ Povratak, not ↑ Odlazak, everywhere direction is read from. A
+one-way to a Serbian destination whose *Odakle* is *also* Serbian — Kopaonik,
+say — is unaffected and stays ↑ Odlazak.
+
 ---
 
 ## 6. Ekrani
@@ -834,6 +861,12 @@ All of it drops onto this schema later without a rewrite.
 ---
 
 ## 12. Changelog
+
+**11.09.2026** — a one-way ride home from abroad (§1, §5) now resolves to
+↓ Povratak instead of ↑ Odlazak, everywhere direction is read from: the list
+tab, the same-day sort tie-break, and the *Detalji* chip. Scoped to genuine
+cross-border homecomings — *Kuda* Serbian, *Odakle* not — so an ordinary
+domestic one-way (Kopaonik with no return date yet) is unaffected.
 
 **09.09.2026** — two tabs: *Odlasci* and *Povratak*, no sort, a theme switch,
 the region only where it earns a tap, and the form and filter restyled from a
