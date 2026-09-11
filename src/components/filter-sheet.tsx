@@ -321,13 +321,17 @@ function PoljeDatuma({
         {oznaka}
       </label>
       {/* Native date input: the phone's own picker beats anything hand-rolled,
-          and it speaks YYYY-MM-DD, which is what the rest of the app uses. */}
+          and it speaks YYYY-MM-DD, which is what the rest of the app uses.
+          `appearance-none` because iOS Safari otherwise gives a date input its
+          own minimum width and ignores ours — the box spilled past `w-36` into
+          the gap and touched its neighbour on an iPhone, invisible in desktop
+          Chrome. iOS also centres the value; left keeps it under the label. */}
       <Input
         id={id}
         type="date"
         value={vrednost}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 text-base md:text-base"
+        className="h-11 appearance-none text-base md:text-base [&::-webkit-date-and-time-value]:text-left"
       />
     </div>
   );
